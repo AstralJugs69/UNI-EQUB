@@ -1,0 +1,14 @@
+﻿{
+  "name": "uniequb-workspace",
+  "private": true,
+  "scripts": {
+    "android:dev": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-android-dev.ps1",
+    "android:dev:clean": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-android-dev.ps1 -Clean",
+    "mobile:start": "npm --prefix mobile run start",
+    "mobile:android": "npm --prefix mobile run android",
+    "mobile:test": "npm --prefix mobile exec jest --runInBand",
+    "mobile:typecheck": "npm --prefix mobile exec tsc --noEmit",
+    "mobile:lint": "npm --prefix mobile run lint",
+    "seed:final-draw": "node .\\mobile\\scripts\\seed-final-draw.js"
+  }
+}

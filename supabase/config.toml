@@ -1,0 +1,38 @@
+project_id = "uniequb-local"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[functions.register-login]
+verify_jwt = false
+
+[functions.kyc-submit-review]
+verify_jwt = false
+
+[functions.group-lifecycle]
+verify_jwt = false
+
+[functions.contribution-reconcile]
+verify_jwt = false
+
+[functions.round-complete]
+verify_jwt = false
+
+[functions.payout-withdraw]
+verify_jwt = false
+
+[functions.report-export]
+verify_jwt = false

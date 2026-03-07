@@ -1,0 +1,1689 @@
+HAWASSA UNIVERSITY INSTITUTE OF TECHNOLOGY FACULTY OF INFORMATICS
+DEPARTMENT OF INFORMATION TECHNOLOGY
+Project Title: -  UniEqub- digital finance platform for students 
+A PROJECT SUBMITTED IN PARTIAL FULFILLMENT OF THE REQUIREMENT FOR THE AWARD OF DEGREE OF BACHELOR OF SCIENCE  IN INFORMATION TECHNOLOGY
+Group Members
+NoNameID NoSignature
+1.Yabsira Melaku
+           1471/15
+2.Mihiretu Belachew
+          1022/15
+3.Ivana Tilahun
+         0774/15
+4.Yefrezer Tezera
+         1505/15
+                                                                                   
+                                                                        
+   Advisor Mr. Nafyad. T
+Submitted to: Information Technology Department
+  Submission date: DEC 31, 2025
+    Hawassa, Ethiopia
+                                                           Declaration
+ We declare that this project has been composed solely by ourselves and that it has not been submitted, in whole or in part, in any previous application for a degree. Except where stated otherwise by reference or acknowledgement, the work presented is entirely our own. Group members name and signature: 
+                      Name                                                             Signature 
+1.Yabsira Melaku                                         
+2.Mihiretu Belachew
+3.Ivana Tilahun
+4.Yefrezer Tezera
+Acknowledgment 
+First and foremost, we would like to praise the Almighty God for giving us the strength, health, and endurance to complete this project successfully. 
+We would like to express our deepest gratitude to our advisor, Mr. Nafyad , for his invaluable guidance, constructive criticism, and patience throughout the development of the Uni-equb system. His insights helped steer this project in the right direction and ensured we met our academic requirements.
+We also wish to extend our appreciation to all the participants who took the time to respond to our questionnaires and participate in the interviews.
+We are extremely grateful to our families for their unceasing prayer, financial support. we would like to thank our friends and classmates who offered suggestions, feedback, and encouragement during the research and development phases of this project.
+Abstract
+In Ethiopia, Equb (Rotating Savings and Credit Association) serves as a vital traditional financial instrument for saving and social bonding. However, the traditional manual execution of Equb is often plagued by challenges such as lack of transparency, geographical limitations, mismanagement of funds, and disputes regarding the lottery process. These issues are particularly pronounced in a dynamic university environment where students and staff have tight schedules and limited physical interaction time for such financial gatherings.
+The primary objective of this project, Uni-equb, is to design and develop a web-based management system that digitizes the traditional Equb process tailored specifically for the university community. The system aims to automate the core functionalities of Equb, including group creation, member registration, contribution tracking, and the lottery selection process.
+To achieve this, the project utilized a structured system development methodology. Requirements were gathered through interviews and questionnaires distributed among university students and staff to understand the specific needs and pain points of the target users. Object-Oriented Analysis and Design (OOAD) techniques, including Use Case and Sequence diagrams, were employed to model the system's architecture. The application was developed using modern web technologies to ensure responsiveness and accessibility.
+The resulting system successfully provides a secure and transparent platform where users can join Equb groups, pay contributions digitally, and view real-time status updates. The automated lottery algorithm ensures fairness, eliminating human bias. Consequently, Uni-equb not only modernizes a cultural financial practice but also enhances financial inclusion and trust within the university community.
+Table of content 
+Declaration2
+CHAPTER ONE: INTRODUCTION10
+1.1.Background of the Study10
+1.2.Statement of the Problem12
+1.3.Objectives of the Project13
+1.3.1General Objective13
+1.3.2Specific Objectives13
+1.4.Scope of the Study14
+1.5.Limitation of the Study14
+1.6.Significance of the project14
+1.7.Methodology16
+1.7.1.Data Collection Methodology16
+1.7.2.System Analysis and Design Methodology16
+1.7.3 Development Tool and Technologies (working Environment)16
+●Software Specification:16
+●Hardware Specification:17
+1.7.3.System Implementation17
+1.7.4.Testing and Deployment Methodology17
+oSpecialized Testing:17
+1.7.5.Security Methodology18
+●Secure Communication19
+1.7.6.Backup and Recovery Methodology19
+●Backup Strategy:19
+●Recovery Process:19
+●Security Measures:19
+●Frequency:19
+1.8.System Requirement20
+1.9 Feasibility Study20
+1.9.1.Technical Feasibility20
+1.9.2.Operational Feasibility21
+1.9.3 Economic Feasibility (Cost)21
+1.9.3.Schedule Feasibility (Time)21
+1.9.4.Legal and Ethical Feasibility22
+1.9.Cost Estimation and Schedule Breakdown23
+1.10.1.Cost Estimation23
+1.10.2.Schedule Breakdown23
+CHAPTER TWO: DESCRIPTIONS OF EXISTING SYSTEM25
+2.1 Introduction of the Existing System25
+2.2 Strength of Existing System27
+2.4 Proposed System Description31
+2.5 Comparison: Manual Equb vs. UniEqub32
+CHAPTER THREE: SYSTEM FEATURES34
+3.1 Introduction34
+3.2 Functional Requirements34
+3.2.1 User Management & Authentication34
+3.2.2 Equb Cycle Management34
+3.2.3 Financial Transactions35
+3.2.4 Draw & Winner Selection35
+3.2.5 Administration & Reporting36
+3.3 Non-Functional Requirements36
+3.3.1 Security & Compliance36
+3.3.2 Performance & Reliability37
+3.3.3 Usability37
+3.3.4 Scalability & Constraints37
+3.4 Analysis Models37
+3.4.1 Introduction:37
+3.4.2 Use case Model37
+3.4.3 Use case Diagram38
+Use Case Description Template39
+3.4.4 Sequence Diagram57
+60
+3.4.5 Activity diagram62
+3.4.6 Class Diagram64
+3.4.6.1 System Entity Structure65
+3.User Interface prototype66
+66
+66
+CHAPTER FOUR: SYSTEM DESIGN67
+4.1 Introduction67
+4.2 Purpose of the System Design Document67
+4.3.1 Design Boundaries68
+4.4 Architectural Design68
+Architectural Goals and Constraints68
+4.4.1 Logical View of the Architecture69
+4.4.3 Process View71
+4.4.3.1 Key Processes71
+4.4. Deployment View74
+4.5 Size and Performance75
+4.5 Database Design76
+4.5.1 Logical Database Design76
+4.5.1 ER Diagram79
+4.5.2 Relational Mapping & Database Normalization80
+Step 1: Unnormalized Form (UNF)81
+Step 2: First Normal Form (1NF)82
+Step 3: Second Normal Form (2NF)82
+CHAPTER FIVE: CONCLUSION AND RECOMMENDATION85
+5.1 Conclusion85
+5.2 Recommendation85
+References87
+Appendix87
+ 
+List of Table
+Table 1: system requirement19
+Table 2:schedule feasibility21
+Table 3:cost estimation22
+Table 4:comparison manual vs uniequb32
+Table 5:Register Member39
+Table 6:Login Member41
+Table 7:Create Equb41
+Table 8:Join Equb43
+Table 9:Contribute Payment44
+Table 10:View Equb Status45
+Table 11:Process Automated Draw46
+Table 12:View Payment History48
+Table 13:Manage Member (Admin)49
+Table 14:Oversee Equb Compliance51
+Table 15:Send Reminder Notification52
+Table 16:Withdraw Payout54
+Table 17:Generate Report55
+Table 18: DB user table76
+Table 19:DB equb group76
+Table 20:DB Group members table77
+Table 21:Rounds Table77
+Table 22:Transactions Table78
+Table 23:Unnormalized Data (UNF)81
+Table 24:First Normal Form (1NF)81
+Table 25:Users Table (2NF)82
+Table 26:Equb_Groups Table (2NF)82
+Table 27:Transactions Table (2NF)82
+Table 28:Rounds Table (3NF)83
+Table 29:Transactions Table (Final)83
+List of Figures
+Figure 1:grant chart24
+Figure 2:use case diagram38
+Figure 3:loginsequence diagram58
+Figure 4:create equb sequence diagram59
+Figure 5:join equb sequence diagram60
+Figure 6:ViewEqubStatus sequence diagram61
+Figure 7:viewPaymentHistory sequence diagram62
+Figure 8:draw sequence diagram63
+Figure 9:withdraw sequence diagram64
+Figure 10:overseeEqubCompliance sequence diagram65
+Figure 11: register member activity diagram66
+Figure 12:user login activity diagram67
+Figure 13:create equb activity diagram68
+Figure 14:viewPaymentHistory activity diagram69
+Figure 15:join equb activity diagram70
+Figure 16:draw activity diagram71
+Figure 17:withdrawpayment activity diagram72
+Figure 18:Generate Audit Report activity diagram73
+Figure 19:class diagram74
+Figure 20:home page75
+Figure 21:login page75
+Figure 22:splash75
+Figure 23:create equb75
+Figure 24:profile75
+Figure 25:logical view80
+Figure 26:process view82
+Figure 27:deployment diagram84
+Figure 28: ER diagram89
+Figure 29:Relational Mapping Schema90
+ACRONYMS 
+ETB: Ethiopian Birr (referenced in the cost estimation).
+ID: Identification (used for student identity numbers).
+IT: Information Technology.
+IDE: Integrated Development Environment (referencing tools like Visual Studio Code).
+MVP: Minimum Viable Product.
+OO: Object-Oriented.
+OOAD: Object-Oriented Analysis and Design.
+OOP: Object-Oriented Programming.
+UML: Unified Modeling Language.
+UX/UI: User Experience / User Interface.
+APK: Android Package (the file format for Android application distribution).
+OS: Operating System.
+RAM: Random Access Memory.
+UAT: User Acceptance Testing.
+USSD: Unstructured Supplementary Service Data (used for simulating payment workflows).
+2FA: Two-Factor Authentication.
+HTTPS: Hypertext Transfer Protocol Secure.
+OTP: One-Time Password.
+RBAC: Role-Based Access Control.
+CHAPTER ONE: INTRODUCTION
+Background of the Study
+The management of personal finances presents a significant challenge for university students worldwide. Often operating with limited budgets from part-time work, family support, or student loans, students must balance essential living expenses, educational materials, and social activities. This financial strain is particularly acute in developing economies, where economic instability and inflation can rapidly erode purchasing power.
+The traditional Equb system has long served as an effective community-based financial practice that encourages saving, trust, and mutual support. Equb is a rotating savings and credit association in which members contribute a fixed amount of money within a specified period, and the total sum is awarded to one member in each cycle. This system promotes cooperation, discipline, and a sense of financial responsibility among participants. Despite its long-standing success and cultural importance, the traditional Equb method is primarily manual and face-to-face, which limits its convenience and efficiency, especially in modern urban and academic settings.
+Furthermore, the proposed system aligns with Ethiopia’s ongoing efforts toward digital transformation and financial inclusion. By combining cultural traditions with modern technological solutions, Uni- Equb not only preserves the essence of the Equb practice but also adapts it to meet contemporary financial and social needs. Ultimately, this initiative contributes to the empowerment of students, enabling them to manage their finances more effectively and to develop responsible saving habits that will benefit them beyond their academic years.
+Statement of the Problem
+University students often face financial difficulties due to limited and inconsistent sources of income, inadequate budgeting skills, and a lack of structured saving mechanisms. These financial challenges can negatively affect their academic performance, and overall quality of life. University students face a persistent and multifaceted problem of financial.insecurity and a lack of accessible savings mechanisms. The existing financial infrastructure often fails to meet their specific needs, resulting in several critical issues:
+Inaccessibility of Formal Banking: Many students find formal savings accounts cumbersome due to excessive service charges, low interest returns, and bureaucratic hurdles. Loan facilities are typically inaccessible due to a lack of credit history or collateral.
+Lack of Financial Discipline: Without a structured and motivating system, students struggle to cultivate consistent saving habits. Their limited income is often consumed by immediate expenses, leaving little to no room for future planning, emergency funds, or investment in their educational needs.
+Inefficiency of Informal Saving: While traditional, physical Equbs are popular, they are not without drawbacks. They are logistically challenging to organize, vulnerable to mismanagement or default, and require physical presence for collection and distribution, which is impractical for a dispersed student body.
+Digital Divide in Finance: There is a significant gap in the market for financial technology (FinTech) solutions that are tailored to the socio-economic context and cultural norms of Ethiopian students.
+Therefore, the central problem is the absence of a secure, convenient, and culturally resonant financial tool that empowers university students to save money consistently, access lump-sum funds when needed, and build a foundation for long-term financial literacy and stability
+.
+Objectives of the Project
+General Objective
+To develop a mobile-based UniEqub application for university students.
+Specific Objectives
+To accomplish the general objective of the project, the following specific objectives are defined as sequential subtasks:
+To investigate the existing traditional Equb system and current financial saving practices among university students through interviews and questionnaires.
+To identify the key problems and limitations of the current manual system, such as lack of transparency, geographical barriers, and mismanagement of funds.
+To analyze user requirements and system needs to ensure the platform is tailored to the socio-economic context of the campus community.
+To design an appropriate system architecture, secure database schema, and an intuitive mobile user interface using React Native and Supabase.
+To implement the proposed UniEqub platform based on the design specifications to automate group creation and contribution tracking.
+To test and evaluate the system for functionality, lottery fairness, usability, and performance using a series of unit, integration, and system tests.
+To deploy the system in the real environment through a phased approach, starting with internal alpha testing and moving to user acceptance testing (UAT).
+To provide a plan for future maintenance and potential enhancements, such as integration with live payment gateways like Chapa.
+Scope of the Study
+The scope of this study encompasses designing, developing, and evaluating a mobile-based application known as UniEqub, specifically developed for university students to facilitate digital savings and group contribution management within the university environment. This study covers both the technical aspects of the system implementation and how the system is put into practice in enhancing traditional equb operations among students.
+The proposed system will be developed as a mobile application that will target the Android mobile platform. This is because most students in the campus environment are using Android smartphones. The UniEqub mobile app allows the users to create, manage, and participate in equb groups digitally.
+This study will be geographically and functionally limited to one university environment where the test and evaluation of the application would be conducted. While this current scope of work focuses on the university level, the design and architecture shall be flexible in a way that would allow its future scalability, such as adding cross-campus functionality, real payment integrations, or web-based support.
+Limitation of the Study
+While the UniEqub project aims to provide a reliable and user-friendly financial platform, the study is subject to the following limitations:
+The system will be limited to campus-based users and will not extend to the general public.
+The application will initially support only Android devices, limiting access for web users.
+Internet dependency may restrict usage in areas with poor network connectivity.
+Significance of the project
+Uni-Equb is far more than a savings application; it serves as a transformative tool that was designed to meet the unique financial challenges that university students face. By digitizing the conventional "Equb" system, it offers value across many dimensions to its unique user groupings:
+ 
+Uni-Equb is a fundamental tool for financial empowerment and crisis management, from which students can begin to manage their finances formally and intuitively. It helps students build steady savings habits and financial discipline since they operate within something very familiar. Thus, it directly addresses the most pressing needs of students through offering a reliable mechanism to liquidate a sum of money during emergencies, such as a broken laptop or medical costs, or for major purchases like textbooks, without recourse to high-interest loans. Such smoothing of cash flow reduces a considerable source of stress, enabling students to focus more effectively on their academic pursuits. 
+For student organizers, Uni-Equb acts as a powerful management tool that simplifies how Equb groups operate. It automates the entire process — from member registration to contribution tracking — and reduces the burden of manual coordination. Organizers no longer have to worry about cash handling, recording contributions, or following up on delayed payments. The system automatically keeps transparent records, sends reminders, and determines whose turn it is to receive the pooled fund. This automation helps organizers save time, maintain fairness, and focus more on group engagement and growth rather than dealing with repetitive administrative tasks.
+For platform administrators, UniEqub provides a robust, data-driven framework designed to manage complex peer-to-peer financial cycles with minimal manual overhead. The system centralizes administrative oversight through automated transaction logs, real-time status monitoring, and system-wide audit trails. By automating the lottery logic and payment verification, the platform reduces the risk of human error and administrative fatigue.
+ 
+At the systemic and community levels, Uni-Equb serves as a catalyst for digital inclusion and social cohesion. The project modernizes a trusted cultural tradition, connects heritage with innovation, and opens routes to a cashless campus ecosystem. It reinforces the community bonds through building digital trust networks with peers and promotes a culture of mutual support and collective responsibility. Furthermore, the project positions itself as a scalable homegrown FinTech solution contributing to the local digital economy and showing how technology can be used to solve particular community challenges, thus empowering a new generation to engage with financial technology with confidence.
+ 
+Methodology
+To design UniEqub in a way that reflects the lived practices, constraints, and aspirations of university students, we will undertake a rigorous, mixed-methods data collection program. This program combines qualitative depth with quantitative breadth to ensure that product decisions (features, flows, notifications, and trust mechanisms) are empirically grounded. We will implement the plan during the first eight weeks of the project (aligned with the Planning & Design phase).
+Data Collection Methodology
+To ensure that UniEqub addresses real financial challenges faced by students, multiple data collection methods were employed:
+Interviews: Conducted with different equb owners in Hawassa to understand how they currently manage savings and group contributions (Equb systems).
+Questionnaires: Distributed through Google Forms to gather quantitative data on saving habits, preferred contribution intervals, and mobile app usage comfort from students.
+System Analysis and Design Methodology
+For this project, a hybrid approach will be adopted, utilizing Agile development principles for project management and an Object-Oriented (OO) methodology for system analysis and design.
+Agile Development: The Agile approach is chosen for its flexibility and iterative nature. As a mobile app project with a small team, this allows us to adapt to changing requirements and get user feedback (from our team and test users) in short cycles.
+Object-Oriented (OO) Design: The OO approach is selected for analysis and design, as it focuses on combining data and processes into objects. This is ideal for a system like Uni- Equb, which will manage real-world entities such as 'Users', 'Equb Groups', and 'Contributions'. This approach will allow us to build a modular, scalable, and maintainable system using UML diagrams to model the system before implementation.
+1.7.3 Development Tool and Technologies (working Environment)
+The software development environment includes the hardware and software tools used to build the Uni-Equb system.
+Software Specification:
+Operating System: Windows 10 or Windows 11
+IDE: Visual Studio Code
+Language/Framework: React Native
+Database (Backend): Supabase (PostgreSQL)
+Testing: Android Studio (for Emulators)
+Hardware Specification:
+Computer: HP Pavilion Laptop
+Processor: Core i5 10th Gen
+Memory: 16 GB RAM
+System Implementation
+The implementation (coding) phase will follow an Object-Oriented Programming (OOP) paradigm. This approach is based on the concept of "objects" which may contain both data (attributes) and code (methods).
+By using React Native (which is component-based and naturally aligns with OO principles) and Supabase, the application will be designed as a collection of interacting objects (e.g., User, EqubGroup, Payment, Notification) that model the real-world domain. This method is chosen over procedural programming as it directly supports the Object-Oriented design from the previous section, leading to more modular, reusable, and maintainable code.
+Testing and Deployment Methodology
+The testing and deployment methodology is designed to ensure the quality, reliability, and usability of the Uni-Equb application.
+Testing Methodology Our testing strategy will investigate and provide information about the quality of the software by incorporating recognized levels of tests:
+Unit Testing: Individual components and functions will be tested in isolation.
+Integration Testing: Tested units will be combined and tested to ensure they
+interact correctly.
+Component Interface Testing: This will focus on verifying the "glue" between different parts of the app, such as navigation between screens.
+System Testing: The entire application will be tested from an end-user perspective to verify it meets all functional requirements.
+Specialized Testing:
+(A) Integration with the Chapa payment gateway sandbox to test live (test) transactions.
+(B) If the sandbox is inaccessible, a mocked local USSD pipeline will be developed to simulate the payment workflow. A mocked testing dataset of users, groups, and transactions will be created to ensure the system can be tested thoroughly.
+Deployment Methodology The deployment process will follow a phased approach:
+Emulation: The application will first be deployed and tested on virtual devices using Android Studio emulators.
+Internal Testing (Alpha): An .apk (Android Package) file will be generated and distributed to the four team members for installation and testing on physical devices.
+User Acceptance Testing (Beta): After internal testing, the .apk will be shared with a small, select group of target users.
+Final Submission: The stable .apk file will be submitted as the final project deliverable.
+Security Methodology
+Security stays very important for UniEqub because user financial information is involved. By using these approaches below, protection, integrity, and privacy of data are all ensured:
+Authentication and authorization: Each user makes a personalized account that gets checked with their university email or ID. Process includes:
+Secure Login System: User passwords go through new adaptive hashing methods such as bcrypt or Argon2 for safety.
+Two-Factor Authentication (2FA): An OTP, meaning a One-Time Password, will be emailed or texted to the person for main actions like withdrawing or starting any group.
+Role-Based Access Control (RBAC): Every user has special permissions, for example admin for a group or just a member.
+Database Security The database will be set up as follows:
+Admins with restricted access (project admins only change database schema).
+Routine patching and updates are done for the database.
+Foreign key constraint applies to verify data integrity and helps avoid unauthorized alter.
+Secure Communication
+HTTPS Protocol: The whole communication between app and server gets carried out in HTTPS, so interception is prevented.
+Token-Based Authentication: Tokens are used to secure user session, minimizing chance of hijack.
+Backup and Recovery Methodology
+Objective: To ensure that all user data, app settings, and financial records in Uniequb are securely backed up and can be quickly restored in case of accidental deletion, hardware failure, or system errors.
+Backup Strategy:
+Automated Cloud Backups: All critical data (user profiles, transactions, and app settings) will be automatically backed up to the cloud daily. The cloud provider (e.g., Supabase or Firebase) offers versioned backups to allow restoration to previous states.
+Local Device Caching (Optional): Recent activity and unsynced transactions are temporarily stored on the user’s device in encrypted form, allowing recovery if network issues occur before cloud sync.
+Redundancy: Backups are stored in multiple regions (where supported by the cloud provider) to prevent data loss from localized outages.
+Recovery Process:
+User-Initiated Recovery: Users can restore their account data from the latest cloud
+backup through the app’s settings if they switch devices or reinstall the app.
+System Recovery: In case of server failure, the system administrator can restore the database from the most recent cloud backup. The recovery process is tested quarterly to ensure minimal downtime and integrity of restored data.
+Security Measures:
+All backup data is encrypted in transit and at rest using industry-standard encryption   
+(e.g., AES-256).Access to backup systems is restricted to authorized personnel only.
+Regular audits are conducted to ensure backup integrity and compliance with data protection standards.
+Frequency:
+Daily automatic backups for all critical user and app data.
+Weekly full backups for system configurations and less frequently changed data.
+Quarterly disaster recovery tests to validate restoration procedures. 
+System Requirement
+This section outlines the system requirements for end-users who will install and use the UniEqub mobile application. It specifies the minimum and recommended hardware and software specifications necessary for smooth performance.
+Type
+Requirement
+Description
+Minimum
+Requirements
+Android 8.0 (Oreo)
+Basic OS compatibility
+2 GB RAM
+Sufficient for smooth operation
+100 MB free storage
+To install and store app data
+Internet connection
+(3G/4G)
+Required for online transactions and synchronization
+Recommended Requirements
+Android 12 or above
+Optimal speed and security
+4 GB RAM or more
+For better performance and multitasking
+200 MB free storage
+For cached data and updates
+Stable Wi-Fi or 4G+
+Ensures reliable group synchronization and notifications
+Table 1: system requirement
+        1.9 Feasibility Study
+A feasibility study is conducted to determine the practicality of the proposed system. For the UniEqub mobile application, five key areas of feasibility are examined:
+Technical Feasibility
+Technology Availability: the proposed system will utilize a popular cross-platform framework react Native to build the mobile app, and a robust backend technology with a cloud-hosted database (PostgreSQL). All chosen technologies are open-source, mature, and supported by extensive community documentation.
+Hardware and Software Requirements: The development environment requires standard computing resources (laptops/desktops) and common IDEs (VS Code/Android Studio) that are readily available to the development team.
+Developer Competence: The team possesses the necessary skills in modern programming languages (JavaScript) and architecture design (client-server model) to successfully execute the project.
+So according to the above stated points the proposed system is technically feasible. It relies on established, current, and accessible technologies well-suited for a modern mobile application.
+Operational Feasibility
+System Utility: The app directly solves a clear problem: the tedious, manual, and often opaque nature of traditional cash-based Equb systems. It streamlines group formation, contribution tracking, and notification processes.
+User Acceptance: Given the target audience (tech-savvy university students), the adoption of a mobile-based solution for a familiar financial mechanism is expected to be high, provided the interface is intuitive and secure.
+Integration: The system is a standalone mobile application and backend, requiring no complex integration with legacy university IT systems or external financial institutions (as per the scope).
+From the above standpoints the proposed system is operationally feasible and, upon deployment, will deliver tangible benefits to the target community.
+     1.9.3 Economic Feasibility (Cost)
+Software Cost: The core development tools (IDE, programming languages, SDKs) are free and open-source.
+Hosting/Infrastructure Cost: the proposed system will utilize free-tier or low-cost cloud hosting services (e.g., AWS Free Tier, Firebase, or Heroku) for the backend and database, which is sufficient for the limited scope and user load of an academic MVP
+Human Resources Cost: As a student project, the primary development cost is zero. The
+main economic investment is the developer’s time and effort
+Thus, the project is economically feasible as it leverages open-source tools and academic resources, keeping costs minimal.
+Schedule Feasibility (Time)
+Phase
+Estimated Duration
+Rationale
+I. Planning & Design
+12 Weeks
+"Detailed requirements gathering, UX/UI mockups, and database design."
+II.
+Development (MVP Core)
+16 Weeks
+"Building the essential features: User Auth, Group Creation, and Contribution Tracking."
+III. Testing & Refinement
+3 Weeks
+"Unit testing, integration testing, user acceptance testing (UAT) with a small sample group, and bug fixing."
+IV.
+Documentati on & Deployment
+3 Weeks
+"Finalizing the academic report and preparing the app for testing on a closed distribution platform (e.g., Firebase App Distribution)."
+Total
+34 Weeks
+(Approx.8 Months)
+This provides a controlled buffer for unforeseen technical challenges.
+Table 2:schedule feasibility
+Thus, the project is schedule feasible within the standard timeline allocated for a senior year project.
+Legal and Ethical Feasibility
+Current Scope: Since the app will not handle real-time cash transactions or integrate with banks, it avoids the complex regulatory burden of becoming a licensed financial service provider (FinTech).
+Ethical Considerations: The design will adhere to high ethical standards regarding data privacy and security for all user profile and simulated financial data. Users will be fully informed that the platform is an academic simulation and not a registered financial service.
+So from legal point of  project is legally and ethically feasible within the defined academic scope, though caution is necessary for future expansion.
+Cost Estimation and Schedule Breakdown
+Cost Estimation
+Item
+Description
+Estimated Cost (ETB)
+Transportation
+For collecting data and meeting 
+ 1,500
+Internet & Utilities
+ Internet and direct phone calls for group meetings 
+  2,000
+Documentation
+Printing 
+700
+Miscellaneous
+Backup and unexpected costs
+  1,500
+Total Estimated Cost
+5,700
+Table 3:cost estimation
+Schedule Breakdown
+We present a week-by-week schedule covering 34 weeks. The schedule subdivides phases into milestones, activities, dependencies, and acceptance criteria. Below we enumerate the major activities in each phase with deliverables and milestone checks.
+Figure 1:grant chart
+CHAPTER TWO: DESCRIPTIONS OF EXISTING SYSTEM
+2.1 Introduction of the Existing System
+In the current environment, students at the university who wish to save or participate in group-based financial activities such as Equb have to rely on traditional, manual methods. An Equb is a source of informal savings association that helps individuals develop financial discipline and access much-needed pooled resources. Despite being culturally important, the Equb system that students currently use has not been modernized and remains highly paper-based and informal.
+Students typically form Equb groups with their classmates, roommates, or close friends. One person typically serves as the collector and record keeper for the management process, which is handled manually. A handwritten note, verbal confirmation, or messaging apps like Telegram and WhatsApp are typically used for contribution tracking. Although these techniques are somewhat successful, they are not sustainable approaches to money management. Missed contributions, inaccurate recording, and payment delays are the outcomes of an unstructured or automated system.
+Lack of accountability and transparency are two more significant issues with this system. Participants must rely on informal agreements and trust because there is no central location for data storage. It becomes challenging to resolve misunderstandings or conflicts that occur, such as when a member questions the accuracy of records or someone forgets to pay. The lack of digital records that can be verified raises the risk of disagreements and may even cause the Equb group as a whole to fall apart. Students, who might not have a lot of experience with financial systems, are particularly prone to this issue.
+Another shortcoming of the present system is that it is geographically bound. In order for a joint savings group to be formed, students need to be practically in close vicinity with one another. Many students who are living in different dorms cannot easily start or be part of an Equb group. This excludes a lot of students who could otherwise benefit from saving collectively since the process is heavily dependent on physical meetings and personal interaction.
+Furthermore, there is no technological integration in the current system. Despite the fact that almost all students own mobile devices, no specialized digital platform has been created to effectively oversee the Equb activities. Students are not yet aware of the main advantages of digital solutions, such as transaction history tracking, digital wallet security, automated payables reminders, and performance analytics. Relying too much on these more manual approaches not only reduces convenience but also denies students the skills they need to manage their finances in a digital age.
+Some students might also resist this change organizationally due to comfort with acquired habits or fear of adapting to new technology. Others may view digital financial systems as a threat to privacy or distrust them. For this reason, even when students realize the weaknesses of the manual approach, most are very reluctant to explore innovative solutions. However, such resistance contributes to the perpetuation of inefficiency and lowers the potential impact that could be achieved with savings initiatives among students.
+All things considered, university students manage Equb savings through a manual, unstructured, and ineffective system. The current system is very vulnerable to human error and potential conflict because it depends on verbal communication, a high degree of trust, and manual record-keeping. Transparency, automation of contributions, and participation across campuses are not provided by any digital mechanism. Furthermore, students frequently don't know about alternative strategies or technological advancements that could enhance their experience saving money.
+ 
+2.2 Strength of Existing System
+The existing system of Equb, especially in a university or student community context, has several notable strengths that contribute to its continuous practice and popularity. Although the traditional Equb operates manually without digital tools, it still serves as an effective and reliable informal financial system. This section discusses the major strengths of the current Equb system as observed among university students and community groups.
+ 
+1. Simplicity and Ease of Understanding
+One of the strongest aspects of the existing Equb system is its simplicity. The concept and operation are easy to understand, even for individuals who have limited knowledge of finance or technology. Each member contributes a fixed amount of money at regular intervals, and the collected sum is given to one participant in each round. This simple cycle continues until every member has received their share. Because the process is straightforward, members can easily participate without needing special training or complicated recordkeeping. This simplicity makes it accessible to all types of users, including students who may not have prior experience with formal financial systems.
+ 
+2. Social Trust and Cooperation
+Another major strength of the existing Equb system is the high level of social trust and cooperation among its members. Typically, Equb groups are formed among friends, classmates, or individuals who share a strong social bond. This personal connection promotes honesty, transparency, and accountability. Members rely on mutual trust rather than legal contracts, which reduces conflict and increases cooperation. In a university setting, this social trust helps students support one another financially, especially in times of need such as covering tuition fees, purchasing study materials, or managing living expenses.
+ 
+3. Financial Inclusion and Accessibility
+The traditional Equb system provides financial access to individuals who may not qualify for formal banking services. Many students or low-income individuals may not have access to credit, savings accounts, or loans from banks. However, through Equb, they can save money collectively and receive a lump-sum amount when their turn arrives. This encourages saving habits, supports emergency needs, and promotes a culture of mutual financial assistance. In this way, Equb plays a crucial role in promoting financial inclusion within the student community.
+ 
+4. Flexibility and Adaptability
+Equb is also highly flexible. Members can determine the amount of contribution, the time interval (daily, weekly, or monthly), and the order in which members receive their turns. This flexibility allows groups to customize the system based on their financial capacity and needs. For university students, who often face irregular income or allowance schedules, this adaptability is a key advantage. The existing manual system can easily adjust to the members circumstances without the need for strict formal procedures.
+ 
+5. Strengthening of Social Bonds
+Beyond financial benefits, the Equb system strengthens social relationships among participants. Regular meetings and contributions create opportunities for members to interact, share experiences, and offer emotional as well as financial support. This social interaction builds unity and teamwork among university students, helping them develop stronger social networks. Such community support is important for students living away from their families, as it creates a sense of belonging and collective responsibility.
+ 
+6. Low Operational Cost
+Another important strength of the existing Equb system is its low operational cost. Since it does not require technological tools, software, or external management, the expenses are minimal. The only requirement is for members to keep a simple record of payments and turns. This makes it a cost-effective method for saving and lending money, especially for small groups of students or community members with limited resources.
+ 
+7. Transparency and Collective Decision-Making
+The manual Equb system also promotes transparency and fairness. All members are usually present when contributions and payments are made, which ensures openness in financial transactions. Decisions such as rotation order, penalties for late payments, or membership changes are made collectively. This participatory decision-making process encourages accountability and a sense of ownership among members.
+ 
+8. Motivation for Saving and Financial Discipline
+Participating in an Equb encourages members to save regularly. Because contributions are compulsory and consistent, members develop a habit of financial discipline. This is especially beneficial for students who are learning to manage their own finances. The system indirectly teaches budgeting, commitment, and responsibility—skills that are valuable in real-life financial management.
+In summary, the existing Equb system, though traditional and manual, has many strengths that contribute to its success and sustainability. Its simplicity, trust-based structure, low cost, and social nature make it an effective financial tool among university students. While it may lack technological efficiency, the human and social factors that define it—trust, cooperation, and community—remain powerful and relevant. These strengths form the foundation upon which an improved, computerized Uni Equb System can be developed to maintain its traditional values while enhancing accessibility, accuracy, and efficiency through modern technology.
+2.3 Weakness of Existing System
+Although the traditional equb system has been working for quite a long time, there are still several challenges facing this system, especially when it is managed manually among university students. Observing from users and gathering feedback showed the following weaknesses:
+1. Manual Operation
+The current system does almost everything manually: recording members, collecting contributions, and noting down payments. This makes the process very slow and difficult to manage when the number of participants increases.
+2. Common Mistakes
+Since it's a manual procedure for calculations and records, small mistakes are easily made that affect the whole contribution or payout process. Errors in dates, amounts, and names are common causes of confusion and complaints.
+3. Poor Record Keeping
+Most equb groups use paper notebooks and informal listings to record information; such records are easily lost, damaged, or forgotten when the person keeping the record is no longer available.
+4. Limited Transparency
+In this case, usually only the organizer has access to full details about the contributions and payouts. Members are expected to operate on a basis of trust, which might cause disagreements or suspicions in case something goes wrong.
+5. Inconvenient Communication
+They mostly notify their members of meetings, dates of collection, or results of draws through social media or by word of mouth. This is very informal and therefore some members may miss such information. 
+6. Accessibility Issues
+ The current system relies on physical meetings, and that is sometimes a problem for busy members, those living off campus, or especially those who cannot attend regularly. At times, these factors delay contributions, adversely impacting the progress of the group. 
+7. Lack of Data Security
+ Financial and personal information is stored without any protection. Any person with access to the records can easily view or misuse sensitive data. 
+8. No Analytical Insight 
+The manual system cannot present any means through which trends can be established, reports generated, or analyses made on how well the group is performing. Every decision is made based on guesswork rather than data. 
+ Generally speaking, the current system of equb is time-consuming and subject to human error, which also lacks transparency. This makes it difficult for members to stay updated and have trust in the process. The challenges piling up thus point to the real need for a modern, automated solution such as the UniEqub mobile app, which could make the whole system faster, clearer, and more secure for all the parties,involved.
+2.4 Proposed System Description
+The system which is called UniEqub tries to solve main challenges happening with normal Equb systems that most university students use. Today, with everything being done by hand, it is difficult for the people. Many problems happen, like losing records, not having enough information visible for everyone and troubles in organizing the group. Because of this, UniEqub is being made to put all these activities into a digital and easier approach. With UniEqub, instead of always managing on paper, there is now a mobile application which helps people handle the Equb in a quicker, clearer and safer way.
+With the UniEqub app, students do Equb by creating and checking on their group through phones. This application lets users sign themselves up, make new groups, bring in friends, plus decide the money and how often to pay. Every transfer of cash is put in the system’s storage automatically. This makes human error and confusion not as common as with hand-written records.
+Instead of having things put on random pieces of paper or shared using social networks, UniEqub puts all information of the group into one joint database. It is simple for members to go and look at their payment histories, future chances to collect and the way their finances are progressing with the application. This clear look at the Equb builds the trust of members and makes certain that information is not kept away from some people in the group.
+For communication in Equb groups, the system also removes several earlier weaknesses. Now, reminders plus notices will come directly from the app, and no person needs to make separate calls or try to remember to inform somebody. Through notifications, people will always remember their payment turn, future events or meetings. It is basically impossible to miss any important thing with automatic alerts.
+Security and keeping data safe is an area that the system thinks is very important. Every student requires to sign in using their university ID or an email. Only true students are able to join the groups inside the app. For protection, all transaction and user records will be locked and saved in ways that unauthorized people cannot look at it. Even if the system suddenly fails or removes some information, files can be brought back from special cloud backups.
+To sum up, UniEqub finds solutions for almost all big issues that usually trouble the traditional Equb approach by making things more dependable, giving transparency, and being easier to use. It keeps students from needing regular face-to-face meetings, avoids losing important information, and saves time. Also, it encourages the habit of saving and supports teamwork in this organized digital method.
+Maybe for later versions, there is a possibility to connect the app directly with local payment tools like Chapa or Telebirr. This would make money transfer very dynamic. It might also connect users from other universities, not just one campus. Some day, even a web version could be made so more people can access it without phones.
+So overall, UniEqub is a new solution which mixes technology with the traditional Equb value. By doing this, students use their money better, make financial discipline stronger, and help the campus to have a group that pays more attention to money matters.
+2.5 Comparison: Manual Equb vs. UniEqub
+Feature
+Traditional Manual Equb
+UniEqub Digital Platform
+Record Keeping
+Paper-based notebooks; prone to loss or damage
+Centralized Cloud Database (PostgreSQL); immutable and backed up
+Location
+Requires physical meetings for collection and lottery
+Location-independent; students can participate from any dorm or campus
+Transparency
+Ledger visible only to the organizer/secretary
+Real-time Dashboard visible to all members showing who paid and who won
+Lottery Logic
+Manual drawing of names; prone to bias or manipulation
+Automated Random Number Generator (RNG); auditable and fair
+Reminders
+Verbal or informal chat messages; easy to forget
+Automated Push/SMS notifications 24h before deadlines
+Security
+Cash is carried physically; high risk of theft/loss
+Digital Transactions; funds are tracked securely via virtual accounts
+Table 4:comparison manual vs uniequb
+CHAPTER THREE: SYSTEM FEATURES
+3.1 Introduction
+The UNI-Equb system is a digital, mobile-first financial platform that gives college students easy-to-use, organized, and community-focused savings tools.  It uses the traditional "equb" (rotating savings and credit association) model in a new way to help students with their unique financial problems, like having irregular income, sharing expenses, and needing to save for short-term goals.  This chapter talks about the basic features and quality standards that the system needs to meet in order to provide a safe, easy-to-use, and useful service.  The features are designed with a student-centric approach, prioritizing simplicity, trust, and financial inclusion.
+3.2 Functional Requirements
+Functional requirements describe the core operations and behaviors of the UNI-Equb system.
+3.2.1 User Management & Authentication
+Registration: The system shall allow new users to create an account by entering their full name, phone number, and password.
+Input Validation: The system must validate user inputs for format and uniqueness (specifically checking that the phone number is not already registered).
+Authentication: The system shall allow registered users to log in using their phone number and password.
+Password Recovery: The system must provide a mechanism for password recovery (e.g., via SMS verification).
+Account Lockout: The system shall temporarily lock a user account after multiple failed login attempts.
+3.2.2 Equb Cycle Management
+Request Cycle Creation: The system shall allow Members to submit a request to create a new Equb group by defining the proposed contribution amount, duration, and rules.
+Approve Cycle Submissions: The system shall allow Admins to view pending Equb creation requests and approve or reject them based on platform policies.
+Equb Oversight: The system shall allow Admins to suspend or terminate active Equb groups that violate platform rules, without directly intervening in the financial transaction flow.
+Browse & Join: The system shall allow members to browse active Equbs and join a group if there are available slots and they meet eligibility criteria.
+Real-time Availability: The system must check slot availability in real-time to prevent over-subscription.
+Cycle Status: Members shall be able to view the current status of their Equb, including contributions, schedules, and standings.
+Cycle Modification: The Treasurer (or Admin) shall be able to update settings, pause, or close Equb cycles, provided the changes do not conflict with active cycles.
+3.2.3 Financial Transactions
+Contributions: The system must allow members to contribute payments via integrated payment gateways (mobile money, bank transfer, or card).
+Payment Tracking: The system shall record successful payments and notify the member immediately.
+Payment History: The system shall allow members to view their paginated transaction history, filterable by date range and Equb type.
+Payout Withdrawal: The system shall allow the designated winner to request a withdrawal to a linked bank or mobile money account.
+Identity Verification: The system must validate the winner's identity and payout details before processing a withdrawal.
+3.2.4 Draw & Winner Selection
+Random Selection: The system shall execute a random selection algorithm (RNG) to determine the winner of a cycle.
+Eligibility Check: The system must verify that all contributions are closed and reconciled before a draw can be initiated.
+Notification: The system shall automatically record the winner and notify all participants of the result.
+3.2.5 Administration & Reporting
+User Oversight: The system shall allow Admins to verify student IDs and manage user account statuses.
+Group Audit: The system shall allow Admins to view group activity logs for safety audits.
+Compliance Control: The Admin shall have the power to freeze groups flagged for suspicious activity, but cannot manually withdraw or transfer group funds.
+Reporting: The system shall generate financial and operational reports (aggregating transactions and membership data) in PDF or CSV formats.
+Reminders: The system shall send automated reminders (SMS/Push) to members for upcoming contributions based on the cycle schedule.
+3.3 Non-Functional Requirements 
+These requirements define the quality attributes, constraints, and performance expectations of the system.
+3.3.1 Security & Compliance
+Data Integrity: Transaction records must remain immutable after confirmation to ensure financial accuracy.
+Secure Payments: The system must integrate with payment gateways using PCI-compliant standards for cards and secure APIs for mobile money.
+Auditability (Draws): The system must use a seeded Random Number Generator (RNG) for the lottery process and log the seed and results for audit purposes.
+Auditability (Admin Actions): All administrative actions (member changes, rule edits) must be logged in an audit trail.
+KYC Compliance: The system must support Know Your Customer (KYC) checks before allowing payout withdrawals.
+3.3.2 Performance & Reliability
+Network Optimization: The system should be functional on low-bandwidth networks to accommodate users with poor internet connections.
+Concurrency: The system must handle concurrent edits and real-time joining requests without data conflicts.
+Availability: The system should provide a local cache to allow users to view their status even when offline.
+Fault Tolerance: The system must include retry logic and backoff policies for failed notifications or third-party service glitches.
+3.3.3 Usability
+Error Handling: The system must provide clear, corrective feedback to users when invalid information is entered (e.g., during registration or payment).
+Interface: The system must provide specific guidance/empty states when no data is available (e.g., empty payment history).
+3.3.4 Scalability & Constraints
+Business Rules: An Equb must consist of fixed equal contribution amounts and a defined cycle duration.
+Unique Identity: The system shall enforce that a phone number can only be associated with a single user account.
+3.4 Analysis Models
+3.4.1 Introduction:
+This section introduces the proposed system with UML system models. System models describe the model of the envisioned system. For the new system model we will use case models, sequence diagrams, Analysis level class model, and state chart diagrams.
+3.4.2 Use case Model       
+Use case identifies the actors involved in an interaction and names the type of interactions. This is then supplemented by additional information describing the interaction with the system.  The set of use cases represents all of the possible interactions that will be described in the system requirements.  Actors in the process, who may be human or other systems, are represented as stick figures.
+3.4.3 Use case Diagram
+The following use cases diagram illustrates the major actors and system use case for Uni-Equb.
+Figure 2:use case diagram
+Use Case Description Template
+Field
+Content
+Use Case ID
+SUC-001
+Use Case Name
+RegisterMember
+Actors
+Member (Student), System
+Description
+Allows a student to create a new identity on the platform by providing personal and academic details. This is the entry point for all financial activities.
+Trigger
+User opens the app and selects "Register".
+Preconditions
+The student has the UniEqub mobile application installed.
+a valid university ID/email.
+Normal Flow
+The user opens the application and selects the "Sign Up" option.
+The user enters their Full Name, Phone Number, University ID Number, and a secure Password.
+The System validates the input format (e.g., phone number length, password complexity).
+The System checks the database to ensure the Phone Number or University ID is not already registered.
+The System generates a One-Time Password (OTP) and sends it to the user's phone for verification.
+The user enters the OTP into the application.
+The System verifies the OTP and creates a new user profile with a "Verified" or "Unverified" (pending KYC) status.
+The System redirects the user to the Login screen.
+Alternative Flows
+  Alternative Flow A: Invalid Input Data:
+The System detects a phone number that does not match the required length or a password that fails security complexity rules.
+The System displays a specific error message and prompts the user to correct the fields.
+  Alternative Flow B: Account Already Registered:
+The System identifies that the provided Phone Number or University ID is already associated with an existing account.
+The System notifies the user and redirects them to the Login or "Forgot Password" screen.
+Postconditions
+A new user account is successfully created and stored in the database
+Table 5:Register Member
+Field
+Content
+Use Case ID
+SUC-002
+Use Case Name
+LoginMember
+Actors
+Member, System
+Description
+Allows a registered user to authenticate and access their dashboard.
+Trigger
+The user enters their credentials on the login screen and clicks "Login".
+Preconditions
+The user must have a registered and active account.
+Normal Flow
+The user enters their Phone Number and Password on the login screen.
+The System hashes the entered password and compares it with the stored hash in the database. 
+The System validates the user's current status (ensuring the account is not banned or suspended).
+The System generates a secure session token to maintain the user's logged-in state.
+The System grants access and loads the Member Dashboard, displaying active Equbs and recent notifications. 
+Alternative Flows
+  Alternative Flow A: Invalid Credentials:
+The System determines that the password hash does not match the stored record.
+The System displays an "Invalid Username or Password" error.
+  Alternative Flow B: Account Suspended:
+The System checks the user status and finds the account is "Banned" or "Suspended" due to bad behavior.
+The System prevents access and displays a contact message for administration.
+Postcondition
+The user is authenticated and granted access to member-restricted features.
+Table 6:Login Member
+Table 7:Create Equb
+Field
+Content
+Use Case ID
+SUC-003
+Use Case Name
+CreateEqub
+Actors
+Member (Initiator), Admin (Approver)
+Description
+A Member submits a request to form a new Equb group, which remains inactive until an Admin reviews and approves it for safety and compliance.
+Trigger
+Member selects "Start New Equb" from their dashboard.
+Preconditions
+1. Member is logged in and Identity (KYC) is Verified.
+2. Member is not currently exceeding the maximum allowed active groups.
+Normal Flow
+The Member selects "Start New Equb" from their dashboard.
+The Member inputs the group details: Name, Contribution Amount (ETB), Frequency (Weekly/Monthly), and Max Members.
+The System validates that the proposed amount and rules stay within the platform's predefined safety limits.
+The Member submits the request.
+The System creates the Equb record in a "Pending" state and notifies the Administrator.
+The Admin reviews the request details via the Admin Dashboard.
+The Admin clicks "Approve" after confirming the group's legitimacy.
+The System changes the status to "Active", making it visible in the public "Available Equbs" list
+Alternative flows
+  Alternative Flow A: Admin Rejection:
+The Admin reviews the request and finds the terms violate university policy or appear predatory.
+The Admin clicks "Reject" and provides a reason.
+The System notifies the Member and sets the group status to "Rejected".
+  Alternative Flow B: Creation Limit Reached:
+The System detects that the user has already exceeded the maximum number of active groups allowed for a single member.
+The System prevents the request submission.
+Postconditions
+A new active Equb group is created and open for member enrollment.
+Table 8:Join Equb
+Field
+Content
+Use Case ID
+SUC-004
+Use Case Name
+JoinEqub
+Actors
+Member, System
+Description
+ Allows a student to browse and enroll in an existing savings cycle that has open slots.
+Trigger
+Member selects "Join" on a specific group.
+Preconditions
+  The target Equb group has open slots available.
+  The member's identity is verified.
+Normal Flow
+The Member navigates to the "Browse Equbs" section.
+The Member selects a specific group to view its terms (Amount, Rotation, etc.).
+The Member clicks the "Join Group" button.
+The System verifies that the group has available slots (Current Members < Max Members).
+The System checks if the user is already a participant in that specific group.
+The System adds the Member to the participant list for the group.
+The System decrements the "Available Slots" count and updates the group's visibility if it becomes full.
+Alternative Flow
+Alternative Flow A: Group Full:
+The System verifies that Current Members equals Max Members.
+The System disables the "Join" button and displays a "Group Full" notice.
+Postconditions
+The member is successfully enrolled in the cycle and can begin contributing
+Table 9:Contribute Payment
+Field
+Content
+Use Case ID
+SUC-005
+Use Case Name
+ContributePayment
+Actors
+Member, System (Payment Gateway)
+Description
+The primary financial interaction where a member pays their scheduled contribution for the current round.
+Trigger
+Member clicks "Pay Contribution".
+Preconditions
+  The Equb cycle is currently active.
+  A payment is due for the current round.
+Normal Flow
+The Member opens their active Equb and selects "Pay Contribution".
+The Member selects their preferred payment method (e.g., Telebirr).
+The System redirects the user to the secure Payment Gateway interface (or simulates the USSD pipeline). 
+The Member authorizes the transaction.
+The Payment Gateway returns a "Success" status to the UniEqub system.
+The System records the transaction in the digital ledger (Date, Amount, Transaction ID).
+The System updates the user’s status for the current round to "Paid".
+Alternative Flow
+Alternative Flow A: Payment Gateway Failure
+The user authorizes the payment, but the Payment Gateway (Telebirr/Chapa) returns a "Failed" or "Timeout" status. 
+The System notifies the user: "Transaction failed. Please check your balance or try again."
+No changes are made to the group ledger.
+PostCondition
+The contribution is recorded as a successful transaction and added to the group fund.
+Table 10:View Equb Status
+Field
+Content
+Use Case ID
+SUC-006
+Use Case Name
+ViewEqubStatus
+Actors
+Member, System
+Description
+Provides transparency by allowing members to track the progress of their savings group.
+Trigger
+Member opens the "My Equbs" section of the application.
+PreCondition
+The member is logged in and is a participant in the specific Equb group.
+Normal Flow
+The Member selects an active Equb from their "My Equbs" list.
+The System queries the database for the current round's data.
+The System displays a Progress Bar (e.g., "7/10 Members Paid").
+The System lists the History of Winners for previous rounds in the current cycle.
+The System displays the Next Draw Date and the list of members who have already paid for the current round.
+PostCondition
+The user is updated on the current state of their Equb group without modifying any data.
+Table 11:Process Automated Draw
+Field
+Content
+Use Case ID
+SUC-007
+Use Case Name
+ProcessAutomatedDraw
+Actors
+System (Primary), Member (Recipient)
+Description
+The system automatically executes a fair, random selection algorithm to choose a winner once all required contributions for the round are confirmed.
+Trigger
+The system detection logic confirms that the number of "Verified Payments" equals the "Maximum Members" for the current round.
+PreCondition
+  The Equb group is in an "Active" state.
+  All participating members have successfully completed their Telebirr/Chapa transactions for the current round.
+Normal Flow
+The System's logic detects that the number of "Verified Payments" matches the "Max Members" for the round.
+The System locks the current round to prevent any late modifications.
+The System filters the participant list to identify members who have not yet won in the current cycle.
+The System executes a Random Number Generator (RNG) algorithm to select one winner from the eligible pool.
+The System assigns the "Winner" status to the selected member and calculates the total payout.
+The System updates the group ledger and creates a Payout Record.
+The System broadcasts a Push Notification to all group members announcing the winner. 
+Alternative Flows
+Alternative Flow A: Incomplete Contributions
+The scheduled draw time arrives, but the System detects one or more members have not paid.
+The System halts the draw process. 
+The System triggers SUC-011 (Send Reminder Notification) to the defaulting members. 
+The draw remains pending until all ledger entries for the round are reconciled.
+Postconditions
+A winner is officially recorded, and the funds are moved to a "Ready for Withdrawal" state for that specific user.
+Table 12:View Payment History
+Field
+Content
+Use Case ID
+SUC-008
+Use Case Name
+ViewPaymentHistory
+Actors
+Member, System
+Description
+Provides an audit trail for the user's personal financial activity
+Trigger
+User select  viewpaymentHistory from dashboard.
+PreCondition
+The user must be logged in and have an active account
+Normal Flow
+The Member selects the "History" or "Transactions" tab.
+The System retrieves all credit and debit entries associated with the user’s ID.
+The System displays a paginated list including Date, Amount, Equb Name, and Transaction Type.
+The Member can filter the history by a specific Equb group or a date range.
+Alternative Flow
+Alternative Flow A: No Transaction History Found (Empty State)
+The Member selects the "History" or "Transactions" tab. 
+The System queries the database using the user’s ID but finds zero records (e.g., a new user who has not yet joined or paid into an Equb). 
+The System displays a friendly "No Transactions Yet" message with a call-to-action to "Browse Equbs" or "Join a Group."
+Alternative Flow B: Data Retrieval Error (Persistence Layer Failure)
+The Member attempts to view their history, but the System is unable to connect to the PostgreSQL (Supabase) database due to a network timeout or server downtime. 
+The System displays an error notification: "Unable to load transaction history. Please check your connection and try again." 
+PostCondition
+The user is provided with a transparent audit trail of their financial activity within the platform.
+Table 13:Manage Member (Admin)
+Field
+Content
+Use Case ID
+SUC-009
+Use Case Name
+ManageMembers
+Actors
+Admin, System
+Description
+Admin verifies identity documents (KYC) or bans users for bad behavior.
+Trigger
+Admin selects "User Management".
+PreCondition
+The Administrator is logged into the Admin Dashboard with appropriate privileges.
+Normal Flow
+The Admin logs into the dashboard and selects "Member Management".
+The System displays a list of "Unverified" users who have recently signed up.
+The Admin reviews the user's uploaded Student ID or academic documents.
+The Admin selects "Verify" to grant the user full access to start/join Equbs.
+The System updates the user status and sends a confirmation notification to the member.
+Alternative Flows
+  Alternative Flow A: KYC Denied:
+The Admin finds the uploaded Student ID is illegible or invalid.
+The Admin marks the profile as "Action Required", prompting the user to re-upload documents.
+  Alternative Flow B: User Ban:
+The Admin identifies a user reported for fraud and clicks "Ban User".
+The System revokes the user's session and prevents future logins.
+PostCondition
+The user's status is updated, and an audit trail of the admin action is logged.
+Table 14:Oversee Equb Compliance
+Field
+Content
+Use Case ID
+SUC-010
+Use Case Name
+OverseeEqubCompliance
+Actors
+Admin
+Description
+Allows the Admin to monitor active Equb groups to ensure they follow platform rules and to intervene in case of disputes or suspicious activity.
+Trigger
+Admin selects "Active Groups" or receives a user report/flag regarding a specific Equb.
+Preconditions
+Admin is logged into the Admin Dashboard with authorized credentials.
+Normal Flow
+1. Admin browses the list of currently active Equb groups.
+2. Admin selects a group to view its health metrics (payment consistency, participant activity).
+3. Admin reviews any system-generated flags or user-submitted reports.
+4. Admin determines the group is operating safely and exits the view.
+Alternative Flows
+  Alternative Flow A: Freezing a Group:
+The Admin detects policy violations and clicks "Freeze Group".
+The System immediately halts all contributions and withdrawals for that cycle.
+  Alternative Flow B: Dissolving a Group:
+If a violation is irrecoverable, the Admin clicks "Terminate Group".
+The System closes the cycle and triggers the refund logic for existing balances.
+Postconditions
+The group’s status is updated (Active, Frozen, or Terminated), and an audit log entry is created detailing the Admin’s action.
+Restrictions
+The Admin cannot change the contribution amount, modify the draw sequence, or manually withdraw funds for personal use.
+Table 15:Send Reminder Notification
+Field
+Content
+Use Case ID
+SUC-011
+Use Case Name
+SendReminderNotification
+Actors
+System (primary), Admin (secondary)
+Description
+An automated service that prompts members to make their contributions before the deadline.
+Trigger
+The system-defined time (e.g., 24 hours before a payment deadline).
+PreConditions
+The Equb cycle is active and the payment deadline for the round is approaching or has passed.
+Normal Flow
+The System scans all active Equbs for members with an "Unpaid" status for the current round.
+The System generates a personalized reminder message.
+The System sends the message via Push Notification or SMS to the member's registered phone.
+The System logs the delivery of the notification for the Admin's audit trail. 
+PostCondition
+Members are notified of their upcoming financial obligation.
+Table 16:Withdraw Payout
+Field
+Content
+Use Case ID
+SUC-012
+Use Case Name
+WithdrawPayout
+Actors
+Winner (Member), System, Payment Gateway
+Description
+Enables a winning member to transfer their accumulated savings to an external mobile money account.
+Trigger
+Winner clicks "Withdraw Funds".
+Preconditions
+User is identified as the "Winner" of a completed round.
+Normal Flow
+The Winner navigates to the "Withdraw Funds" section.
+The Winner confirms the amount and the destination account (e.g., Telebirr number).
+The System initiates a payout request via the Payment Gateway API.
+The Gateway processes the transfer and returns a success confirmation.
+The System updates the payout record status to "Completed".
+The System deducts the balance from the group's pooled fund and updates the ledger
+Alternative Flow
+Alternative Flow A: Insufficient Platform Liquidity
+The System attempts to trigger the external transfer, but the gateway returns an error (e.g., service downtime). 
+The System marks the status as "Withdrawal Pending" and notifies the Admin to resolve the gateway link.
+PostCondition
+Funds are transferred to the user's external account, and the platform balance is updated.
+Table 17:Generate Report
+Field
+Content
+Use Case ID
+SUC-013
+Use Case Name
+GenerateAuditReport
+Actors
+Admin, System
+Description
+Allows Administrators to export system performance and financial data for university records.
+Trigger
+Admin clicks "Export Report" in the admin dashboard.
+PreCondition
+The Administrator is logged into the Admin Panel with reporting permissions
+Normal Flow
+The Admin selects the "Export Report" option from the Admin Panel.
+The Admin defines the Date Range and the Report Type (e.g., Total Transaction Volume, Banned Users).
+The System aggregates the required data from the primary database and logs.
+The System generates a downloadable PDF or CSV file.
+The Admin downloads the file for external reporting.
+Postcondition
+A report file is created and provided to the administrator for download.
+3.4.4 Sequence Diagram
+This sequence diagram illustrates how a student registers and authenticates in UniEqub, including input validation, OTP verification, and credential-based access to the system.
+Figure 3:loginsequence diagram
+Figure sequence diagramFigure sequence diagramFigure 4:create equb sequence diagramFigure 4:create equb sequence diagramThis sequence diagram shows the lifecycle of an Equb group, from a member’s creation request through administrative approval to other members joining an active Equb.
+Figure sequence diagram
+Figure sequence diagram
+Figure 4:create equb sequence diagram
+Figure 4:create equb sequence diagram
+This sequence diagram demonstrates how a user joins equb
+Figure 5:join equb sequence diagram
+This sequence diagram illustrates  the view equb status process 
+Figure 6:ViewEqubStatus sequence diagram
+This sequence diagram depicts the view payment  process
+Figure 7:viewPaymentHistory sequence diagram
+This sequence diagram depicts the contribution payment process, the system-triggered automated draw, and the sending of reminder and winner notifications.Figure  sequence diagramFigure  sequence diagram
+Figure  sequence diagram
+Figure  sequence diagram
+Figure 8:draw sequence diagramFigure 8:draw sequence diagram
+Figure 8:draw sequence diagram
+Figure 8:draw sequence diagram
+This sequence diagram demonstrates how a winning member withdraws funds through the payment gateway and how administrators oversee system compliance and generate audit reports
+Figure 9:withdraw sequence diagram
+Figure 10:Generate Audit Report sequence diagram
+This sequence diagram illustrates  the oversee equb compliance process  
+Figure 11:overseeEqubCompliance sequence diagram
+3.4.5 Activity diagram
+The following activity diagram describes how a prospective member registers 
+Figure 12: register member activity diagram
+The following activity diagram describes how member login to the uniequb user account
+Figure 13:user login activity diagram
+The following activity diagram describes how a member submits an Equb creation request, how an administrator reviews it, and how the system activates or rejects the Equb based on the decision.
+Figure 14:create equb activity diagram
+The following activity diagram illustrates how a member gets access to the payment
+Figure 15:payment activity diagram
+The following activity diagram illustrates how members get to see their equb status
+Figure 16:view Equb status activity diagram
+The following activity diagram illustrates how a member gets access to the payment history
+Figure 17:viewPaymentHistory activity diagram
+The following activity diagram illustrates how a member joins an active Equb, makes a contribution, and how the system verifies and records the payment.
+Figure 18:join equb activity diagram
+The following activity diagram shows how the system checks contribution completion, performs an automated draw, assigns a winner, and notifies members accordingly.
+Figure 19:draw activity diagram
+The following activity diagram illustrate how the payment withdrawal process goes
+Figure 20:withdrawpayment activity diagram\
+The following diagram illustrates how the system handles KYC
+Figure 21:manageMembers
+The following diagram illustrates how the notification reminder process works
+Figure 22:sendNotification activity diagram
+The following diagram illustrates how the admin oversee equb compliance
+Figure 23:oversee equb compliance activity diagram
+The following  activity diagram reflects how the system pulls information from various parts of the database
+Figure 24:Generate Audit Report activity diagram
+3.4.6 Class Diagram
+The Analysis Level Class Diagram defines the static structure of the UniEqub system, identifying the key objects, their attributes, methods, and relationships.
+3.4.6.1 System Entity Structure
+Figure  class diagramFigure  class diagram
+Figure  class diagram
+Figure  class diagram
+The analysis-level class diagram is used to signify which are the fundamental entities of the system UniEqub and their association. We have an abstract User entity that represents all users of the system that is then specialized to Member which members which are part of Equb and the Admin who manages validation/compliance. An EqubRequest is raised by a Member and reviewed by an Admin to birth an EqubGroup Each Req can include many compounds as members of the compounds library. An Equb group has several Round instances which can be viewed as contribution cycles resulting in a winning Member. The transaction entity is used to model interactions of the financial system, and the notification entity would be used to model notification such as reminders or alerts. The above constituents determine the static structure of the system UniEqub at analysis level.
+Figure 25:class diagramFigure 25:class diagram                                                                                                          
+Figure 25:class diagram
+Figure 25:class diagram
+                                                     
+                                                     
+3.User Interface prototype
+Figure 26:home pageFigure 26:home pageFigure 27:login pageFigure 27:login pageFigure 28:splashFigure 28:splash
+Figure 26:home page
+Figure 26:home page
+Figure 27:login page
+Figure 27:login page
+Figure 28:splash
+Figure 28:splash
+Figure 29:create equbFigure 29:create equbFigure 30:profileFigure 30:profile
+Figure 29:create equb
+Figure 29:create equb
+Figure 30:profile
+Figure 30:profile
+CHAPTER FOUR: SYSTEM DESIGN
+4.1 Introduction
+This chapter presents the system design of the UNI-Equb application, which is developed to support university students in organizing and managing their savings using a digital Equb system. The system design phase converts the requirements found in previous chapters into a technical and structured blueprint that directs the application's development and implementation.
+The design concentrates on how the system will work, how various parts will communicate with one another, and how users will engage with the program. Additionally, it ensures that the system is effective, safe, easy to use, and able to manage students' real-world usage. This chapter lowers development risks and guarantees that the finished system achieves its goals by precisely outlining the system architecture and design components.
+4.2 Purpose of the System Design Document
+The UNI-Equb application's System Design Document (SDD) aims to give a thorough explanation of the system's construction and functionality. This document provides developers, project managers, and stakeholders with a clear and structured explanation of the system's technical structure.
+The system design document specifically seeks to:
+To Provide a Road map: It provides the development team with a clear blueprint for the system's construction, demonstrating how various components—such as the database and user interface—work together.
+To Ensure Security: Since UNI-Equb handles student money, this document defines the technical rules that keep the data safe and the draws fair.
+To Guide Developers: It provides the "how-to" instructions for programmers so they can build the system exactly as it was planned.
+ To Save Time and Resources: By planning the system architecture now, we can find and fix potential technical problems before we start writing the code.
+4.3 Scope
+The scope of this System Design Document (SDD) encompasses the complete architectural and detailed design of the Uni-Equb platform. This design builds directly upon the functional and non-functional requirements defined during the requirement phase.
+4.3.1 Design Boundaries
+The design scope includes the following core modules:
+User Authentication & Security: Detailed design of the authentication system and integration with local KYC (Know Your Customer) standards.
+Equb Management: Design of the logic for creating Equb groups, calculating contribution cycles, and managing payout rotations.
+Automated Draw System: The technical specification for a fair, verifiable, and automated selection process for winners.
+Payment Integration Layer: Architectural design for interfacing with Ethiopian payment gateways (e.g., Telebirr, CBE Birr) to automate transactions.
+Notification & Reporting: Design of the background services for SMS/Push reminders and real-time ledger generation for users.
+4.4 Architectural Design
+The architectural design establishes a structured solution that addresses the technical and operational requirements of UniEqub, with a focus on optimizing performance, security, and maintainability.
+Architectural Goals and Constraints
+The architecture is primarily shaped by the financial characteristics of the application and the specific needs of the student user base.
+ Security: The system ensures complete protection of data. All remote access is subject to user identification (phone number) and password control. Secure communication (HTTPS) is mandatory to protect transaction data.
+Availability: The system must be available 24/7 to allow students to check their status or make payments at any time.
+Connectivity: The application must function effectively even in low-bandwidth network environments common on campus.
+Platform: The client portion resides on Android mobile devices, while the server portion operates on a cloud-hosted environment (Supabase/PostgreSQL).
+4.4.1 Logical View of the Architecture
+The logical view of the UniEqub system is comprised of three main layers: The User Interface (Presentation) Layer, the Business Services Layer, and the Data Layer.
+The logical view of the UniEqub system follows a Layered Architecture pattern, separating concerns into Presentation, Business Logic, and Data Persistence. This separation is critical for financial security, ensuring that the user interface never interacts directly with the database or the core financial ledger.
+1. Presentation Layer (Mobile Client)
+This layer resides on the user's Android device. It is responsible for input validation and rendering data, but it contains no business rules.
+Technology: React Native.
+Responsibilities:
+Secure Input: Captures user credentials and payment requests.
+Real-Time Dashboard: Displays the active state of the Equb (e.g., "Round 3 of 10") by consuming APIs.
+Notification Handler: Receives background signals for draw results and payment reminders.
+2. Business Services Layer (Application Logic)
+This is the core of the system, residing on the cloud server. It processes all requests and enforces the rules of the Equb. It is subdivided into three critical engines:
+A. Equb Cycle Manager:
+Manages the state of every group (Pending, Active, Locked).
+Enforces the "Round" logic, ensuring a new round cannot start until the previous one is reconciled.
+Scheduler Service: Triggers the automated draw once all payments for a cycle are verified.
+B. Payment Processing Engine (Virtual Account Manager):
+This component manages the integration with Chapa.
+Virtual Account Logic: To ensure funds are never mixed between groups, the system utilizes a Virtual Account concept. When an Equb group is created, the system generates a unique Payment Reference Key specific to that group.
+Transaction Routing: When a member contributes, the payment is tagged with this Reference Key. The Payment Engine listens for Chapa Webhooks to confirm receipt and automatically routes the credit to the specific Group Ledger, ensuring 100% accurate reconciliation without manual intervention.
+Isolation: This logic ensures that Group A's funds can never be logically accessed by Group B, mimicking a dedicated bank account for each group.
+C. Winner Selection Service:
+Contains the Random Number Generator (RNG) logic.
+Enforces "Win-Once" rules to ensure a member cannot win twice in the same cycle until the cycle resets.
+3. Data Persistence Layer (Database)
+This layer manages the storage and retrieval of data while maintaining Referential Integrity.
+Technology: PostgreSQL (via Supabase).
+Immutable Ledger: The database is designed so that Transaction records are append-only. Once a payment is verified via the Virtual Account logic, it cannot be deleted or altered, providing a secure audit trail for all student funds.
+Figure 31:logical view
+4.4.3 Process View
+The process view describes the tasks and threads involved in the system’s execution. For UniEqub, several key processes run concurrently to ensure smooth operation.
+4.4.3.1 Key Processes
+1.     User Authentication Process:
+o   Manages user login and session security using tokens.
+o   Verifies identity against the User table and ensures the account is not locked.
+2.     Contribution Tracking Process:
+o   Initiated when a member submits a payment.
+o   This process communicates with the external Payment Gateway (Chapa) or verifies a manual entry.
+o   Upon success, it updates the Transaction table and the Round status.
+3.     Equb Cycle & Draw Process:
+o   This is a conditional process. It monitors the state of an active round.
+o   Condition: IF Total_Contributions == Expected_Total, THEN trigger DrawWinner process.
+o   Action: The system runs the random selection algorithm, assigns a WinnerID, and notifies all group members.
+4.     Notification Process:
+An asynchronous thread that sends SMS or Push Notifications for payment reminders or win announcements.
+Figure 32:process view
+4.4.4 Payment Architecture: Group-Level Virtual Accounts
+To ensure transparent and automated contribution tracking, the system utilizes Chapa Virtual Accounts at the group level.
+Group-Specific Accounts: Upon the creation and approval of a new Equb group, the system makes an API call to Chapa to generate a unique Virtual Account Number dedicated solely to that group.
+Persistent Validity: This virtual account remains active for the entire duration of the Equb lifecycle (across all rounds). It serves as the digital "pot" for the group.
+Automated Reconciliation: When a member transfers their contribution to this Group Virtual Account, Chapa sends a webhook to the UniEqub backend. The system parses the webhook to identify the Sender's Phone Number.The system normalizes the incoming phone number format (converting +251 to 09) and matches this number against the group's member list to automatically mark the specific member as 'Paid' for the current round.
+Deactivation: Once the Equb cycle is completed or dissolved, the system marks the Virtual Account as inactive in the database, preventing future deposits.
+4.4. Deployment View
+The deployment view describes the physical nodes and platform configuration26. The UniEqub system follows a Client-Server deployment model.
+Node 1: Android Mobile Device (Client)
+Component: UniEqub Mobile Application (.apk).
+Function: Provides the interface for students to join groups and view financial history. Requires ~100MB storage and Internet connection.
+Node 2: Cloud Server (Backend)
+Component: Supabase (hosted PostgreSQL database and Authentication services).
+Function: Stores all data, runs the winner selection logic, and manages API requests.
+Node 3: External Payment Gateway
+Component: Telebirr API / Banking Interface.
+Function: Processes real-money transfers and returns transaction status to the UniEqub server.
+Deployment Diagram Description:
+The Android Client connects via the Internet (HTTPS) to the Cloud Server. The Cloud Server maintains a secure connection to the Database and initiates API calls to the External Payment Gateway.
+Figure 33:deployment diagram
+4.5 Size and Performance
+The chosen software architecture supports the key sizing and timing requirements29.
+Scalability: The backend (Supabase) is designed to support concurrent connections, suitable for the projected user base of university students.
+Latency: The system provides access to Equb status updates with minimal latency.
+Performance: The system is optimized to complete critical transactions (like joining a group or recording a payment) rapidly, adhering to the requirement of network optimization for poor connections.
+Resource Usage: The client application is lightweight, requiring minimum RAM (2GB) and storage (100MB) on the student's device.
+4.5 Database Design
+Database Design encompasses a set of processes which enable the design, development, implementation, and management of the UniEqub enterprise data management systems. The correctly designed databaseWill be more maintainable, improve the consistency of the data, and be more cost-effective in terms of storage. Specifically within the UniEqub system, it has been determined which pieces of information are related, such as Users, Equb Groups, Rounds, and Transactions, and what information must be collected to provide financial integrity.
+ 
+The primary task of database design in this project is to create logical and physical design models of the centralized database. The design of a logical database concentrates on data requirements, such as the student and payment relationship. The physical database design concentrates on the actual implementation of storing data in a way that is understood and implemented by the database (in this context, PostgreSQL through Supabase), ensuring that data such as financial information and lottery outcomes is independent of physical constraints and other personal identifying information
+.
+4.5.1 Logical Database Design
+The logical database design identifies the entities, attributes, primary keys, and relationships required to support the UniEqub system.
+Based on the UniEqub system requirements, the following main entities were identified:
+Administrator
+Customer (User)
+Equb Group
+Equb Membership
+Contribution
+Payout
+Penalty
+Payment Transaction
+Report
+Each table is designed to store atomic data and to support system operations such as creating equbs, joining equbs, contributing money, receiving payouts, applying penalties, and generating reports.
+   
+            Stores student registration details, authentication credentials, and KYC status.
+ 
+Table 18: DB user table
+Field Name
+Data Type
+Description
+PK User_ID
+UUID
+Unique identifier for the user
+Full_Name
+Varchar(100)
+Full legal name of the student
+Phone_Number
+Varchar(15)
+Unique phone number for login/Auth
+Password_Hash
+Varchar(255)
+Encrypted password string
+Student_ID_Img
+Text
+URL path to the uploaded ID image
+KYC_Status
+Varchar(20)
+Verified, Unverified, or Banned
+Role
+Varchar(10)
+Member or Admin
+Created_At
+Timestamp
+Date of account creation
+ 
+Stores the configuration for each saving group (Equb) created by students.
+ 
+Table 19:DB equb group
+Field Name
+Data Type
+Description
+PK Group_ID
+UUID
+Unique identifier for the group
+FK Creator_ID
+UUID
+Links to the User who started the group
+Group_Name
+Varchar(50)
+Name of the Equb group
+Amount
+Decimal(10,2)
+Contribution amount per round
+Max_Members
+Integer
+Maximum allowed participants
+Frequency
+Varchar(20)
+Weekly, Bi-weekly, or Monthly
+Virtual_Acc_Ref
+Varchar(50)
+The unique virtual account number assigned to this group
+Status
+Varchar(20)
+Pending, Active, Frozen, Completed
+Start_Date
+Date
+The date the first cycle begins
+ 
+ 
+A junction table establishing the Many-to-Many relationship between Users and Groups.
+ 
+Table 20:DB Group members table
+Field Name
+Data Type
+Description
+PK Membership_ID
+UUID
+Unique identifier for the membership
+FK Group_ID
+UUID
+The Equb group joined
+FK User_ID
+UUID
+The student joining the group
+Joined_At
+Timestamp
+Date of joining
+Status
+Varchar(20)
+Active or Removed
+ 
+ 
+Manages the specific cycles within a group (e.g., Week 1, Week 2) and tracks the winner.
+ 
+Table 21:Rounds Table
+Field Name
+Data Type
+Description
+PK Round_ID
+UUID
+Unique identifier for the specific round
+FK Group_ID
+UUID
+The group this round belongs to
+Round_Number
+Integer
+The sequence (e.g., Round 1, Round 2)
+FK Winner_ID
+UUID
+The User ID selected by RNG (Nullable)
+Draw_Date
+Timestamp
+When the lottery was performed
+Status
+Varchar(20)
+Open, Locked, or Completed
+ 
+ 
+ 
+Records all financial movements (Contributions and Payouts).
+ 
+Table 22:Transactions Table
+Field Name
+Data Type
+Description
+PK Trans_ID
+UUID
+Unique identifier for the transaction
+FK User_ID
+UUID
+The user making or receiving payment
+FK Round_ID
+UUID
+The specific round the payment is for
+Amount
+Decimal(10,2)
+The amount transferred
+Type
+Varchar(20)
+'Contribution' or 'Payout'
+Payment_Method
+Varchar(30)
+Telebirr, CBE, or Chapa
+Gateway_Ref
+Varchar(100)
+External Transaction ID for audit
+Status
+Varchar(20)
+Pending, Successful, Failed
+Date
+Timestamp
+Time of transaction
+4.5.1 ER Diagram
+In the context of the UniEqub system, the ER diagram depicts the relationship of students to groups and each group producing rounds, as well as the association of transactions to students and rounds.
+User to Equb_Group: One-to-Many (A user can create many groups).
+User to Group_Members : One-to-Many (A user can belong to many groups).
+Equb_Group to Rounds: One-to-Many (A group has multiple rounds/cycles
+Round to Transactions: One-to-Many (a round has multiple contribution transactions).
+Figure 34: ER diagram
+4.5.2 Relational Mapping & Database Normalization
+Relational mapping is the process of converting the conceptual entities identified in the ER model into actual database tables (relations) while establishing the connections between them using Primary Keys (PK) and Foreign Keys (FK). This step bridges the gap between the logical design and the physical implementation in PostgreSQL.
+For the UniEqub system, the mapping ensures referential integrity. For instance, a Transaction cannot exist without a valid User and Round. Similarly, the Many-to-Many relationship between Users and Groups is mapped using an intermediate junction table called Group_Members to handle the association efficiently.
+ 
+Figure 35:Relational Mapping Schema
+ 
+4.5.2 Relational Mapping & Database Normalization
+To ensure data integrity, minimize redundancy, and prevent update anomalies, the UniEqub database schema was developed through a structured normalization process. The design progressed systematically from Unnormalized Form (UNF) to Third Normal Form (3NF).
+Step 1: Unnormalized Form (UNF)
+During the initial analysis, Equb-related data was conceptually represented in a flat structure (similar to a spreadsheet). This design resulted in excessive redundancy—for example, the Group Virtual Account reference and User Phone Number were repeated for every transaction row.
+Table 23:Unnormalized Data (UNF)
+Member Name
+Phone
+Group Name
+Virtual Acc Ref
+Amount
+Round
+Date
+Status
+Winner
+Abebe K.
+0911-xx
+IT Batch
+908812...
+500
+1
+2024-10-01
+Paid
+Abebe K.
+Sara T.
+0912-xx
+IT Batch
+908812...
+500
+1
+2024-10-02
+Paid
+Abebe K.
+Abebe K.
+0911-xx
+IT Batch
+908812...
+500
+2
+2024-11-01
+Paid
+Sara T.
+Problems Identified:
+Update Anomaly: If the group’s virtual account changes, every transaction record must be updated.
+Redundancy: Member details (e.g., phone number) are repeated for every transaction.
+Logical Dependency Error: The Winner attribute depends on the Round, not on individual transactions.
+Step 2: First Normal Form (1NF)
+To achieve First Normal Form:
+A Primary Key (Trans_ID) is introduced to uniquely identify each record.
+All attributes are ensured to contain atomic values.
+Table 24:First Normal Form (1NF)
+Trans_ID
+Member
+Phone
+Group
+Virtual Acc
+Round
+Date
+Status
+Winner
+t1-uuid
+Abebe K.
+0911-xx
+IT Batch
+908812...
+1
+2024-10-01
+Paid
+Abebe K.
+t2-uuid
+Sara T.
+0912-xx
+IT Batch
+908812...
+1
+2024-10-02
+Paid
+Abebe K.
+t3-uuid
+Abebe K.
+0911-xx
+IT Batch
+908812...
+2
+2024-11-01
+Paid
+Sara T.
+Although atomicity is achieved, redundancy and dependency issues still remain.
+Step 3: Second Normal Form (2NF)
+Second Normal Form removes partial dependencies by separating attributes that do not depend on the entire primary key.
+Table 25:Users Table (2NF)
+User_ID (PK)
+Full_Name
+Phone_Number
+u1-uuid
+Abebe Kebede
+0911-xx
+u2-uuid
+Sara Tadesse
+0912-xx
+Table 26:Equb_Groups Table (2NF)
+Group_ID (PK)
+Group_Name
+Amount
+Virtual_Acc_Ref
+Creator_ID (FK)
+g1-uuid
+IT Batch
+500.00
+908812993
+u1-uuid
+Table 27:Transactions Table (2NF)
+Trans_ID (PK)
+User_ID (FK)
+Group_ID (FK)
+Amount
+Round
+Date
+Status
+Winner
+t1-uuid
+u1-uuid
+g1-uuid
+500
+1
+2024-10-01
+Paid
+Abebe K.
+t2-uuid
+u2-uuid
+g1-uuid
+500
+1
+2024-10-02
+Paid
+Abebe K.
+t3-uuid
+u1-uuid
+g1-uuid
+500
+2
+2024-11-01
+Paid
+Sara T.
+Problem Remaining (2NF Limitation)
+Even though the Transactions table now satisfies Second Normal Form (2NF), a transitive dependency still exists:
+Trans_ID → Round → Winner
+The Winner is determined by the Round, not by the individual Transaction. As a result, if all transaction records for a specific round (e.g., Round 1) are deleted, the information about who won that round is also lost. This violates normalization principles and motivates further decomposition in Step 4: Third Normal Form (3NF).
+Step 4: Third Normal Form (3NF)
+Third Normal Form eliminates transitive dependencies. The Winner attribute is logically determined by the Round, not by individual transactions. Therefore, round-related data is extracted into a separate table.
+To resolve this issue, a separate Rounds table was introduced.
+Table 28:Rounds Table (3NF)
+Round_ID (PK)
+Group_ID (FK)
+Round_Num
+Winner_ID (FK)
+Status
+r1-uuid
+g1-uuid
+1
+u1-uuid
+Completed
+r2-uuid
+g1-uuid
+2
+u2-uuid
+Active
+Stores only individual payment events.
+Table 29:Transactions Table (Final)
+Trans_ID (PK)
+User_ID (FK)
+Round_ID (FK)
+Date
+Status
+t1-uuid
+u1-uuid
+r1-uuid
+2024-10-01
+Paid
+t2-uuid
+u2-uuid
+r1-uuid
+2024-10-02
+Paid
+t3-uuid
+u1-uuid
+r2-uuid
+2024-11-01
+Paid
+Final Schema Validation
+Users: Stores only user profile information.
+Equb_Groups: Stores group configuration and shared virtual account details.
+Rounds: Stores round-level data, including winners and cycle status.
+Transactions: Stores payment history linked to users and rounds.
+This normalized schema ensures that updates—such as user profile changes or group configuration updates—occur in a single location, thereby fully satisfying Third Normal Form (3NF) requirements and improving data integrity, consistency, and maintainability.
+CHAPTER FIVE: CONCLUSION AND RECOMMENDATION
+5.1 Conclusion
+The reason for initiating UniEqub was to address a limitation of the conventional, manually operated Equb system in a university setting. By making use of contemporary web and mobile technology, UniEqub was able to design an automated finance system that delivers automated operations of group creation, members' registration, and contributions.
+This system addresses effectively long-standing challenges associated with the conventional system, such as a lack of transparency, restrictions in terms of geographical location, and human influence in conducting lottery. With a fair lottery system in place through an algorithm, along with statuses in real time, UniEqub inculcates a culture of trust and fiscal responsibility in students and staff.
+In addition to that, it shows that it’s possible to develop and re-engineer financial culture practices for modern-day needs and necessities. The application of an efficient technical stack—such as React Native and Supabase—means that not only is it fully functional and operational but it’s also safe and scalable for dealing with sensitive user information. Lastly, UniEqub becomes an essential platform for financial liberation by ensuring students make better use of their finances while enhancing digital inclusion on campus.
+5.2 Recommendation 
+Real Payment Gateway Integration: Although the current implementation is done in a sandbox, the future versions could be developed with the integration of the real local payment systems such as Telebirr, CBE Birr, or Chapa, enabling live financial operations.
+Scalability to Other Institutions: The design of the system is quite flexible and can be applicable on different scales, i.e., not only on one university. In the future versions of Equb, different campuses of universities can also have Equb groups.
+Advanced Security Features: The application should also incorporate advanced security mechanisms, including consumer authentication through fingerprint or facial recognition, in addition to security auditing.
+References
+Abebe, G. (2015). Informal financial institutions and saving culture in Ethiopia. International Journal of Social Economics, 42(10), 861–875.
+Aredo, D. (2004). Rotating savings and credit associations (Equb) in Ethiopia: Characteristics and economic role. Ethiopian Journal of Economics, 13(1), 1–20.
+UI/UX Design Tools 
+Figma, Inc. (2025). Figma: Collaborative interface design and prototyping.
+https://www.figma.com/
+Appendix
+Appendix A: Interview for Traditional Equb Collectors
+A.1 Purpose of the Interview
+The purpose of this interview was to understand how traditional Equb systems operate in real-life settings, identify challenges faced by Equb collectors, and gather requirements for designing a student-focused digital Equb mobile application (UniEqub).
+A.2 Target Participants
+Traditional Equb collectors (organizers)
+Individuals with hands-on experience managing Equb groups
+A.3 Interview MethodSemi-structured interviews
+Yes/No questions and numerical responses
+Conducted in Amharic
+Responses recorded manually during the interview
+A.4 Interview Questions
+ የባህላዊ እቁብ አስተባባሪዎች የቃለ-መጠይቅ ጥያቄዎች
+I. መግቢያ እና ስምምነት
+1. ስለ ይህ ጥናት አጭር ማብራሪያ ተሰጥቶዎታል?
+   ☐ አዎ / ☐ አይ
+2. የሚሰጡት መረጃ በሚስጥር እንደሚጠበቅ ተገልጿል?
+   ☐ አዎ / ☐ አይ
+ II. የእቁብ አወቃቀር (እቁብ እንዴት እንደሚሰራ)
+3. አሁን ስንት የእቁብ ቡድኖችን ታስተዳድራለህ?
+   ቁጥር: ______
+4. በአንድ እቁብ ቡድን ውስጥ በአማካይ ስንት አባላት አሉ?
+   ቁጥር: ______
+5. የእቁብ መዋጮ መጠን ለሁሉም አባላት አንድ ነው?
+   ☐ አዎ / ☐ አይ
+6. የአንድ አባል መዋጮ መጠን ስንት ብር ነው?
+   ብር: ______
+III. የመዋጮ እና የክፍያ ሂደት
+7. መዋጮ በየወሩ ይከፈላል?
+   ☐ አዎ / ☐ አይ
+8. አባላት በጊዜያቸው ክፍያ ይፈጽማሉ?
+   ☐ አዎ / ☐ አይ
+9. በአንድ ዙር ክፍያ የሚያዘግዩ አባላት ቁጥር (በአማካይ)?
+   ቁጥር: ______
+10. ክፍያ የሚፈጸምበት መንገድ ጥሬ ገንዘብ ነው?
+    ☐ አዎ / ☐ አይ
+11. በባንክ / ቴሌብር የሚከፍሉ አባላት አሉ?
+    ☐ አዎ / ☐ አይ
+ IV. የዕጣ ማውጣት (Turn System)
+12. ዕጣ የሚወጣው በድምፅ / በዕጣ መጣል ነው?
+    ☐ አዎ / ☐ አይ
+13. ዕጣ አንድ ጊዜ ብቻ ይወጣል?
+    ☐ አዎ / ☐ አይ
+14. በዕጣ ሂደት ላይ ክርክር ተፈጥሯል?
+    ☐ አዎ / ☐ አይ
+15. በአንድ እቁብ ዙር ስንት ጊዜ ክርክር ይነሳ?
+    ቁጥር: ______
+V. መረጃ መመዝገብ (Records)
+16. የእቁብ መረጃ በደብተር ትመዝግባለህ?
+    ☐ አዎ / ☐ አይ
+17. መረጃ መጥፋት ወይም መበላሸት አጋጥሞሃል?
+    ☐ አዎ / ☐ አይ
+18. በአንድ ቀን መረጃ ለመመዝገብ ስንት ደቂቃ ታጠፋለህ?
+     ደቂቃ: ______
+VI. ማሳወቂያ እና ክትትል
+19. አባላትን ስለ ክፍያ ወይም ዕጣ በእጅ ታሳውቃለህ?
+    ☐ አዎ / ☐ አይ
+20. በአንድ ወር ስንት ጊዜ ማሳወቂያ ታደርጋለህ?
+    ቁጥር: ______
+VII. ቴክኖሎጂ እና መተግበሪያ
+21. የእቁብ ስራን በሞባይል መተግበሪያ መከታተል ይጠቅማል ትላለህ?
+    ☐ አዎ / ☐ አይ
+22. ዕጣ በራስ-ሰር የሚወጣ ስርዓት ትቀበላለህ?
+    ☐ አዎ / ☐ አይ
+23. ክፍያ ማሳወቂያዎች በአፕ መላክ ይጠቅማል?
+    ☐ አዎ / ☐ አይ
+24. የእቁብ መረጃ በዲጂታል መልኩ መያዝ ይመርጣሉ?
+    ☐ አዎ / ☐ አይ
+Appendix B: Summary of Interview Results (Traditional Equb Collectors)
+B.1 Interview Participants
+A total of five (5) traditional Equb collectors (organizers) participated in the interview. All participants had practical experience managing one or more Equb groups and were responsible for member coordination, payment collection, and record keeping.
+B.2 Summary of Key Interview Findings
+The interview data revealed consistent operational patterns and challenges across all participants. The summarized findings are presented below.
+Interview Area
+Consolidated Findings
+Equb groups managed
+Collectors manage between 2 and 4 Equb groups simultaneously
+Members per group
+Groups typically consist of 10–25 members
+Contribution amount
+Monthly contributions range from 500 to 5,000 ETB
+Contribution frequency
+All collectors confirmed weekly contributions
+Payment punctuality
+4 out of 5 collectors reported frequent late payments
+Average late members
+2–6 members delay payment in each contribution cycle
+Payment methods
+A hybrid system is used (cash and digital payments)
+Payment verification
+Mostly manual, relying on SMS or screenshots
+Equb turn selection
+100% manual (lot drawing or voting)
+Turn-related disputes
+2 out of 5 collectors experienced disputes
+Record keeping
+All collectors use paper-based records
+Data loss experience
+3 out of 5 collectors reported record loss or damage
+Technology acceptance
+4 out of 5 collectors are willing to use a mobile app
+B.3 Key Challenges Identified
+The interviews highlighted several critical challenges in traditional Equb management:
+Late or missed payments disrupt Equb cycles
+Manual payment verification is time-consuming and unreliable
+Paper-based record keeping leads to data loss and errors
+Lack of transparency in Equb turn selection causes disputes
+Managing multiple Equb groups increases administrative burden
+Appendix C: Student Google Form Survey Questionnaire
+C.1 Purpose of the Survey
+The Google Form survey was conducted among university students to understand their saving habits, familiarity with Equb, challenges faced in traditional student Equbs, and their willingness to adopt a digital Equb mobile application (UniEqub).
+C.2 Target Participants
+University students
+Potential users of a student-focused digital Equb system
+C.3 Survey Method
+Platform: Google Forms
+Question types: Multiple choice, Yes/No, Likert-scale, and short answers
+Language: English
+Responses exported to Microsoft Excel for analysis
+C.4 Survey Content Areas
+The student survey covered the following areas:
+Personal saving habits
+Participation in traditional Equb
+Challenges with manual Equb systems
+Trust and transparency concerns
+Interest in digital financial tools
+Preferred features for a digital Equb app
+Google form link: https://docs.google.com/forms/d/e/1FAIpQLScOjNQSWTwu_LYcL5JWf7Qp3ACy2tj9y-jhetEQiICqZ0RmkA/viewform
+Appendix D: Summary of Student Survey Results (Google Form)
+D.1 Number of Respondents
+The survey received responses from students who are either currently participating in Equb systems or interested in saving through Equb-based mechanisms.
+Aspect
+Key Finding
+Number of respondents
+71 university students
+Experience with Equb
+61.4% have participated in a traditional Equb
+Academic background
+Mostly 2nd–4th year students from various departments
+Comfort with mobile apps
+Moderate (average ≈ 3/5)
+Preferred contribution amount
+50–200 ETB per week
+Major concerns
+Payment failure, trust, and data security
+Most desired features
+Joining multiple Equbs, secure payments, transparent lottery system
+Overall interest
+High interest in a digital Equb solution
+Spredsheet Link for the data collected from the 71 students https://docs.google.com/spreadsheets/d/11FNJrbOzs-CJCjPjBwMK5hXNflakHAC40Plbndj-0mo/edit?gid=1445432014#gid=1445432014
+D2. Brief Interpretation
+The survey results indicate that most students are familiar with Equb practices and show strong interest in a digital alternative. However, successful adoption of the UniEqub mobile application depends on ensuring reliable payments, strong security, and transparent system features.
+Appendix E: Combined Insights from Interviews and Student Survey
+By combining:
+Qualitative interviews with Equb collectors (Appendix B), and
+Quantitative student survey data (Appendix D),
+the study confirms that both organizers and students face similar challenges related to:
+Late payments
+Manual record keeping
+Trust and transparency issues
+Appendix F: Implications for UniEqub Mobile Application Design
+The findings from both data sources informed the design of the UniEqub mobile application, which should:
+Support student-friendly Equb group creation
+Provide automated payment reminders
+Ensure transparent and automated Equb turn selection
+Store records digitally and securely
+Maintain traditional Equb principles while improving usability
+Appendix G: Ethical Considerations
+Participation was voluntary
+No personal identifying information was collected
+Data was used solely for academic purposes
+Student responses were anonymized during analysis
