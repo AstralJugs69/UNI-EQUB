@@ -8,6 +8,8 @@ import { palette, radii, spacing } from '../../theme/tokens';
 
 const heroStudents = require('../../assets/students-hero.jpg');
 
+type KycDocKind = 'front_id' | 'back_id' | 'selfie';
+
 export function SplashScreen() {
   const navigation = useNavigation<any>();
   return (
@@ -193,13 +195,52 @@ export function KycScreen() {
   const { submitPendingKyc, pendingUser } = useAuth();
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [documents, setDocuments] = useState<Record<KycDocKind, Asset | null>>({
+    front_id: null,
+    back_id: null,
+    selfie: null,
+  });
+
+  async function pickDocument(kind: KycDocKind, source: 'camera' | 'gallery') {
+    try {
+      setError('');
+      const result = source === 'camera'
+        ? await launchCamera({ mediaType: 'photo', includeBase64: true, quality: 0.8, saveToPhotos: false })
+        : await launchImageLibrary({ mediaType: 'photo', includeBase64: true, quality: 0.8, selectionLimit: 1 });
+
+      if (result.didCancel) {
+        return;
+      }
+
+      const asset = result.assets?.[0];
+      if (!asset?.base64 || !asset.type) {
+        throw new Error('The selected image could not be prepared for secure upload. Try again.');
+      }
+
+      setDocuments(current => ({ ...current, [kind]: asset }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to capture this document.');
+    }
+  }
 
   async function handleSubmit() {
     try {
+      const requiredKinds: KycDocKind[] = ['front_id', 'back_id', 'selfie'];
+      const missing = requiredKinds.find(kind => !documents[kind]?.base64);
+      if (missing) {
+        throw new Error('Capture all three KYC images before submission.');
+      }
+
       setError('');
       setSubmitting(true);
-      const imageRef = `storage://student-ids/${pendingUser?.userId ?? 'pending-user'}/kyc-${Date.now()}.jpg`;
-      await submitPendingKyc(imageRef);
+      await submitPendingKyc({
+        documents: requiredKinds.map(kind => ({
+          kind,
+          fileName: documents[kind]?.fileName ?? `${kind}.jpg`,
+          contentType: documents[kind]?.type ?? 'image/jpeg',
+          base64: documents[kind]?.base64 ?? '',
+        })),
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'KYC submission failed');
     } finally {
@@ -207,24 +248,35 @@ export function KycScreen() {
     }
   }
 
+  const docCards: Array<{ kind: KycDocKind; label: string }> = [
+    { kind: 'front_id', label: 'Front ID' },
+    { kind: 'back_id', label: 'Back ID' },
+    { kind: 'selfie', label: 'Selfie' },
+  ];
+
   return (
     <ScreenScroll>
       <TopBar title="KYC Verification" rightLabel="3 steps" />
       <View style={{ gap: spacing.sm }}>
         <Text style={{ color: palette.muted, fontWeight: '700' }}>Progress</Text>
         <View style={{ height: 10, borderRadius: 999, backgroundColor: '#e5ebf3', overflow: 'hidden' }}>
-          <View style={{ width: '72%', height: '100%', backgroundColor: palette.primary }} />
+          <View style={{ width: `${(Object.values(documents).filter(Boolean).length / 3) * 100}%`, height: '100%', backgroundColor: palette.primary }} />
         </View>
       </View>
       <TitleBlock title="Complete identity review" subtitle="Verification is required before group creation and payout withdrawal." />
-      <View style={{ flexDirection: 'row', gap: spacing.md }}>
-        {['Front ID', 'Back ID', 'Selfie'].map(label => (
-          <Panel key={label} style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={{ color: palette.primaryDark, fontWeight: '800' }}>{label}</Text>
-            <Text style={{ color: palette.muted, marginTop: 6, textAlign: 'center' }}>Ready for secure upload</Text>
+      {docCards.map(card => {
+        const asset = documents[card.kind];
+        return (
+          <Panel key={card.kind}>
+            <Text style={{ color: palette.primaryDark, fontWeight: '800' }}>{card.label}</Text>
+            <Text style={{ color: palette.muted, marginTop: 6 }}>{asset ? `${asset.fileName ?? card.label} is ready for upload.` : 'No file selected yet.'}</Text>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', marginTop: 12 }}>
+              <PrimaryButton label="Use Camera" variant="secondary" onPress={() => pickDocument(card.kind, 'camera')} disabled={submitting} />
+              <PrimaryButton label="Choose Photo" variant="secondary" onPress={() => pickDocument(card.kind, 'gallery')} disabled={submitting} />
+            </View>
           </Panel>
-        ))}
-      </View>
+        );
+      })}
       <Panel>
         <Text style={{ color: palette.warning, fontWeight: '800' }}>Verification review runs through the admin queue.</Text>
         <Text style={{ color: palette.muted, marginTop: 6 }}>{pendingUser?.fullName ? `${pendingUser.fullName} will be signed into the member workspace after KYC submission.` : 'Your account will move to pending review after submission.'}</Text>
@@ -234,7 +286,6 @@ export function KycScreen() {
     </ScreenScroll>
   );
 }
-
 export function ResetPasswordScreen() {
   const navigation = useNavigation<any>();
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -248,4 +299,7 @@ export function ResetPasswordScreen() {
     </ScreenScroll>
   );
 }
+
+
+
 

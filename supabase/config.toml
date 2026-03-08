@@ -34,5 +34,8 @@ verify_jwt = false
 [functions.payout-withdraw]
 verify_jwt = false
 
+[functions.wallet-clearance]
+verify_jwt = false
+
 [functions.report-export]
 verify_jwt = false

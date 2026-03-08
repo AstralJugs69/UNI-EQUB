@@ -16,6 +16,7 @@ const supportUsers = [
 function parseArgs() {
   const args = process.argv.slice(2);
   const parsed = {};
+  const positional = [];
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg.startsWith('--phone=')) {
@@ -33,7 +34,15 @@ function parseArgs() {
     } else if (arg === '--password') {
       parsed.password = args[index + 1];
       index += 1;
+    } else if (!arg.startsWith('--')) {
+      positional.push(arg);
     }
+  }
+  if (!parsed.phone && positional[0]) {
+    parsed.phone = positional[0];
+  }
+  if (!parsed.name && positional[1]) {
+    parsed.name = positional.slice(1).join(' ');
   }
   return parsed;
 }

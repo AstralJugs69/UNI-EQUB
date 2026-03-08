@@ -11,11 +11,11 @@
 | T-07 | Stage B | Sections 6.5, 6.6 | Mirrored automatic draw and payout creation/withdrawal | mock backend auto-draw logic, wallet/withdraw screens, tests | Completed in mock |
 | T-08 | Stage B | Section 6.7 | Mirrored reminder generation and notification center behavior | notification service, reminder queue, admin reports screen | Completed in mock |
 | T-09 | Stage B | Section 3.2.5 | Mirrored admin reports and export payload contract | report service and admin export UI | Completed in mock |
-| T-10 | Stage C | Sections 6.1, 6.2, 7.1 | Real backend auth/token/KYC implementation | `supabase/functions/register-login/`, `supabase/functions/kyc-submit-review/`, `_shared/auth.ts`, `_shared/twilioVerify.ts`, `mobile/src/services/live/` | In Progress |
+| T-10 | Stage C | Sections 6.1, 6.2, 7.1 | Real backend auth/token/KYC implementation | `supabase/functions/register-login/`, `supabase/functions/kyc-submit-review/`, `_shared/auth.ts`, `_shared/twilioVerify.ts`, signed KYC upload path, `mobile/src/services/live/`, `Build/delivery/evidence/kyc-upload-validation.json` | In Progress |
 | T-11 | Stage D | Sections 6.3, 7.2, 7.3 | Real backend group lifecycle implementation | `supabase/functions/group-lifecycle/`, `mobile/src/services/live/liveGroupsService.ts`, hosted runtime check for create/approve/join/dashboard | In Progress |
-| T-12 | Stage E | Section 6.4, 7.5 | Real backend contribution and reconciliation implementation | `supabase/functions/contribution-reconcile/`, `mobile/src/services/live/livePaymentsService.ts`, hosted runtime USSD contribution check | In Progress |
-| T-13 | Stage F | Sections 6.5-6.7 | Real backend auto draw, payout, reminder implementation | `_shared/roundLifecycle.ts`, `contribution-reconcile`, seeded final-draw script | In Progress |
-| T-14 | Stage G | Sections 3.2.5, 3.3 | Real admin metrics, exports, hardening, UX state completion | admin screens and docs | In Progress |
+| T-12 | Stage E | Section 6.4, 7.5 | Real backend contribution and reconciliation implementation | `supabase/functions/contribution-reconcile/`, `_shared/paymentProviders.ts`, `_shared/phone.ts`, `mobile/src/services/live/livePaymentsService.ts`, hosted runtime USSD contribution check | In Progress |
+| T-13 | Stage F | Sections 6.5-6.7 | Real backend auto draw, payout, reminder implementation | `_shared/roundLifecycle.ts`, `contribution-reconcile`, `liveNotificationsService.ts`, seeded final-draw script | In Progress |
+| T-14 | Stage G | Sections 3.2.5, 3.3 | Real admin metrics, exports, hardening, UX state completion | `report-export`, `liveReportsService.ts`, `Build/delivery/evidence/report-export-validation.json`, admin screens and docs | In Progress |
 | T-15 | Stage H | Testing and deployment methodology | APK, emulator/device validation, UAT evidence | tests, startup automation | In Progress |
 
 ## Traceability rules

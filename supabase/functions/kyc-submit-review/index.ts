@@ -8,9 +8,11 @@ const corsHeaders = {
 };
 
 interface KycPayload {
-  action: 'submit' | 'listPending' | 'approve' | 'ban';
+  action: 'createUploadUrl' | 'submit' | 'listPending' | 'approve' | 'ban';
   userId?: string;
   imageRef?: string;
+  fileName?: string;
+  contentType?: string;
 }
 
 async function updateUser(userId: string, changes: Partial<UserRecord>) {
@@ -33,6 +35,25 @@ Deno.serve(async request => {
     const body = (await request.json()) as KycPayload;
 
     switch (body.action) {
+      case 'createUploadUrl': {
+        if (!body.userId) {
+          return fail('Missing userId for KYC upload.', 400);
+        }
+        const fileName = (body.fileName ?? 'student-id.png').replace(/[^a-zA-Z0-9._-]/g, '-');
+        const objectPath = `${body.userId}/${Date.now()}-${fileName}`;
+        const { data, error } = await supabaseAdmin.storage.from('student-ids').createSignedUploadUrl(objectPath);
+        if (error) {
+          throw error;
+        }
+        return json({
+          bucket: 'student-ids',
+          path: objectPath,
+          token: data.token,
+          signedUrl: data.signedUrl,
+          contentType: body.contentType ?? 'image/png',
+        });
+      }
+
       case 'submit': {
         if (!body.userId || !body.imageRef) {
           return fail('Missing KYC submit payload.', 400);

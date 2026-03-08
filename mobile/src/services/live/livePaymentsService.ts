@@ -38,6 +38,25 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   return data.data;
 }
 
+async function invokeWalletClearance<T>(body: Record<string, unknown>): Promise<T> {
+  const token = await loadSessionToken();
+  if (!token) {
+    throw new Error('No active session token was found.');
+  }
+
+  const { data, error } = await supabase.functions.invoke<Envelope<T>>('wallet-clearance', {
+    body: { ...body, token },
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data?.ok || !data.data) {
+    throw new Error(data?.error ?? 'Wallet clearance invocation failed.');
+  }
+  return data.data;
+}
+
 export const livePaymentsService: PaymentService = {
   async payContribution(_userId: string, groupId: string, method: PaymentMethod): Promise<PaymentResult> {
     if (method === 'MockUSSD') {
@@ -66,22 +85,6 @@ export const livePaymentsService: PaymentService = {
   },
 
   async withdrawPayout(_userId: string) {
-    const { data, error } = await supabase
-      .from('Transaction')
-      .update({ Status: 'Successful', Date: new Date().toISOString() })
-      .eq('User_ID', _userId)
-      .eq('Type', 'Payout')
-      .eq('Status', 'Pending')
-      .order('Date', { ascending: false })
-      .limit(1)
-      .select('*')
-      .maybeSingle();
-
-    if (error) {
-      throw new Error(error.message);
-    }
-    if (!data) {
-      throw new Error('No pending payout is available.');
-    }
+    await invokeWalletClearance<{ payout: TransactionRecord }>({ action: 'withdraw' });
   },
 };

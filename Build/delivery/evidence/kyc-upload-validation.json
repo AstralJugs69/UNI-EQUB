@@ -1,0 +1,8 @@
+{
+  "scenario": "kyc-upload",
+  "userId": "d5ff7252-4db7-4bd2-9eea-a66f58c03088",
+  "storedReference": "storage://student-ids/d5ff7252-4db7-4bd2-9eea-a66f58c03088/1772973849196-front-id.png",
+  "kycStatus": "Unverified",
+  "uploadedObjectCount": 3,
+  "validatedAt": "2026-03-08T12:44:15.857Z"
+}

@@ -29,6 +29,17 @@ export interface LoginInput {
   password: string;
 }
 
+export interface KycDocumentUpload {
+  kind: 'front_id' | 'back_id' | 'selfie';
+  fileName: string;
+  contentType: string;
+  base64: string;
+}
+
+export interface KycSubmissionInput {
+  documents: KycDocumentUpload[];
+}
+
 export interface CreateGroupInput {
   groupName: string;
   amount: number;
@@ -54,7 +65,7 @@ export interface AuthService {
 }
 
 export interface KycService {
-  submitKyc(userId: string, imageRef: string): Promise<void>;
+  submitKyc(userId: string, input: KycSubmissionInput): Promise<void>;
   listPendingReviews(): Promise<KycReviewItem[]>;
   approve(userId: string): Promise<void>;
   ban(userId: string): Promise<void>;

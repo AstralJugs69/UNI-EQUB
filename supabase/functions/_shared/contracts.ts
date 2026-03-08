@@ -6,7 +6,8 @@
 
 export type RegisterLoginAction = 'register' | 'requestOtp' | 'verifyOtp' | 'beginLogin' | 'completeLogin' | 'login' | 'restore';
 export type GroupLifecycleAction = 'listBrowseable' | 'getGroup' | 'getGroupStatus' | 'createRequest' | 'listPending' | 'approve' | 'reject' | 'freeze' | 'join' | 'getDashboard';
-export type ContributionAction = 'payContribution' | 'startContributionUssd' | 'submitContributionUssd' | 'listTransactions' | 'getWallet';
+export type ContributionAction = 'payContribution' | 'startContributionUssd' | 'submitContributionUssd' | 'listTransactions' | 'getWallet' | 'reconcileProviderCallback';
+export type ReportAction = 'getAdminOverview' | 'listReports' | 'exportReport';
 
 export interface LoginRequest {
   phoneNumber: string;
@@ -78,11 +79,21 @@ export interface ContributionPayload {
   method?: 'Telebirr' | 'MockUSSD' | 'ChapaSandbox';
   sessionId?: string;
   input?: string;
+  senderPhone?: string;
+  gatewayRef?: string;
+  amount?: number;
 }
 
 export interface PayoutWithdrawPayload {
   action: 'withdraw';
   token: string;
+}
+
+export interface ReportExportPayload {
+  action: ReportAction;
+  token: string;
+  title?: string;
+  format?: 'PDF' | 'CSV';
 }
 
 export function json<T>(data: T, status = 200): Response {

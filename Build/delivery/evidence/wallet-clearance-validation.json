@@ -1,0 +1,12 @@
+{
+  "scenario": "wallet-clearance",
+  "testerPhone": "0973786566",
+  "groupId": "35ab5122-fc5d-415d-be68-efb92f935615",
+  "callbackReceipt": "QA-CB-73786566",
+  "autoDrawTriggered": true,
+  "payoutAmount": 3250,
+  "pendingPayoutsBeforeClearance": 1,
+  "pendingPayoutsAfterClearance": 0,
+  "successfulPayoutCountAfterClearance": 1,
+  "validatedAt": "2026-03-08T12:43:17.179Z"
+}

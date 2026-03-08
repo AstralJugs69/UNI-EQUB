@@ -9,6 +9,9 @@
     "mobile:test": "npm --prefix mobile exec jest --runInBand",
     "mobile:typecheck": "npm --prefix mobile exec tsc --noEmit",
     "mobile:lint": "npm --prefix mobile run lint",
-    "seed:final-draw": "node .\\mobile\\scripts\\seed-final-draw.js"
+    "mobile:apk:debug": "powershell -Command \"$env:JAVA_HOME='C:\\Program Files\\Android\\Android Studio\\jbr'; $env:Path=\\\"$env:JAVA_HOME\\\\bin;$env:Path\\\"; cd mobile\\\\android; .\\\\gradlew.bat assembleDebug\"",
+    "seed:final-draw": "node .\\mobile\\scripts\\seed-final-draw.js",
+    "qa:kyc-upload": "node .\\mobile\\scripts\\validate-kyc-upload.js --output C:\\dev\\projects\\UNI-EQUB\\Build\\delivery\\evidence\\kyc-upload-validation.json",
+    "qa:wallet-clearance": "node .\\mobile\\scripts\\validate-wallet-clearance.js --output C:\\dev\\projects\\UNI-EQUB\\Build\\delivery\\evidence\\wallet-clearance-validation.json"
   }
 }

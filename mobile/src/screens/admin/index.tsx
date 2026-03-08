@@ -103,6 +103,7 @@ export function AdminKycScreen() {
 export function AdminGroupsScreen() {
   const { data } = usePendingGroupsQuery();
   const { approveGroup, rejectGroup, freezeGroup } = useAdminActions();
+  const [adminNote, setAdminNote] = React.useState('');
   const item = data?.[0];
   return (
     <ScreenScroll>
@@ -126,11 +127,26 @@ export function AdminGroupsScreen() {
               <InfoRow title="Duplicate group name • Clear" />
             </View>
           </Panel>
+          <Panel>
+            <Text style={{ fontWeight: '800', fontSize: 18 }}>Reject behavior</Text>
+            <Text style={{ color: palette.muted, marginTop: 6 }}>
+              The fixed schema does not persist a separate rejected group status. Returning a request keeps it unpublished and pending until an admin resolves it manually.
+            </Text>
+          </Panel>
           <View style={uiStyles.twoCol}>
             <PrimaryButton label="Approve Group" onPress={() => approveGroup.mutate(item.group.Group_ID)} />
-            <PrimaryButton label="Reject With Reason" variant="secondary" onPress={() => rejectGroup.mutate(item.group.Group_ID)} />
+            <PrimaryButton
+              label="Return To Pending Review"
+              variant="secondary"
+              onPress={() =>
+                rejectGroup.mutate(item.group.Group_ID, {
+                  onSuccess: () => setAdminNote('Request returned to pending review. It remains hidden from members until an admin approves it.'),
+                })
+              }
+            />
           </View>
-          <PrimaryButton label="Freeze Dorm A Savings Group" variant="danger" onPress={() => freezeGroup.mutate('group-dorm')} />
+          <PrimaryButton label="Freeze This Group" variant="danger" onPress={() => freezeGroup.mutate(item.group.Group_ID)} />
+          {adminNote ? <Panel><Text style={{ color: palette.warning, fontWeight: '700' }}>{adminNote}</Text></Panel> : null}
         </>
       ) : (
         <Panel><Text style={{ color: palette.success, fontWeight: '800' }}>No pending group requests. All submissions are handled.</Text></Panel>
@@ -171,7 +187,9 @@ export function AdminReportsScreen() {
         <Panel>
           <Text style={{ fontWeight: '800', fontSize: 18 }}>Latest export</Text>
           <Text style={{ color: palette.muted, marginTop: 6 }}>{exportReport.data.fileName}</Text>
+          <Text style={{ color: palette.muted, marginTop: 6 }}>{exportReport.data.mimeType ?? 'text/plain'}</Text>
           <Text style={{ color: palette.text, marginTop: 10 }}>{exportReport.data.content}</Text>
+          {exportReport.data.contentBase64 ? <Text style={{ color: palette.success, marginTop: 10, fontWeight: '700' }}>Binary PDF payload is ready.</Text> : null}
         </Panel>
       ) : null}
       <AdminNav active={routes.adminReports} />

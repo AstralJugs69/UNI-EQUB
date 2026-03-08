@@ -22,7 +22,7 @@ interface AuthContextValue {
   register: (fullName: string, phoneNumber: string, password: string) => Promise<void>;
   requestOtp: (phoneNumber: string) => Promise<void>;
   verifyOtp: (phoneNumber: string, otp: string) => Promise<void>;
-  submitPendingKyc: (imageRef: string) => Promise<void>;
+  submitPendingKyc: (input: KycSubmissionInput) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -115,11 +115,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
     verifyOtp: async (phoneNumber, otp) => {
       await services.auth.verifyOtp(phoneNumber, otp);
     },
-    submitPendingKyc: async imageRef => {
+    submitPendingKyc: async input => {
       if (!pendingUser || !pendingPassword) {
         throw new Error('No pending registration is available.');
       }
-      await services.kyc.submitKyc(pendingUser.userId, imageRef);
+      await services.kyc.submitKyc(pendingUser.userId, input);
       const nextSession = await services.auth.login({ phoneNumber: pendingUser.phoneNumber, password: pendingPassword }, 'Member');
       await saveSessionToken(nextSession.token);
       await saveLastActiveAt(new Date().toISOString());
@@ -148,4 +148,5 @@ export function useAuth() {
   }
   return context;
 }
+
 

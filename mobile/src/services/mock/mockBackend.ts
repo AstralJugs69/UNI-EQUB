@@ -21,7 +21,7 @@ import type {
   UserRecord,
   WalletSnapshot,
 } from '../../types/domain';
-import type { AppServices, CreateGroupInput, LoginInput, RegisterInput } from '../contracts';
+import type { AppServices, CreateGroupInput, KycSubmissionInput, LoginInput, RegisterInput } from '../contracts';
 
 interface SessionRecord {
   userId: string;
@@ -312,9 +312,9 @@ export class MockBackend implements AppServices {
   }
 
   kyc = {
-    submitKyc: async (userId: string, imageRef: string): Promise<void> => {
+    submitKyc: async (userId: string, input: KycSubmissionInput): Promise<void> => {
       const user = this.requireUser(userId);
-      user.Student_ID_Img = imageRef;
+      user.Student_ID_Img = `storage://student-ids/${userId}/manifest-${input.documents.length}.json`;
       user.KYC_Status = 'Unverified';
       this.pushNotification(userId, 'KYC submitted', 'Your student ID is waiting for admin review.');
       this.db.auditLogs.unshift(`KYC submitted for ${user.Full_Name}`);

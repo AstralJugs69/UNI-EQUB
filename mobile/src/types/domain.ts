@@ -144,6 +144,8 @@ export interface ExportedReport {
   fileName: string;
   format: 'PDF' | 'CSV';
   content: string;
+  contentBase64?: string;
+  mimeType?: string;
 }
 
 export interface AdminOverview {

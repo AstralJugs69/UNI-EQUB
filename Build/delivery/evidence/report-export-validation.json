@@ -1,0 +1,10 @@
+{
+  "scenario": "report-export",
+  "reportCount": 3,
+  "firstReport": "Total transaction volume",
+  "format": "PDF",
+  "hasBinaryPdf": true,
+  "pdfHeader": "%PDF-",
+  "mimeType": "application/pdf",
+  "validatedAt": "2026-03-08T12:45:17.343Z"
+}

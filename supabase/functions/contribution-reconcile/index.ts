@@ -1,6 +1,8 @@
 import { fail, json } from '../_shared/contracts.ts';
 import type { ContributionPayload } from '../_shared/contracts.ts';
 import { signContributionSession, verifyContributionSession, verifySession } from '../_shared/auth.ts';
+import { initiateSimulatedProvider } from '../_shared/paymentProviders.ts';
+import { normalizePhone } from '../_shared/phone.ts';
 import { finalizeRoundIfReady } from '../_shared/roundLifecycle.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import type { GroupRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
@@ -75,6 +77,21 @@ async function getMembership(groupId: string, userId: string) {
   return data as MembershipRecord | null;
 }
 
+async function findGroupMemberByPhone(groupId: string, phoneNumber: string) {
+  const normalized = normalizePhone(phoneNumber);
+  const { data, error } = await supabaseAdmin
+    .from('GroupMembers')
+    .select('*, User!inner(*)')
+    .eq('Group_ID', groupId)
+    .eq('Status', 'Active')
+    .eq('User.Phone_Number', normalized);
+  if (error) {
+    throw error;
+  }
+  const membership = (data ?? [])[0] as (MembershipRecord & { User: UserRecord }) | undefined;
+  return membership ? { membership, user: membership.User } : null;
+}
+
 async function successfulContribution(roundId: string, userId: string) {
   const { data, error } = await supabaseAdmin
     .from('Transaction')
@@ -115,7 +132,7 @@ function buildReceipt(prefix: string) {
 }
 
 async function createContributionTransaction(actor: UserRecord, group: GroupRecord, round: RoundRecord, method: 'Telebirr' | 'MockUSSD' | 'ChapaSandbox') {
-  const receiptRef = buildReceipt(method === 'MockUSSD' ? 'USSD' : 'GW');
+  const receiptRef = buildReceipt(method === 'MockUSSD' ? 'USSD' : method === 'ChapaSandbox' ? 'CHAPA' : 'TB');
   const { data, error } = await supabaseAdmin
     .from('Transaction')
     .insert({
@@ -140,6 +157,51 @@ async function createContributionTransaction(actor: UserRecord, group: GroupReco
     paymentResult: {
       receiptRef,
       amount: Number(transaction.Amount),
+      method,
+      autoDrawTriggered: lifecycle.autoDrawTriggered,
+      payoutAmount: lifecycle.payoutAmount,
+    } as PaymentResult,
+  };
+}
+
+async function reconcileContributionByPhone(groupId: string, senderPhone: string, method: 'Telebirr' | 'MockUSSD' | 'ChapaSandbox', gatewayRef?: string, forcedAmount?: number) {
+  const match = await findGroupMemberByPhone(groupId, senderPhone);
+  if (!match) {
+    throw new Error('No active group member matches the sender phone for this contribution.');
+  }
+
+  const actor = match.user;
+  const { group, round } = await assertContributionReady(actor, groupId);
+  const amount = forcedAmount ?? Number(group.Amount);
+  if (amount !== Number(group.Amount)) {
+    throw new Error(`Contribution amount must match the expected round amount of ${group.Amount} ETB.`);
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('Transaction')
+    .insert({
+      User_ID: actor.User_ID,
+      Round_ID: round.Round_ID,
+      Amount: amount,
+      Type: 'Contribution',
+      Payment_Method: method,
+      Gateway_Ref: gatewayRef ?? buildReceipt(method === 'MockUSSD' ? 'USSD' : method === 'ChapaSandbox' ? 'CHAPA' : 'TB'),
+      Status: 'Successful',
+      Date: new Date().toISOString(),
+    })
+    .select('*')
+    .single();
+  if (error) {
+    throw error;
+  }
+
+  const transaction = data as TransactionRecord;
+  const lifecycle = await finalizeRoundIfReady(group, round);
+  return {
+    transaction,
+    paymentResult: {
+      receiptRef: transaction.Gateway_Ref,
+      amount,
       method,
       autoDrawTriggered: lifecycle.autoDrawTriggered,
       payoutAmount: lifecycle.payoutAmount,
@@ -257,8 +319,9 @@ Deno.serve(async request => {
         if (!body.groupId || !body.method || body.method === 'MockUSSD') {
           return fail('Missing direct contribution payload.', 400);
         }
-        const { group, round } = await assertContributionReady(actor, body.groupId);
-        return json(await createContributionTransaction(actor, group, round, body.method));
+        const group = await requireGroup(body.groupId);
+        const provider = initiateSimulatedProvider(body.method, actor, group);
+        return json(await reconcileContributionByPhone(body.groupId, provider.senderPhone, body.method, provider.gatewayRef));
       }
 
       case 'listTransactions':
@@ -345,7 +408,8 @@ Deno.serve(async request => {
             if (!/^\d{6}$/.test(input)) {
               return json({ ussd: await buildUssdState({ actor, group, round, stage, sessionId: body.sessionId, error: 'Enter your 6-digit Telebirr PIN.' }) });
             }
-            const result = await createContributionTransaction(actor, group, round, 'MockUSSD');
+            const provider = initiateSimulatedProvider('MockUSSD', actor, group);
+            const result = await reconcileContributionByPhone(group.Group_ID, provider.senderPhone, 'MockUSSD', provider.gatewayRef);
             return json({
               ussd: await buildUssdState({
                 actor,
@@ -361,6 +425,13 @@ Deno.serve(async request => {
           default:
             return fail('Unsupported USSD session stage.', 400);
         }
+      }
+
+      case 'reconcileProviderCallback': {
+        if (!body.groupId || !body.method || !body.senderPhone) {
+          return fail('Missing callback reconciliation payload.', 400);
+        }
+        return json(await reconcileContributionByPhone(body.groupId, body.senderPhone, body.method, body.gatewayRef, body.amount));
       }
 
       default:

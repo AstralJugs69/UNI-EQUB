@@ -22,6 +22,19 @@ This repository is organized as an implementation workspace around the fixed aca
 - `npm run mobile:test`
 - `npm run mobile:typecheck`
 - `npm run mobile:lint`
+- `npm run mobile:apk:debug`
+- `npm run qa:kyc-upload`
+- `npm run qa:wallet-clearance`
+- `node .\mobile\scripts\seed-final-draw.js --phone 09XXXXXXXX --name "Your Name"`
+
+## Mobile env setup
+1. Copy [mobile/.env.example](C:/dev/projects/UNI-EQUB/mobile/.env.example) to `mobile/.env`
+2. Set:
+   - `UNIEQUB_SUPABASE_URL`
+   - `UNIEQUB_SUPABASE_ANON_KEY`
+3. Restart Metro after changing the file
+
+The tracked source no longer hardcodes the mobile Supabase URL/key pair.
 
 ## Important constraint
 The database tables are fixed. Missing behavior must be implemented in Edge Functions, derived queries, storage, or provider logs rather than additional tables.

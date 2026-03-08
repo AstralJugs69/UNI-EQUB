@@ -4,6 +4,7 @@ import * as Keychain from 'react-native-keychain';
 const SERVICE = 'uniequb-session';
 const FALLBACK_KEY = '@uniequb/session-token';
 const LAST_ACTIVE_KEY = '@uniequb/last-active-at';
+const notificationReadKey = (userId: string) => `@uniequb/notifications-read/${userId}`;
 
 export async function saveSessionToken(token: string) {
   try {
@@ -41,4 +42,20 @@ export async function clearSessionToken() {
   }
   await AsyncStorage.removeItem(FALLBACK_KEY);
   await AsyncStorage.removeItem(LAST_ACTIVE_KEY);
+}
+
+export async function loadReadNotificationIds(userId: string) {
+  const value = await AsyncStorage.getItem(notificationReadKey(userId));
+  if (!value) {
+    return [] as string[];
+  }
+  try {
+    return JSON.parse(value) as string[];
+  } catch {
+    return [] as string[];
+  }
+}
+
+export async function saveReadNotificationIds(userId: string, ids: string[]) {
+  await AsyncStorage.setItem(notificationReadKey(userId), JSON.stringify([...new Set(ids)]));
 }
