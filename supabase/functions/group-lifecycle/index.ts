@@ -147,6 +147,21 @@ async function successfulContributions(roundId: string) {
   return (data ?? []) as TransactionRecord[];
 }
 
+async function successfulContribution(roundId: string, userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('Transaction')
+    .select('*')
+    .eq('Round_ID', roundId)
+    .eq('User_ID', userId)
+    .eq('Type', 'Contribution')
+    .eq('Status', 'Successful')
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+  return data as TransactionRecord | null;
+}
+
 async function getWinnerHistory(groupId: string) {
   const { data, error } = await supabaseAdmin.from('Round').select('*').eq('Group_ID', groupId).not('Winner_ID', 'is', null).order('Round_Number', { ascending: false });
   if (error) {
