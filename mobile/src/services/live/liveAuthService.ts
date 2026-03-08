@@ -32,7 +32,7 @@ export const liveAuthService: AuthService = {
   },
 
   async verifyOtp(phoneNumber: string, otp: string) {
-    await invoke<{ approved: boolean }>({ action: 'verifyOtp', verifyOtp: { phoneNumber, otp } });
+    return invoke<{ approved: boolean; pendingKycToken?: string }>({ action: 'verifyOtp', verifyOtp: { phoneNumber, otp } });
   },
 
   async beginLogin(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<LoginChallenge> {
@@ -45,10 +45,8 @@ export const liveAuthService: AuthService = {
     return session;
   },
 
-  async login(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<AuthSession> {
-    const session = await invoke<AuthSession>({ action: 'login', login: { ...input, roleHint } });
-    mockBackend.syncExternalUser(session.user);
-    return session;
+  async login(_input: LoginInput, _roleHint?: 'Member' | 'Admin'): Promise<AuthSession> {
+    throw new Error('Direct login is disabled. Use the OTP login flow.');
   },
 
   async restore(token: string): Promise<AuthSession | null> {

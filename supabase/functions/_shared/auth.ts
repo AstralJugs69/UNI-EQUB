@@ -31,6 +31,15 @@ export async function signLoginChallenge(user: UserRecord) {
     .sign(secret);
 }
 
+export async function signPendingKycToken(user: UserRecord) {
+  return new SignJWT({ role: user.Role, phone: user.Phone_Number, purpose: 'pending_kyc' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setSubject(user.User_ID)
+    .setIssuedAt()
+    .setExpirationTime('30m')
+    .sign(secret);
+}
+
 export async function verifySession(token: string) {
   const verified = await jwtVerify(token, secret);
   if (verified.payload.purpose !== 'session') {
@@ -43,6 +52,14 @@ export async function verifyLoginChallenge(token: string) {
   const verified = await jwtVerify(token, secret);
   if (verified.payload.purpose !== 'login_challenge') {
     throw new Error('Invalid login challenge token.');
+  }
+  return verified.payload;
+}
+
+export async function verifyPendingKycToken(token: string) {
+  const verified = await jwtVerify(token, secret);
+  if (verified.payload.purpose !== 'pending_kyc') {
+    throw new Error('Invalid pending KYC token.');
   }
   return verified.payload;
 }

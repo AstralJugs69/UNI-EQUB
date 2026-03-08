@@ -1,9 +1,9 @@
 import { decode as decodeBase64 } from 'base64-arraybuffer';
 import { supabase } from '../supabaseClient';
+import { loadSessionToken } from '../storage';
 import { mockBackend } from '../mock/mockBackend';
 import type { KycService, KycSubmissionInput } from '../contracts';
-import type { KycReviewItem, UserRecord } from '../../types/domain';
-import type { SessionUser } from '../../types/domain';
+import type { AuthSession, KycReviewItem, SessionUser, UserRecord } from '../../types/domain';
 
 interface Envelope<T> {
   ok: boolean;
@@ -22,6 +22,14 @@ async function invoke<T>(body: unknown): Promise<T> {
   return data.data;
 }
 
+async function invokeWithSession<T>(body: Record<string, unknown>): Promise<T> {
+  const token = await loadSessionToken();
+  if (!token) {
+    throw new Error('No active session token was found.');
+  }
+  return invoke<T>({ ...body, token });
+}
+
 function toSessionUser(user: UserRecord): SessionUser {
   return {
     userId: user.User_ID,
@@ -33,12 +41,13 @@ function toSessionUser(user: UserRecord): SessionUser {
 }
 
 export const liveKycService: KycService = {
-  async submitKyc(userId: string, input: KycSubmissionInput) {
+  async submitKyc(userId: string, input: KycSubmissionInput, pendingKycToken: string): Promise<AuthSession> {
     const storedRefs: string[] = [];
 
     for (const document of input.documents) {
       const upload = await invoke<{ bucket: string; path: string; token: string; contentType: string }>({
         action: 'createUploadUrl',
+        token: pendingKycToken,
         userId,
         fileName: document.fileName,
         contentType: document.contentType,
@@ -57,22 +66,28 @@ export const liveKycService: KycService = {
       storedRefs.push(`storage://${upload.bucket}/${upload.path}`);
     }
 
-    const response = await invoke<{ user: UserRecord }>({ action: 'submit', userId, imageRef: storedRefs[0] });
+    const response = await invoke<{ user: UserRecord; token: string; sessionUser: SessionUser }>({
+      action: 'submit',
+      token: pendingKycToken,
+      userId,
+      imageRef: storedRefs[0],
+    });
     mockBackend.setUserKycStatus(userId, response.user.KYC_Status, storedRefs[0]);
+    return { token: response.token, user: response.sessionUser };
   },
 
   async listPendingReviews(): Promise<KycReviewItem[]> {
-    const response = await invoke<{ users: UserRecord[] }>({ action: 'listPending' });
+    const response = await invokeWithSession<{ users: UserRecord[] }>({ action: 'listPending' });
     return response.users.map(user => ({ user, note: 'Live Supabase KYC review item.' }));
   },
 
   async approve(userId: string) {
-    const response = await invoke<{ user: UserRecord }>({ action: 'approve', userId });
+    const response = await invokeWithSession<{ user: UserRecord }>({ action: 'approve', userId });
     mockBackend.syncExternalUser(toSessionUser(response.user));
   },
 
   async ban(userId: string) {
-    const response = await invoke<{ user: UserRecord }>({ action: 'ban', userId });
+    const response = await invokeWithSession<{ user: UserRecord }>({ action: 'ban', userId });
     mockBackend.syncExternalUser(toSessionUser(response.user));
   },
 };

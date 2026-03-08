@@ -134,18 +134,21 @@ export class MockBackend implements AppServices {
       return { challengeId };
     },
 
-    verifyOtp: async (phoneNumber: string, otp: string): Promise<void> => {
+    verifyOtp: async (phoneNumber: string, otp: string): Promise<{ pendingKycToken?: string }> => {
       const normalized = this.normalizePhone(phoneNumber);
-      const challenge = Object.values(this.db.otpChallenges).find(item => item.phoneNumber === normalized);
-      if (!challenge) {
+      const challengeEntry = Object.entries(this.db.otpChallenges).find(([, item]) => item.phoneNumber === normalized);
+      if (!challengeEntry) {
         throw new Error('No OTP challenge is active for this number.');
       }
+      const [challengeId, challenge] = challengeEntry;
       if (challenge.expiresAt < nowIso()) {
         throw new Error('OTP challenge expired.');
       }
       if (challenge.otp !== otp.trim()) {
         throw new Error('Invalid OTP code.');
       }
+      delete this.db.otpChallenges[challengeId];
+      return { pendingKycToken: `mock-pending-kyc-${normalized}` };
     },
 
     beginLogin: async (input: LoginInput, roleHint?: 'Member' | 'Admin') => {
@@ -312,12 +315,15 @@ export class MockBackend implements AppServices {
   }
 
   kyc = {
-    submitKyc: async (userId: string, input: KycSubmissionInput): Promise<void> => {
+    submitKyc: async (userId: string, input: KycSubmissionInput, _pendingKycToken: string): Promise<AuthSession> => {
       const user = this.requireUser(userId);
       user.Student_ID_Img = `storage://student-ids/${userId}/manifest-${input.documents.length}.json`;
       user.KYC_Status = 'Unverified';
       this.pushNotification(userId, 'KYC submitted', 'Your student ID is waiting for admin review.');
       this.db.auditLogs.unshift(`KYC submitted for ${user.Full_Name}`);
+      const token = `session-${user.User_ID}-${Date.now()}`;
+      this.db.sessions[token] = { userId: user.User_ID, expiresAt: plusMinutes(60 * 24 * 7) };
+      return { token, user: this.toSessionUser(user) };
     },
 
     listPendingReviews: async (): Promise<KycReviewItem[]> => {

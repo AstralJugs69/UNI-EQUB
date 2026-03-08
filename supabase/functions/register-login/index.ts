@@ -1,6 +1,6 @@
 ﻿import { fail, json } from '../_shared/contracts.ts';
 import type { RegisterLoginPayload } from '../_shared/contracts.ts';
-import { hashPassword, signLoginChallenge, signSession, verifyLoginChallenge, verifyPassword, verifySession } from '../_shared/auth.ts';
+import { hashPassword, signLoginChallenge, signPendingKycToken, signSession, verifyLoginChallenge, verifyPassword, verifySession } from '../_shared/auth.ts';
 import { normalizePhone } from '../_shared/phone.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import type { UserRecord } from '../_shared/types.ts';
@@ -104,7 +104,15 @@ Deno.serve(async request => {
           return fail('Missing OTP verification payload.', 400);
         }
         const response = await verifyOtp(body.verifyOtp.phoneNumber, body.verifyOtp.otp);
-        return json({ sid: response.sid, status: response.status, approved: true });
+        const user = await findUserByPhone(body.verifyOtp.phoneNumber);
+        return json({
+          sid: response.sid,
+          status: response.status,
+          approved: true,
+          pendingKycToken: user && user.Role === 'Member' && user.KYC_Status === 'Unverified'
+            ? await signPendingKycToken(user)
+            : undefined,
+        });
       }
 
       case 'beginLogin': {
@@ -140,15 +148,7 @@ Deno.serve(async request => {
       }
 
       case 'login': {
-        if (!body.login) {
-          return fail('Missing login payload.', 400);
-        }
-        const { user, error } = await validateCredentials(body.login.phoneNumber, body.login.password, body.login.roleHint);
-        if (error || !user) {
-          return fail(error ?? 'Invalid credentials.', 401);
-        }
-        const token = await signSession(user);
-        return json({ token, user: toSessionUser(user) });
+        return fail('Direct login is disabled. Start login with OTP first.', 400);
       }
 
       case 'restore': {

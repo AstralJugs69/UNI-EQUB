@@ -34,7 +34,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [authReady, setAuthReady] = useState(false);
   const [session, setSession] = useState<AuthSession | null>(null);
   const [pendingUser, setPendingUser] = useState<SessionUser | null>(null);
-  const [pendingPassword, setPendingPassword] = useState<string | null>(null);
+  const [pendingKycToken, setPendingKycToken] = useState<string | null>(null);
   const [pendingLogin, setPendingLogin] = useState<PendingLoginChallenge | null>(null);
 
   useEffect(() => {
@@ -55,13 +55,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
         return;
       }
-      const restored = await services.auth.restore(token);
-      if (active) {
-        setSession(restored);
-        setAuthReady(true);
-      }
-      if (restored) {
-        await saveLastActiveAt(new Date().toISOString());
+      try {
+        const restored = await services.auth.restore(token);
+        if (active) {
+          setSession(restored);
+          setAuthReady(true);
+        }
+        if (restored) {
+          await saveLastActiveAt(new Date().toISOString());
+        }
+      } catch {
+        await clearSessionToken();
+        if (active) {
+          setSession(null);
+          setAuthReady(true);
+        }
       }
     }
     restore();
@@ -98,7 +106,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setSession(nextSession);
       setPendingLogin(null);
       setPendingUser(null);
-      setPendingPassword(null);
+      setPendingKycToken(null);
     },
     register: async (fullName, phoneNumber, password) => {
       const user = await services.auth.register({
@@ -108,25 +116,25 @@ export function AuthProvider({ children }: PropsWithChildren) {
         studentIdImage: 'storage://students/pending-upload.png',
       });
       setPendingUser(user);
-      setPendingPassword(password);
+      setPendingKycToken(null);
     },
     requestOtp: async phoneNumber => {
       await services.auth.requestOtp(phoneNumber);
     },
     verifyOtp: async (phoneNumber, otp) => {
-      await services.auth.verifyOtp(phoneNumber, otp);
+      const response = await services.auth.verifyOtp(phoneNumber, otp);
+      setPendingKycToken(response.pendingKycToken ?? null);
     },
     submitPendingKyc: async input => {
-      if (!pendingUser || !pendingPassword) {
+      if (!pendingUser || !pendingKycToken) {
         throw new Error('No pending registration is available.');
       }
-      await services.kyc.submitKyc(pendingUser.userId, input);
-      const nextSession = await services.auth.login({ phoneNumber: pendingUser.phoneNumber, password: pendingPassword }, 'Member');
+      const nextSession = await services.kyc.submitKyc(pendingUser.userId, input, pendingKycToken);
       await saveSessionToken(nextSession.token);
       await saveLastActiveAt(new Date().toISOString());
       setSession(nextSession);
       setPendingUser(null);
-      setPendingPassword(null);
+      setPendingKycToken(null);
       setPendingLogin(null);
     },
     logout: async () => {
@@ -134,10 +142,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       await clearSessionToken();
       setSession(null);
       setPendingUser(null);
-      setPendingPassword(null);
+      setPendingKycToken(null);
       setPendingLogin(null);
     },
-  }), [authReady, pendingLogin, pendingPassword, pendingUser, services, session]);
+  }), [authReady, pendingKycToken, pendingLogin, pendingUser, services, session]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

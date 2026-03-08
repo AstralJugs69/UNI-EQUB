@@ -23,6 +23,12 @@ async function requireActor(token: string) {
   if (user.KYC_Status === 'Banned') {
     throw new Error('This account has been banned.');
   }
+  if (user.Role !== 'Member') {
+    throw new Error('Only member accounts can clear wallet payouts.');
+  }
+  if (user.KYC_Status !== 'Verified') {
+    throw new Error('KYC verification is required before wallet clearance.');
+  }
   return user;
 }
 

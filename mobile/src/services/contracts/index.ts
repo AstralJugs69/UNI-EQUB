@@ -56,7 +56,7 @@ export interface LoginChallenge {
 export interface AuthService {
   register(input: RegisterInput): Promise<SessionUser>;
   requestOtp(phoneNumber: string): Promise<{ challengeId: string }>;
-  verifyOtp(phoneNumber: string, otp: string): Promise<void>;
+  verifyOtp(phoneNumber: string, otp: string): Promise<{ pendingKycToken?: string }>;
   beginLogin(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<LoginChallenge>;
   completeLogin(challengeToken: string, otp: string): Promise<AuthSession>;
   login(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<AuthSession>;
@@ -65,7 +65,7 @@ export interface AuthService {
 }
 
 export interface KycService {
-  submitKyc(userId: string, input: KycSubmissionInput): Promise<void>;
+  submitKyc(userId: string, input: KycSubmissionInput, pendingKycToken: string): Promise<AuthSession>;
   listPendingReviews(): Promise<KycReviewItem[]>;
   approve(userId: string): Promise<void>;
   ban(userId: string): Promise<void>;

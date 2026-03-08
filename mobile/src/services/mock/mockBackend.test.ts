@@ -23,8 +23,8 @@ describe('MockBackend auth flow', () => {
     const challenge = await backend.auth.requestOtp('0911223344');
     expect(challenge.challengeId).toContain('otp-');
 
-    await expect(backend.auth.verifyOtp('0911223344', '4719')).resolves.toBeUndefined();
-    await expect(backend.auth.verifyOtp('0911223344', '0000')).rejects.toThrow('Invalid OTP code.');
+    await expect(backend.auth.verifyOtp('0911223344', '4719')).resolves.toEqual({ pendingKycToken: 'mock-pending-kyc-0911223344' });
+    await expect(backend.auth.verifyOtp('0911223344', '0000')).rejects.toThrow('No OTP challenge is active for this number.');
   });
 
   it('requires OTP to complete a normal login challenge', async () => {
