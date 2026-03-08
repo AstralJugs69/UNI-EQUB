@@ -106,6 +106,10 @@
       <p>Use this before connecting an external sandbox gateway. It sends provider-style form requests and shows the plain-text <code>CON</code>/<code>END</code> response.</p>
       <div class="grid">
         <div>
+          <label for="provider">Provider Shape</label>
+          <input id="provider" value="arkesel" />
+        </div>
+        <div>
           <label for="endpoint">Function Endpoint</label>
           <input id="endpoint" value="https://YOUR_PROJECT_REF.supabase.co/functions/v1/ussd-simulator" />
         </div>
@@ -148,6 +152,7 @@
 
   <script>
     const endpointEl = document.getElementById('endpoint');
+    const providerEl = document.getElementById('provider');
     const serviceCodeEl = document.getElementById('serviceCode');
     const sessionIdEl = document.getElementById('sessionId');
     const phoneNumberEl = document.getElementById('phoneNumber');
@@ -171,21 +176,40 @@
 
     async function postRequest() {
       ensureSessionId();
-      const params = new URLSearchParams({
-        sessionId: sessionIdEl.value.trim(),
-        serviceCode: serviceCodeEl.value.trim(),
-        phoneNumber: phoneNumberEl.value.trim(),
-        text: textPath,
-      });
-      if (secretEl.value.trim()) {
-        params.set('secret', secretEl.value.trim());
-      }
+      const provider = providerEl.value.trim().toLowerCase();
+      let response;
 
-      const response = await fetch(endpointEl.value.trim(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params,
-      });
+      if (provider === 'arkesel') {
+        response = await fetch(endpointEl.value.trim(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            provider: 'arkesel',
+            sessionID: sessionIdEl.value.trim(),
+            userID: serviceCodeEl.value.trim(),
+            msisdn: phoneNumberEl.value.trim(),
+            userData: textPath,
+            newSession: textPath === '',
+            network: 'MTN',
+            secret: secretEl.value.trim() || undefined,
+          }),
+        });
+      } else {
+        const params = new URLSearchParams({
+          sessionId: sessionIdEl.value.trim(),
+          serviceCode: serviceCodeEl.value.trim(),
+          phoneNumber: phoneNumberEl.value.trim(),
+          text: textPath,
+        });
+        if (secretEl.value.trim()) {
+          params.set('secret', secretEl.value.trim());
+        }
+        response = await fetch(endpointEl.value.trim(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params,
+        });
+      }
 
       const text = await response.text();
       setResponse(text);

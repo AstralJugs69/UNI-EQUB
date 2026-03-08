@@ -45,6 +45,22 @@ async function postUssd(body) {
   return text;
 }
 
+async function postArkesel(body) {
+  const response = await fetch(FUNCTION_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      provider: 'arkesel',
+      ...body,
+    }),
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(text);
+  }
+  return JSON.parse(text);
+}
+
 async function main() {
   const args = parseArgs();
   const keys = getApiKeys();
@@ -117,11 +133,76 @@ async function main() {
     }
     round = createdRound;
 
-    const steps = [];
-    steps.push(await postUssd({ sessionId, serviceCode: '*483*227#', phoneNumber, text: '' }));
-    steps.push(await postUssd({ sessionId, serviceCode: '*483*227#', phoneNumber, text: '1' }));
-    steps.push(await postUssd({ sessionId, serviceCode: '*483*227#', phoneNumber, text: '1*1' }));
-    steps.push(await postUssd({ sessionId, serviceCode: '*483*227#', phoneNumber, text: '1*1*1' }));
+    const genericSteps = [];
+    genericSteps.push(await postUssd({ sessionId, serviceCode: '*483*227#', phoneNumber, text: '' }));
+    genericSteps.push(await postUssd({ sessionId, serviceCode: '*483*227#', phoneNumber, text: '1' }));
+    genericSteps.push(await postUssd({ sessionId, serviceCode: '*483*227#', phoneNumber, text: '1*1' }));
+    genericSteps.push(await postUssd({ sessionId, serviceCode: '*483*227#', phoneNumber, text: '1*1*1' }));
+
+    const arkeselPhone = `09${String(Number(suffix) + 1).padStart(8, '0')}`;
+    const { data: arkeselUser, error: arkeselUserError } = await service
+      .from('User')
+      .insert({
+        Full_Name: `Arkesel QA ${suffix}`,
+        Phone_Number: arkeselPhone,
+        Password_Hash: 'not-used-in-ussd',
+        Student_ID_Img: 'storage://student-ids/qa/member.jpg',
+        KYC_Status: 'Verified',
+        Role: 'Member',
+      })
+      .select('*')
+      .single();
+    if (arkeselUserError) {
+      throw arkeselUserError;
+    }
+
+    const { data: arkeselGroup, error: arkeselGroupError } = await service
+      .from('EqubGroup')
+      .insert({
+        Creator_ID: arkeselUser.User_ID,
+        Group_Name: `Arkesel QA Group ${suffix}`,
+        Amount: 850,
+        Max_Members: 5,
+        Frequency: 'Weekly',
+        Virtual_Acc_Ref: `UEQ-ARK-${suffix}`,
+        Status: 'Active',
+        Start_Date: new Date().toISOString().slice(0, 10),
+      })
+      .select('*')
+      .single();
+    if (arkeselGroupError) {
+      throw arkeselGroupError;
+    }
+
+    const { error: arkeselMembershipError } = await service.from('GroupMembers').insert({
+      Group_ID: arkeselGroup.Group_ID,
+      User_ID: arkeselUser.User_ID,
+      Joined_At: new Date().toISOString(),
+      Status: 'Active',
+    });
+    if (arkeselMembershipError) {
+      throw arkeselMembershipError;
+    }
+
+    const { data: arkeselRound, error: arkeselRoundError } = await service
+      .from('Round')
+      .insert({
+        Group_ID: arkeselGroup.Group_ID,
+        Round_Number: 1,
+        Status: 'Open',
+      })
+      .select('*')
+      .single();
+    if (arkeselRoundError) {
+      throw arkeselRoundError;
+    }
+
+    const arkeselSessionId = `ark-${suffix}`;
+    const arkeselSteps = [];
+    arkeselSteps.push(await postArkesel({ sessionID: arkeselSessionId, userID: '*483*227#', msisdn: arkeselPhone, userData: '', newSession: true, network: 'MTN' }));
+    arkeselSteps.push(await postArkesel({ sessionID: arkeselSessionId, userID: '*483*227#', msisdn: arkeselPhone, userData: '1', newSession: false, network: 'MTN' }));
+    arkeselSteps.push(await postArkesel({ sessionID: arkeselSessionId, userID: '*483*227#', msisdn: arkeselPhone, userData: '1*1', newSession: false, network: 'MTN' }));
+    arkeselSteps.push(await postArkesel({ sessionID: arkeselSessionId, userID: '*483*227#', msisdn: arkeselPhone, userData: '1*1*1', newSession: false, network: 'MTN' }));
 
     const { data: contribution, error: contributionError } = await service
       .from('Transaction')
@@ -138,7 +219,10 @@ async function main() {
       scenario: 'ussd-simulator',
       phoneNumber,
       sessionId,
-      steps,
+      genericSteps,
+      arkeselPhone,
+      arkeselSessionId,
+      arkeselSteps,
       contributionRecorded: !!contribution,
       gatewayRef: contribution?.Gateway_Ref ?? null,
       validatedAt: new Date().toISOString(),
@@ -160,6 +244,18 @@ async function main() {
       await service.from('GroupMembers').delete().eq('Group_ID', group.Group_ID);
       await service.from('Round').delete().eq('Group_ID', group.Group_ID);
       await service.from('EqubGroup').delete().eq('Group_ID', group.Group_ID);
+    }
+    const { data: extraGroups } = await service.from('EqubGroup').select('Group_ID, Creator_ID').like('Group_Name', `Arkesel QA Group %`);
+    for (const extraGroup of extraGroups ?? []) {
+      const { data: extraRounds } = await service.from('Round').select('Round_ID').eq('Group_ID', extraGroup.Group_ID);
+      const extraRoundIds = (extraRounds ?? []).map(item => item.Round_ID);
+      if (extraRoundIds.length) {
+        await service.from('Transaction').delete().in('Round_ID', extraRoundIds);
+      }
+      await service.from('GroupMembers').delete().eq('Group_ID', extraGroup.Group_ID);
+      await service.from('Round').delete().eq('Group_ID', extraGroup.Group_ID);
+      await service.from('EqubGroup').delete().eq('Group_ID', extraGroup.Group_ID);
+      await service.from('User').delete().eq('User_ID', extraGroup.Creator_ID);
     }
     if (user?.User_ID) {
       await service.from('User').delete().eq('User_ID', user.User_ID);

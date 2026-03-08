@@ -10,11 +10,14 @@ const corsHeaders = {
 };
 
 interface UssdInput {
+  provider: 'generic' | 'arkesel';
   sessionId: string;
   serviceCode: string;
   phoneNumber: string;
   text: string;
   secret?: string;
+  network?: string;
+  newSession?: boolean;
 }
 
 interface DueGroup {
@@ -33,12 +36,29 @@ function plainText(body: string, status = 200) {
   });
 }
 
-function end(message: string) {
-  return plainText(`END ${message}`);
+function jsonResponse(data: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json; charset=utf-8',
+    },
+  });
 }
 
-function cont(message: string) {
-  return plainText(`CON ${message}`);
+function respond(input: UssdInput, message: string, continueSession: boolean, status = 200) {
+  if (input.provider === 'arkesel') {
+    return jsonResponse({
+      userID: input.serviceCode,
+      sessionID: input.sessionId,
+      msisdn: input.phoneNumber,
+      network: input.network ?? '',
+      message,
+      continueSession,
+    }, status);
+  }
+
+  return plainText(`${continueSession ? 'CON' : 'END'} ${message}`, status);
 }
 
 function extractString(record: Record<string, unknown>, ...keys: string[]) {
@@ -62,12 +82,22 @@ async function parseRequest(request: Request): Promise<UssdInput> {
     payload = Object.fromEntries(new URLSearchParams(raw).entries());
   }
 
+  const provider = extractString(payload, 'provider').toLowerCase() === 'arkesel'
+    || 'sessionID' in payload
+    || 'userData' in payload
+    || 'msisdn' in payload
+      ? 'arkesel'
+      : 'generic';
+
   return {
-    sessionId: extractString(payload, 'sessionId', 'session_id') || crypto.randomUUID(),
-    serviceCode: extractString(payload, 'serviceCode', 'service_code', 'ussdString') || '*483*227#',
+    provider,
+    sessionId: extractString(payload, 'sessionId', 'session_id', 'sessionID') || crypto.randomUUID(),
+    serviceCode: extractString(payload, 'serviceCode', 'service_code', 'ussdString', 'userID') || '*483*227#',
     phoneNumber: extractString(payload, 'phoneNumber', 'phone_number', 'msisdn'),
-    text: extractString(payload, 'text', 'Text'),
+    text: extractString(payload, 'text', 'Text', 'userData'),
     secret: extractString(payload, 'secret'),
+    network: extractString(payload, 'network'),
+    newSession: extractString(payload, 'newSession').toLowerCase() === 'true',
   };
 }
 
@@ -242,50 +272,50 @@ Deno.serve(async request => {
     const configuredSecret = Deno.env.get('USSD_SIMULATOR_SECRET');
     const suppliedSecret = input.secret || request.headers.get('x-ussd-simulator-secret') || new URL(request.url).searchParams.get('secret') || '';
     if (configuredSecret && suppliedSecret !== configuredSecret) {
-      return end('USSD simulator secret is missing or invalid.');
+      return respond(input, 'USSD simulator secret is missing or invalid.', false);
     }
     if (!input.phoneNumber) {
-      return end('A phone number is required for this USSD session.');
+      return respond(input, 'A phone number is required for this USSD session.', false);
     }
 
     const user = await findUserByPhone(input.phoneNumber);
     if (!user) {
-      return end('This phone number is not registered on UniEqub.');
+      return respond(input, 'This phone number is not registered on UniEqub.', false);
     }
     if (user.Role !== 'Member') {
-      return end('Only member accounts can use contribution USSD.');
+      return respond(input, 'Only member accounts can use contribution USSD.', false);
     }
     if (user.KYC_Status === 'Banned') {
-      return end('This account has been banned.');
+      return respond(input, 'This account has been banned.', false);
     }
     if (user.KYC_Status !== 'Verified') {
-      return end('Your account must be KYC verified before contributing.');
+      return respond(input, 'Your account must be KYC verified before contributing.', false);
     }
 
     const dueGroups = await listDueGroupsForUser(user);
     const segments = parseSegments(input.text);
 
     if (!segments.length) {
-      return cont(['Welcome to UniEqub', '1. Pay contribution', `2. My due groups (${dueGroups.length})`, '3. Exit'].join('\n'));
+      return respond(input, ['Welcome to UniEqub', '1. Pay contribution', `2. My due groups (${dueGroups.length})`, '3. Exit'].join('\n'), true);
     }
 
     switch (segments[0]) {
       case '1': {
         if (!dueGroups.length) {
-          return end('No unpaid active groups were found for this number.');
+          return respond(input, 'No unpaid active groups were found for this number.', false);
         }
         if (segments.length === 1) {
-          return cont(groupMenu(dueGroups));
+          return respond(input, groupMenu(dueGroups), true);
         }
 
         const selectedIndex = Number(segments[1]) - 1;
         const selectedGroup = dueGroups[selectedIndex];
         if (!selectedGroup) {
-          return end('Invalid group selection. Start the session again.');
+          return respond(input, 'Invalid group selection. Start the session again.', false);
         }
 
         if (segments.length === 2) {
-          return cont(confirmMenu(selectedGroup));
+          return respond(input, confirmMenu(selectedGroup), true);
         }
 
         if (segments[2] === '1') {
@@ -299,29 +329,29 @@ Deno.serve(async request => {
           if (result.autoDrawTriggered) {
             summaryLines.push(`Round completed automatically. Pending payout ${result.payoutAmount} ETB was created.`);
           }
-          return end(summaryLines.join('\n'));
+          return respond(input, summaryLines.join('\n'), false);
         }
 
         if (segments[2] === '2' || segments[2] === '0') {
-          return end('Contribution cancelled.');
+          return respond(input, 'Contribution cancelled.', false);
         }
 
-        return end('Invalid confirmation input. Start the session again.');
+        return respond(input, 'Invalid confirmation input. Start the session again.', false);
       }
 
       case '2': {
         if (!dueGroups.length) {
-          return end('You do not have any unpaid active groups right now.');
+          return respond(input, 'You do not have any unpaid active groups right now.', false);
         }
-        return end(groupMenu(dueGroups));
+        return respond(input, groupMenu(dueGroups), false);
       }
 
       case '3':
       case '0':
-        return end('Session closed.');
+        return respond(input, 'Session closed.', false);
 
       default:
-        return end('Invalid menu option.');
+        return respond(input, 'Invalid menu option.', false);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected USSD simulator error.';

@@ -32,8 +32,11 @@ This repository is organized as an implementation workspace around the fixed aca
 - Edge Function endpoint: `supabase/functions/ussd-simulator/`
 - Local harness: [ussd_simulator_harness.html](C:/dev/projects/UNI-EQUB/Build/delivery/tools/ussd_simulator_harness.html)
 - Validation command: `npm run qa:ussd-simulator`
+- Supported callback shapes:
+  - generic `sessionId/serviceCode/phoneNumber/text` with plain-text `CON` / `END`
+  - Arkesel-style `sessionID/userID/msisdn/userData/newSession/network` with JSON `message` / `continueSession`
 
-The simulator accepts provider-style `sessionId`, `serviceCode`, `phoneNumber`, and `text` inputs and returns plain-text `CON`/`END` responses so you can prepare a sandbox callback before integrating a real gateway.
+The simulator accepts either the generic gateway payload or the Arkesel-style payload so you can prepare a sandbox callback before integrating a real gateway.
 
 ## Mobile env setup
 1. Copy [mobile/.env.example](C:/dev/projects/UNI-EQUB/mobile/.env.example) to `mobile/.env`
