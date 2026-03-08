@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UniEqub USSD Simulator Harness</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --text: #122033;
+      --muted: #607086;
+      --line: #d8e1ec;
+      --accent: #0f6cbd;
+      --accent-soft: #e6f1fb;
+    }
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #edf3fa 0%, var(--bg) 100%);
+      color: var(--text);
+      font: 16px/1.5 "Segoe UI", sans-serif;
+    }
+    .wrap {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 12px 30px rgba(12, 23, 38, 0.06);
+      margin-bottom: 18px;
+    }
+    h1, h2 {
+      margin: 0 0 8px;
+    }
+    p {
+      margin: 0;
+      color: var(--muted);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 44px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      font: inherit;
+    }
+    button {
+      min-height: 44px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      background: var(--accent);
+      color: #fff;
+      padding: 0 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-color: #c8dcef;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #0f172a;
+      color: #d7e3f4;
+      border-radius: 14px;
+      padding: 16px;
+      min-height: 180px;
+    }
+    .meta {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>UniEqub USSD Simulator Harness</h1>
+      <p>Use this before connecting an external sandbox gateway. It sends provider-style form requests and shows the plain-text <code>CON</code>/<code>END</code> response.</p>
+      <div class="grid">
+        <div>
+          <label for="endpoint">Function Endpoint</label>
+          <input id="endpoint" value="https://YOUR_PROJECT_REF.supabase.co/functions/v1/ussd-simulator" />
+        </div>
+        <div>
+          <label for="serviceCode">Service Code</label>
+          <input id="serviceCode" value="*483*227#" />
+        </div>
+        <div>
+          <label for="sessionId">Session ID</label>
+          <input id="sessionId" />
+        </div>
+        <div>
+          <label for="phoneNumber">Phone Number</label>
+          <input id="phoneNumber" value="0938079090" />
+        </div>
+        <div>
+          <label for="secret">Simulator Secret (optional)</label>
+          <input id="secret" />
+        </div>
+        <div>
+          <label for="reply">Next Reply</label>
+          <input id="reply" placeholder="1" />
+        </div>
+      </div>
+      <div class="actions">
+        <button id="start">Start Session</button>
+        <button id="send" class="secondary">Send Reply</button>
+        <button id="reset" class="secondary">Reset</button>
+      </div>
+      <div class="meta">
+        <strong>Cumulative text:</strong> <span id="textValue"></span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Last Response</h2>
+      <pre id="response"></pre>
+    </div>
+  </div>
+
+  <script>
+    const endpointEl = document.getElementById('endpoint');
+    const serviceCodeEl = document.getElementById('serviceCode');
+    const sessionIdEl = document.getElementById('sessionId');
+    const phoneNumberEl = document.getElementById('phoneNumber');
+    const secretEl = document.getElementById('secret');
+    const replyEl = document.getElementById('reply');
+    const responseEl = document.getElementById('response');
+    const textValueEl = document.getElementById('textValue');
+
+    let textPath = '';
+
+    function ensureSessionId() {
+      if (!sessionIdEl.value.trim()) {
+        sessionIdEl.value = `harness-${Date.now()}`;
+      }
+    }
+
+    function setResponse(value) {
+      responseEl.textContent = value;
+      textValueEl.textContent = textPath || '(empty)';
+    }
+
+    async function postRequest() {
+      ensureSessionId();
+      const params = new URLSearchParams({
+        sessionId: sessionIdEl.value.trim(),
+        serviceCode: serviceCodeEl.value.trim(),
+        phoneNumber: phoneNumberEl.value.trim(),
+        text: textPath,
+      });
+      if (secretEl.value.trim()) {
+        params.set('secret', secretEl.value.trim());
+      }
+
+      const response = await fetch(endpointEl.value.trim(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params,
+      });
+
+      const text = await response.text();
+      setResponse(text);
+    }
+
+    document.getElementById('start').addEventListener('click', async () => {
+      textPath = '';
+      await postRequest();
+    });
+
+    document.getElementById('send').addEventListener('click', async () => {
+      const reply = replyEl.value.trim();
+      if (!reply) return;
+      textPath = textPath ? `${textPath}*${reply}` : reply;
+      replyEl.value = '';
+      await postRequest();
+    });
+
+    document.getElementById('reset').addEventListener('click', () => {
+      textPath = '';
+      sessionIdEl.value = '';
+      replyEl.value = '';
+      setResponse('');
+    });
+
+    setResponse('Press "Start Session" to send the first USSD request.');
+  </script>
+</body>
+</html>

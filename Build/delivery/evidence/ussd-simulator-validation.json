@@ -1,0 +1,14 @@
+{
+  "scenario": "ussd-simulator",
+  "phoneNumber": "0981020877",
+  "sessionId": "qa-81020877",
+  "steps": [
+    "CON Welcome to UniEqub\n1. Pay contribution\n2. My due groups (1)\n3. Exit",
+    "CON UniEqub contribution test\nYou have 1 unpaid active group.\n1. USSD QA Group 81020877 - 700 ETB\n0. Exit",
+    "CON Confirm contribution\nUSSD QA Group 81020877\nRef UEQ-USSD-81020877\nAmount 700 ETB\nRound 1\n1. Confirm payment\n2. Cancel",
+    "END Contribution recorded successfully.\nUSSD QA Group 81020877\nAmount 700 ETB\nReceipt USSDSIM-qa-81020877-12d333df\nRound completed automatically. Pending payout 700 ETB was created."
+  ],
+  "contributionRecorded": true,
+  "gatewayRef": "USSDSIM-qa-81020877-12d333df",
+  "validatedAt": "2026-03-08T14:43:51.225Z"
+}

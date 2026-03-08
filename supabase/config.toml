@@ -39,3 +39,6 @@ verify_jwt = false
 
 [functions.report-export]
 verify_jwt = false
+
+[functions.ussd-simulator]
+verify_jwt = false

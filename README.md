@@ -25,7 +25,15 @@ This repository is organized as an implementation workspace around the fixed aca
 - `npm run mobile:apk:debug`
 - `npm run qa:kyc-upload`
 - `npm run qa:wallet-clearance`
+- `npm run qa:ussd-simulator`
 - `node .\mobile\scripts\seed-final-draw.js --phone 09XXXXXXXX --name "Your Name"`
+
+## Hosted USSD simulator
+- Edge Function endpoint: `supabase/functions/ussd-simulator/`
+- Local harness: [ussd_simulator_harness.html](C:/dev/projects/UNI-EQUB/Build/delivery/tools/ussd_simulator_harness.html)
+- Validation command: `npm run qa:ussd-simulator`
+
+The simulator accepts provider-style `sessionId`, `serviceCode`, `phoneNumber`, and `text` inputs and returns plain-text `CON`/`END` responses so you can prepare a sandbox callback before integrating a real gateway.
 
 ## Mobile env setup
 1. Copy [mobile/.env.example](C:/dev/projects/UNI-EQUB/mobile/.env.example) to `mobile/.env`

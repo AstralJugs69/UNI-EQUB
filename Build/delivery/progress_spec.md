@@ -2,7 +2,7 @@
 
 Version: 1.0  
 Last Updated: 2026-03-08  
-Current Wave: Stage E/F live contribution, draw, wallet clearance, notifications, and evidence work are active; remaining focus is KYC capture polish, provider adapters, hardening, and release validation  
+Current Wave: Stage E/F live contribution, hosted USSD simulation, draw, wallet clearance, notifications, and evidence work are active; remaining focus is provider adapters, hardening, and release validation
 Overall Status: In Progress
 
 ## 1. Execution Rules
@@ -18,7 +18,8 @@ Overall Status: In Progress
   - repo/workspace bootstrap
   - React Native scaffold
   - mirrored mock service layer
-  - Android native USSD shortcode launch for contribution initiation, with backend-confirmed simulated reconciliation after return
+- Android native USSD shortcode launch for contribution initiation, with backend-confirmed simulated reconciliation after return
+- Hosted provider-style USSD simulator callback endpoint and local harness for sandbox preparation
   - member/admin UI scaffolding
   - fixed-schema SQL bootstrap
   - Edge Function directory/contracts scaffold
@@ -124,7 +125,7 @@ Overall Status: In Progress
 - Mobile env wiring: `mobile/.env.example`, `mobile/src/services/supabaseClient.ts`
 - Seed script for final-draw scenario: `mobile/scripts/seed-final-draw.js`
 - Startup automation: `scripts/start-android-dev.ps1`
-- Evidence artifacts: `Build/delivery/evidence/kyc-upload-validation.json`, `Build/delivery/evidence/wallet-clearance-validation.json`, `Build/delivery/evidence/report-export-validation.json`, `Build/delivery/evidence/debug-apk-build.json`
+- Evidence artifacts: `Build/delivery/evidence/kyc-upload-validation.json`, `Build/delivery/evidence/wallet-clearance-validation.json`, `Build/delivery/evidence/report-export-validation.json`, `Build/delivery/evidence/debug-apk-build.json`, `Build/delivery/evidence/ussd-simulator-validation.json`
 - UAT checklist: `Build/delivery/uat_checklist.md`
 - Delivery docs: `Build/delivery/implementation_plan.md`, `Build/delivery/implementation_traceability_matrix.md`, `Build/delivery/progress_spec.md`
 
