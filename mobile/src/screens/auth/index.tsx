@@ -1,6 +1,7 @@
 ﻿import React, { useState } from 'react';
 import { Image, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { launchCamera, launchImageLibrary, type Asset } from 'react-native-image-picker';
 import { InputField, Panel, PrimaryButton, ScreenScroll, SplitPhoneField, TitleBlock, TopBar } from '../../components/ui';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
@@ -286,6 +287,7 @@ export function KycScreen() {
     </ScreenScroll>
   );
 }
+
 export function ResetPasswordScreen() {
   const navigation = useNavigation<any>();
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -299,6 +301,7 @@ export function ResetPasswordScreen() {
     </ScreenScroll>
   );
 }
+
 
 
 

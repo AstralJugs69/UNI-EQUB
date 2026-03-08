@@ -1,7 +1,7 @@
 import { decode as decodeBase64 } from 'base64-arraybuffer';
 import { supabase } from '../supabaseClient';
 import { mockBackend } from '../mock/mockBackend';
-import type { KycService } from '../contracts';
+import type { KycService, KycSubmissionInput } from '../contracts';
 import type { KycReviewItem, UserRecord } from '../../types/domain';
 import type { SessionUser } from '../../types/domain';
 
@@ -10,8 +10,6 @@ interface Envelope<T> {
   data?: T;
   error?: string;
 }
-
-const DEV_KYC_PLACEHOLDER_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Z08kAAAAASUVORK5CYII=';
 
 async function invoke<T>(body: unknown): Promise<T> {
   const { data, error } = await supabase.functions.invoke<Envelope<T>>('kyc-submit-review', { body });
@@ -35,28 +33,32 @@ function toSessionUser(user: UserRecord): SessionUser {
 }
 
 export const liveKycService: KycService = {
-  async submitKyc(userId: string, imageRef: string) {
-    const fileNameHint = imageRef.split('/').pop() || 'student-id.png';
-    const upload = await invoke<{ bucket: string; path: string; token: string; contentType: string }>({
-      action: 'createUploadUrl',
-      userId,
-      fileName: fileNameHint.endsWith('.png') ? fileNameHint : `${fileNameHint}.png`,
-      contentType: 'image/png',
-    });
+  async submitKyc(userId: string, input: KycSubmissionInput) {
+    const storedRefs: string[] = [];
 
-    const { error: uploadError } = await supabase.storage
-      .from(upload.bucket)
-      .uploadToSignedUrl(upload.path, upload.token, decodeBase64(DEV_KYC_PLACEHOLDER_PNG_BASE64), {
-        contentType: upload.contentType,
+    for (const document of input.documents) {
+      const upload = await invoke<{ bucket: string; path: string; token: string; contentType: string }>({
+        action: 'createUploadUrl',
+        userId,
+        fileName: document.fileName,
+        contentType: document.contentType,
       });
 
-    if (uploadError) {
-      throw new Error(uploadError.message);
+      const { error: uploadError } = await supabase.storage
+        .from(upload.bucket)
+        .uploadToSignedUrl(upload.path, upload.token, decodeBase64(document.base64), {
+          contentType: document.contentType,
+        });
+
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+
+      storedRefs.push(`storage://${upload.bucket}/${upload.path}`);
     }
 
-    const storedRef = `storage://${upload.bucket}/${upload.path}`;
-    const response = await invoke<{ user: UserRecord }>({ action: 'submit', userId, imageRef: storedRef });
-    mockBackend.setUserKycStatus(userId, response.user.KYC_Status, storedRef);
+    const response = await invoke<{ user: UserRecord }>({ action: 'submit', userId, imageRef: storedRefs[0] });
+    mockBackend.setUserKycStatus(userId, response.user.KYC_Status, storedRefs[0]);
   },
 
   async listPendingReviews(): Promise<KycReviewItem[]> {

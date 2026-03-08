@@ -2,6 +2,7 @@
 import { AppState } from 'react-native';
 import type { AppStateStatus } from 'react-native';
 import type { AuthSession, SessionUser } from '../types/domain';
+import type { KycSubmissionInput } from '../services/contracts';
 import { clearSessionToken, loadLastActiveAt, loadSessionToken, saveLastActiveAt, saveSessionToken } from '../services/storage';
 import { useServices } from './ServicesProvider';
 
@@ -148,5 +149,6 @@ export function useAuth() {
   }
   return context;
 }
+
 
 
