@@ -6,9 +6,9 @@ import { BottomNav, HeroPanel, InfoRow, InputField, KeyValue, Panel, Pill, Prima
 import { useDashboardQuery, useGroupQuery, useGroupStatusQuery, useGroupsQuery, useMemberActions, useNotificationsQuery, useTransactionsQuery, useWalletQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
-import { useServices } from '../../providers/ServicesProvider';
+import { launchNativeUssd } from '../../services/native/ussdLauncher';
 import { palette, spacing } from '../../theme/tokens';
-import type { PaymentMethod, UssdSessionState } from '../../types/domain';
+import type { PaymentMethod } from '../../types/domain';
 
 function paymentMethodLabel(method: PaymentMethod) {
   return method === 'MockUSSD' ? 'Telebirr USSD' : method;
@@ -365,15 +365,15 @@ export function PaymentScreen({ route }: any) {
       </Panel>
       {method === 'MockUSSD' ? (
         <Panel>
-          <Text style={{ fontWeight: '800', color: palette.text }}>Telebirr-style verification</Text>
+          <Text style={{ fontWeight: '800', color: palette.text }}>Native Telebirr USSD</Text>
           <Text style={{ color: palette.muted, marginTop: 6 }}>
-            This path opens a short-code session, accepts numbered replies, validates the group reference and amount, then asks for a 6-digit PIN before the contribution is reconciled.
+            This path launches the phone's real USSD shortcode. You complete the carrier flow natively, then come back and confirm the contribution inside UniEqub.
           </Text>
         </Panel>
       ) : null}
       {error ? <Text style={{ color: palette.danger }}>{error}</Text> : null}
       <PrimaryButton
-        label={method === 'MockUSSD' ? 'Continue To USSD Prompt' : `Confirm ${method} Payment`}
+        label={method === 'MockUSSD' ? 'Open Native USSD' : `Confirm ${method} Payment`}
         onPress={handleConfirm}
         loading={submitting}
         disabled={submitting}
@@ -385,147 +385,117 @@ export function PaymentScreen({ route }: any) {
 export function MockUssdScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const { session } = useAuth();
-  const services = useServices();
   const { data: group } = useGroupQuery(route.params.groupId);
-  const [sessionState, setSessionState] = useState<UssdSessionState | null>(null);
-  const [reply, setReply] = useState('');
-  const [booting, setBooting] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const { payContribution } = useMemberActions();
+  const [launching, setLaunching] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [launchMode, setLaunchMode] = useState<'call' | 'dial' | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    let active = true;
+    let mounted = true;
 
-    async function bootSession() {
-      if (!session || !route.params?.groupId) {
-        return;
-      }
+    async function openNativePrompt() {
       try {
-        setBooting(true);
+        setLaunching(true);
         setError('');
-        const next = await services.payments.startContributionUssd(session.user.userId, route.params.groupId);
-        if (active) {
-          setSessionState(next);
+        const mode = await launchNativeUssd('*127#');
+        if (mounted) {
+          setLaunchMode(mode);
         }
       } catch (err) {
-        if (active) {
-          setError(err instanceof Error ? err.message : 'Unable to start the USSD prompt.');
+        if (mounted) {
+          setError(err instanceof Error ? err.message : 'Unable to open the native USSD code.');
         }
       } finally {
-        if (active) {
-          setBooting(false);
+        if (mounted) {
+          setLaunching(false);
         }
       }
     }
 
-    bootSession();
+    openNativePrompt();
     return () => {
-      active = false;
+      mounted = false;
     };
-  }, [route.params?.groupId, services.payments, session]);
+  }, []);
 
   if (!group || !session) {
-    return <ScreenScroll><TitleBlock title="Loading USSD session" subtitle="Preparing the contribution prompt." /></ScreenScroll>;
+    return <ScreenScroll><TitleBlock title="Loading USSD payment" subtitle="Preparing the native carrier flow." /></ScreenScroll>;
   }
   const safeGroup = group;
-  const safeSession = session;
 
-  async function handleReply(nextReply = reply) {
-    if (!sessionState) {
-      return;
-    }
+  async function handleConfirmPayment() {
     try {
-      setSubmitting(true);
+      setConfirming(true);
       setError('');
-      const next = await services.payments.submitContributionUssd(safeSession.user.userId, sessionState.sessionId, nextReply);
-      setSessionState(next);
-      setReply('');
-      if (next.error) {
-        setError(next.error);
-      }
+      const completedResult = await payContribution.mutateAsync({ groupId: safeGroup.Group_ID, method: 'MockUSSD' });
+      navigation.navigate(routes.paymentSuccess, {
+        autoDrawTriggered: completedResult.autoDrawTriggered,
+        payoutAmount: completedResult.payoutAmount,
+        receiptRef: completedResult.receiptRef,
+        amount: completedResult.amount,
+        method: completedResult.method,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Mock USSD verification failed');
+      setError(err instanceof Error ? err.message : 'Unable to record the USSD contribution.');
     } finally {
-      setSubmitting(false);
+      setConfirming(false);
     }
   }
 
-  async function handleRestart() {
+  async function handleLaunchAgain() {
     try {
-      setBooting(true);
+      setLaunching(true);
       setError('');
-      const next = await services.payments.startContributionUssd(safeSession.user.userId, safeGroup.Group_ID);
-      setSessionState(next);
-      setReply('');
+      const mode = await launchNativeUssd('*127#');
+      setLaunchMode(mode);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to restart the USSD prompt.');
+      setError(err instanceof Error ? err.message : 'Unable to reopen the native USSD code.');
     } finally {
-      setBooting(false);
+      setLaunching(false);
     }
   }
-
-  const lines = sessionState?.prompt.split('\n') ?? [];
-  const completedResult = sessionState?.paymentResult;
-  const sessionClosed = sessionState?.stage === 'Completed' || sessionState?.stage === 'Cancelled' || sessionState?.stage === 'Expired';
 
   return (
     <ScreenScroll>
-      <TopBar title="USSD Verification" onBack={() => navigation.goBack()} rightLabel="Telebirr style" />
+      <TopBar title="Native USSD Payment" onBack={() => navigation.goBack()} rightLabel="Telebirr" />
       <Panel>
         <Text style={{ color: palette.muted }}>Dialed code</Text>
-        <Text style={{ fontSize: 28, fontWeight: '900', color: palette.text, marginTop: 6 }}>{sessionState?.shortCode ?? '*127#'}</Text>
+        <Text style={{ fontSize: 28, fontWeight: '900', color: palette.text, marginTop: 6 }}>*127#</Text>
         <Text style={{ color: palette.muted, marginTop: 6 }}>
-          This mock mirrors a real short-code payment session: menu selection, merchant reference, amount, confirmation, then PIN authorization.
+          UniEqub now launches the phone's real USSD shortcode instead of simulating the numbered prompt inside the app.
         </Text>
       </Panel>
       <Panel>
         <Text style={{ fontWeight: '800', color: palette.text }}>Payment context</Text>
         <View style={{ marginTop: 10, gap: 10 }}>
           <InfoRow title={safeGroup.Group_Name} subtitle={`Approved ref ${safeGroup.Virtual_Acc_Ref}`} right={`${safeGroup.Amount} ETB`} />
-          <InfoRow title="Contribution verification only" subtitle="Withdrawal remains an internal wallet-clearance action until Chapa legal approval exists." />
+          <InfoRow title="Carrier steps" subtitle="Choose Pay merchant, enter the group reference, confirm the exact amount, then authorize with your Telebirr PIN." />
+          <InfoRow title="Contribution verification only" subtitle="Because Telebirr callbacks are not integrated yet, only confirm here after the phone screen says the payment succeeded." />
         </View>
       </Panel>
-      <View style={{ borderRadius: 24, backgroundColor: '#0f172a', padding: 18, borderWidth: 1, borderColor: '#1e293b', gap: 12 }}>
-        <Text style={{ color: '#7dd3fc', fontWeight: '800', fontSize: 13 }}>{sessionState?.providerLabel ?? 'Telebirr'} session</Text>
-        {booting ? <Text style={{ color: '#e2e8f0', fontSize: 16, lineHeight: 24 }}>Opening USSD prompt...</Text> : null}
-        {!booting && lines.map((line, index) => (
-          <Text key={`${line}-${index}`} style={{ color: index === 0 ? '#f8fafc' : '#cbd5e1', fontSize: index === 0 ? 18 : 15, fontWeight: index === 0 ? '800' : '600', lineHeight: 22 }}>
-            {line}
-          </Text>
-        ))}
-        {sessionState?.expiresAt ? <Text style={{ color: '#94a3b8', fontSize: 12 }}>Session expires {dayjs(sessionState.expiresAt).format('HH:mm:ss')}</Text> : null}
-      </View>
+      <HeroPanel>
+        <Pill label={launchMode === 'call' ? 'Direct call started' : launchMode === 'dial' ? 'Dialer opened' : 'Preparing phone flow'} tone="active" />
+        <Text style={{ color: '#fff', fontSize: 28, fontWeight: '900', marginTop: 10 }}>Finish the payment on your phone</Text>
+        <Text style={{ color: 'rgba(255,255,255,0.84)', marginTop: 6 }}>
+          {launchMode === 'call'
+            ? 'The shortcode was sent directly. Complete the native carrier prompts, then come back here.'
+            : 'If direct-call permission was denied, the dialer opened with the shortcode prefilled. Tap Call, complete the native prompts, then come back here.'}
+        </Text>
+      </HeroPanel>
       {error ? <Text style={{ color: palette.danger }}>{error}</Text> : null}
-      {sessionState && !sessionClosed ? (
-        <>
-          <InputField
-            label={sessionState.inputLabel}
-            value={reply}
-            onChangeText={setReply}
-            keyboardType={sessionState.expectsMaskedInput ? 'number-pad' : 'default'}
-            secureTextEntry={sessionState.expectsMaskedInput}
-          />
-          <PrimaryButton label="Send Reply" onPress={() => handleReply()} loading={submitting} disabled={!reply || submitting} />
-          {sessionState.allowCancel ? <PrimaryButton label="Cancel Session" variant="secondary" onPress={() => handleReply('0')} disabled={submitting} /> : null}
-        </>
-      ) : null}
-      {sessionState?.stage === 'Completed' && completedResult ? (
-        <PrimaryButton
-          label="Continue To Receipt"
-          onPress={() =>
-            navigation.navigate(routes.paymentSuccess, {
-              autoDrawTriggered: completedResult.autoDrawTriggered,
-              payoutAmount: completedResult.payoutAmount,
-              receiptRef: completedResult.receiptRef,
-              amount: completedResult.amount,
-              method: completedResult.method,
-            })
-          }
-        />
-      ) : null}
-      {(sessionState?.stage === 'Cancelled' || sessionState?.stage === 'Expired') ? (
-        <PrimaryButton label="Start New Session" onPress={handleRestart} loading={booting} disabled={booting} />
-      ) : null}
+      <Panel>
+        <Text style={{ fontWeight: '800', color: palette.text }}>Before you confirm here</Text>
+        <View style={{ marginTop: 10, gap: 10 }}>
+          <InfoRow title="Shortcode" subtitle="Dial *127# from the phone app if the native launch does not open correctly." />
+          <InfoRow title="Merchant reference" subtitle={safeGroup.Virtual_Acc_Ref} />
+          <InfoRow title="Exact amount" subtitle={`${safeGroup.Amount} ETB`} />
+        </View>
+      </Panel>
+      <PrimaryButton label="Open Native USSD Again" onPress={handleLaunchAgain} loading={launching} disabled={launching || confirming} />
+      <PrimaryButton label="I Completed The USSD Payment" onPress={handleConfirmPayment} loading={confirming} disabled={launching || confirming} />
+      <PrimaryButton label="Cancel And Go Back" variant="secondary" onPress={() => navigation.goBack()} disabled={launching || confirming} />
     </ScreenScroll>
   );
 }

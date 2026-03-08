@@ -18,7 +18,7 @@ Overall Status: In Progress
   - repo/workspace bootstrap
   - React Native scaffold
   - mirrored mock service layer
-  - session-driven mock USSD contribution prompt
+  - Android native USSD shortcode launch for contribution initiation, with backend-confirmed simulated reconciliation after return
   - member/admin UI scaffolding
   - fixed-schema SQL bootstrap
   - Edge Function directory/contracts scaffold
@@ -54,7 +54,7 @@ Overall Status: In Progress
 | 13 | B6 | Stage B | Implement mirrored KYC submit/review/ban flow | Plan Stage B | Completed | B2, B3 | `mockBackend.ts`, auth/admin screens | KYC gating and admin review paths function through contracts | Done |
 | 14 | B7 | Stage B | Implement mirrored group request / approval / rejection / freeze behavior | Plan Stage B | Completed | B2, B3 | `mockBackend.ts`, admin/member screens | Group status transitions follow master spec and compliance control | Done |
 | 15 | B8 | Stage B | Implement mirrored browse / join rules | Plan Stage B | Completed | B7 | group service + member screens | Join blocked for full or duplicate membership; active groups only | Done |
-| 16 | B9 | Stage B | Implement mirrored contribution reconciliation flow, including session-driven USSD verification | Plan Stage B | Completed | B8 | payment service + screens, `mockBackend.test.ts` | Successful contributions write transactions and update progress through the same contract used by the USSD prompt | Done in mock layer |
+| 16 | B9 | Stage B | Implement mirrored contribution reconciliation flow, including USSD verification behavior | Plan Stage B | Completed | B8 | payment service + screens, `mockBackend.test.ts` | Successful contributions write transactions and update progress through the same contribution contract | Done in mock layer |
 | 17 | B10 | Stage B | Implement mirrored automatic draw / payout creation flow | Plan Stage B | Completed | B9 | `mockBackend.ts`, tests | Last payment auto-completes round and creates pending payout | Done |
 | 18 | B11 | Stage B | Implement mirrored payout wallet-clearance flow | Plan Stage B | Completed | B10 | wallet/withdraw screens, payment service | Pending payout can be cleared from the wallet ledger and status changes | Done |
 | 19 | B12 | Stage B | Implement mirrored reminder queue and notification flow | Plan Stage B | Completed | B9 | notification service + admin report/reminder surfaces | Reminder generation and notification list exist behind contracts | Done |
@@ -72,8 +72,8 @@ Overall Status: In Progress
 | 31 | D4 | Stage D | Generate and persist `Virtual_Acc_Ref` on approval | Plan Stage D | Completed | D3 | `group-lifecycle` approve action, hosted runtime check | Approved groups receive unique collection ref | Done |
 | 32 | D5 | Stage D | Implement live join validation and membership write | Plan Stage D | Completed | D1, D3 | `group-lifecycle` join action, hosted runtime check | Group join rules enforced by backend | Done |
 | 33 | D6 | Stage D | Implement live dashboard/group-status snapshots | Plan Stage D | Completed | D5 | `group-lifecycle` dashboard/status actions, `liveGroupsService.ts`, hosted runtime check | Member dashboard and group status fully run from live backend | Done |
-| 34 | E1 | Stage E | Implement live contribution initiation contract matching the session-driven USSD mock | Plan Stage E | Completed | D6 | `supabase/functions/contribution-reconcile/index.ts`, `livePaymentsService.ts`, hosted runtime check | App requests backend-controlled payment initiation | Done |
-| 35 | E2 | Stage E | Implement live mock/USSD payment reconciliation path | Plan Stage E | Completed | E1 | `contribution-reconcile` hosted runtime check, live USSD session completion | Successful mock payment writes real transaction row | Done |
+| 34 | E1 | Stage E | Implement live contribution initiation contract matching the Android-native USSD launch flow | Plan Stage E | Completed | D6 | `supabase/functions/contribution-reconcile/index.ts`, `livePaymentsService.ts`, Android native launcher, hosted runtime check | App launches native carrier shortcode and keeps backend in control of reconciliation | Done |
+| 35 | E2 | Stage E | Implement live simulated USSD payment reconciliation path after native return | Plan Stage E | Completed | E1 | `contribution-reconcile` hosted runtime check, native USSD confirmation flow | Successful user-confirmed USSD payment writes real transaction row | Done |
 | 36 | E3 | Stage E | Implement sender phone normalization in backend | Plan Stage E | Completed | E2 | `_shared/phone.ts`, `contribution-reconcile` callback reconciliation | `+251` normalization and matching logic exists live | Done |
 | 37 | E4 | Stage E | Prevent duplicate current-round contribution at backend | Plan Stage E | Completed | E2 | `contribution-reconcile` validation path | Same user cannot pay same round twice | Done |
 | 38 | E5 | Stage E | Replace transaction history query with live backend data | Plan Stage E | Completed | E2 | `livePaymentsService.ts`, `contribution-reconcile` read action | History is fully backed by real transactions | Done |

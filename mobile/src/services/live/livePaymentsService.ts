@@ -59,9 +59,6 @@ async function invokeWalletClearance<T>(body: Record<string, unknown>): Promise<
 
 export const livePaymentsService: PaymentService = {
   async payContribution(_userId: string, groupId: string, method: PaymentMethod): Promise<PaymentResult> {
-    if (method === 'MockUSSD') {
-      throw new Error('Mock USSD contributions must use the USSD session flow.');
-    }
     const response = await invoke<ContributionResponse>({ action: 'payContribution', groupId, method });
     return response.paymentResult;
   },

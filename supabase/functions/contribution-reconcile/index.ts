@@ -316,8 +316,12 @@ Deno.serve(async request => {
 
     switch (body.action) {
       case 'payContribution': {
-        if (!body.groupId || !body.method || body.method === 'MockUSSD') {
+        if (!body.groupId || !body.method) {
           return fail('Missing direct contribution payload.', 400);
+        }
+        if (body.method === 'MockUSSD') {
+          const { group, round } = await assertContributionReady(actor, body.groupId);
+          return json(await createContributionTransaction(actor, group, round, 'MockUSSD'));
         }
         const group = await requireGroup(body.groupId);
         const provider = initiateSimulatedProvider(body.method, actor, group);
