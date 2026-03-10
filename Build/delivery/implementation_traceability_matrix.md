@@ -1,4 +1,4 @@
-﻿# Implementation Traceability Matrix
+# Implementation Traceability Matrix
 
 | ID | Stage | Master Spec Source | Planned Capability | Current Repo Evidence | Current Status |
 | --- | --- | --- | --- | --- | --- |
@@ -16,7 +16,7 @@
 | T-12 | Stage E | Section 6.4, 7.5 | Real backend contribution and reconciliation implementation with Android-native USSD launch | `supabase/functions/contribution-reconcile/`, `_shared/paymentProviders.ts`, `_shared/phone.ts`, `mobile/src/services/live/livePaymentsService.ts`, Android USSD launcher, hosted runtime contribution check | In Progress |
 | T-12A | Stage E | Section 6.4 | Hosted provider-style USSD simulator for sandbox development, including Arkesel-compatible callback handling | `supabase/functions/ussd-simulator/`, `mobile/scripts/validate-ussd-simulator.js`, `Build/delivery/tools/ussd_simulator_harness.html` | Completed |
 | T-13 | Stage F | Sections 6.5-6.7 | Real backend auto draw, payout, reminder implementation | `_shared/roundLifecycle.ts`, `contribution-reconcile`, `liveNotificationsService.ts`, seeded final-draw script | In Progress |
-| T-14 | Stage G | Sections 3.2.5, 3.3 | Real admin metrics, exports, hardening, UX state completion | `report-export`, `liveReportsService.ts`, `Build/delivery/evidence/report-export-validation.json`, admin screens and docs | In Progress |
+| T-14 | Stage G | Sections 3.2.5, 3.3 | Real admin metrics, exports, hardening, and redesigned UI state completion | `report-export`, `liveReportsService.ts`, `Build/delivery/evidence/report-export-validation.json`, modular auth/member/admin screens, rebuilt `mobile/src/components/ui.tsx`, updated theme tokens | In Progress |
 | T-15 | Stage H | Testing and deployment methodology | APK, emulator/device validation, UAT evidence | tests, startup automation | In Progress |
 
 ## Traceability rules

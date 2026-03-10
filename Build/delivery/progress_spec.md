@@ -1,8 +1,8 @@
-﻿# UniEqub Delivery Progress Spec
+# UniEqub Delivery Progress Spec
 
-Version: 1.0  
-Last Updated: 2026-03-08  
-Current Wave: Stage E/F live contribution, hosted USSD simulation, draw, wallet clearance, notifications, and evidence work are active; remaining focus is provider adapters, hardening, and release validation
+Version: 1.0
+Last Updated: 2026-03-10
+Current Wave: UI/UX redesign, native-Android polish, and screen modularization are active on top of the live contribution/draw stack; remaining focus is provider adapters, hardening, and release validation
 Overall Status: In Progress
 
 ## 1. Execution Rules
@@ -23,6 +23,7 @@ Overall Status: In Progress
   - member/admin UI scaffolding
   - fixed-schema SQL bootstrap
   - Edge Function directory/contracts scaffold
+  - modularized auth/member/admin screen structure with Android-leaning design system
   - automated Android debug startup script
   - live Supabase auth + Twilio OTP path
   - live KYC submit/review path
@@ -87,8 +88,8 @@ Overall Status: In Progress
 | 45 | F6 | Stage F | Replace wallet/notification/reminder UI with live backend data | Plan Stage F | Completed | F3-F5 | `livePaymentsService.ts`, `liveNotificationsService.ts`, `liveReportsService.ts` | Wallet and notifications no longer depend on mock backend | Done |
 | 46 | G1 | Stage G | Implement live admin metrics/overview data | Plan Stage G | Completed | C-D-F stages | `report-export`, admin dashboard query path | Admin dashboard uses real backend metrics | Done |
 | 47 | G2 | Stage G | Implement real report export generation (PDF/CSV) | Plan Stage G | Completed | G1 | `report-export`, `liveReportsService.ts`, `Build/delivery/evidence/report-export-validation.json` | Export outputs are generated, not placeholder strings | CSV is text; PDF is binary base64 with `%PDF-` header |
-| 48 | G3 | Stage G | Add full loading / empty / retry / low-bandwidth UX states | Plan Stage G | In Progress | B-stage app screens | current screens partially handle loading/empty | All critical screens have production-ready state handling | Partial |
-| 49 | G4 | Stage G | Remove remaining mock/demo wording from user-facing UI | Plan Stage G | In Progress | B-stage app screens | current UI mostly product-facing | No debug/mock language visible in normal user surfaces | Partial |
+| 48 | G3 | Stage G | Add full loading / empty / retry / low-bandwidth UX states | Plan Stage G | In Progress | B-stage app screens | modularized screen files, redesigned shared UI primitives, loading/empty states added across auth/member/admin | All critical screens have production-ready state handling | Loading and empty states are now broadly implemented; retry and low-bandwidth tuning remain |
+| 49 | G4 | Stage G | Remove remaining mock/demo wording from user-facing UI | Plan Stage G | Completed | B-stage app screens | redesigned screen copy in modular auth/member/admin surfaces | No debug/mock language visible in normal user surfaces | Experimental one-shot USSD labeling remains intentionally explicit |
 | 50 | G5 | Stage G | Review security hardening for transport, token checks, retries | Plan Stage G | Not Started | C-F live backend | None | Security review items implemented against live backend | Pending |
 | 51 | H1 | Stage H | Expand automated tests beyond mock backend core | Plan Stage H | In Progress | B-stage app scaffold | Jest service tests exist | Screen/provider/backend integration tests added | Partial |
 | 52 | H2 | Stage H | Run emulator validation with scripted startup | Plan Stage H | Not Started | Android SDK + AVD | None | App verified on emulator | Pending |
@@ -136,7 +137,7 @@ Overall Status: In Progress
 - The fixed schema has no persisted group description or rejected status field. The live backend currently honors that constraint, which means rejected-group UX and rich group copy still need a product-safe handling strategy.
 - True image capture is wired, but it still relies on device camera/gallery permissions and has not yet been validated on a physical device in this workspace session.
 - Android debug testing is now automated, but release APK generation and emulator validation are still pending.
-- Inline style warnings remain in the RN codebase; they do not block runtime but should be cleaned during UX hardening.
+- Major screen-level inline style debt was removed by modularizing auth/member/admin surfaces and rebuilding the shared UI layer; residual polish still needs on-device validation.
 - The mock layer is now close to the intended backend contracts, but any future contract change must be updated in both the mock implementation and the Edge Function scaffolds immediately.
 
 

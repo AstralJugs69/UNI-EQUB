@@ -1,7 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Text, View } from 'react-native';
+import { LoadingState } from '../components/ui';
 import { useAuth } from '../providers/AuthProvider';
 import { routes } from './routes';
 import { KycScreen, LoginScreen, OtpScreen, ResetPasswordScreen, SignupScreen, SplashScreen } from '../screens/auth';
@@ -26,11 +26,7 @@ import { AdminDashboardScreen, AdminGroupsScreen, AdminKycScreen, AdminReportsSc
 const Stack = createNativeStackNavigator();
 
 function LoadingScreen() {
-  return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fcfcfd' }}>
-      <Text style={{ fontSize: 22, fontWeight: '800', color: '#101827' }}>Loading UniEqub...</Text>
-    </View>
-  );
+  return <LoadingState title="Loading UniEqub..." subtitle="Restoring session state and preparing the current workspace." />;
 }
 
 function AuthStack() {
