@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import dayjs from 'dayjs';
@@ -6,7 +6,7 @@ import { BottomNav, HeroPanel, InfoRow, InputField, KeyValue, Panel, Pill, Prima
 import { useDashboardQuery, useGroupQuery, useGroupStatusQuery, useGroupsQuery, useMemberActions, useNotificationsQuery, useTransactionsQuery, useWalletQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
-import { launchNativeUssd } from '../../services/native/ussdLauncher';
+import { launchNativeUssd, sendOneShotNativeUssd } from '../../services/native/ussdLauncher';
 import { palette, spacing } from '../../theme/tokens';
 import type { PaymentMethod } from '../../types/domain';
 
@@ -387,68 +387,81 @@ export function MockUssdScreen({ route }: any) {
   const { session } = useAuth();
   const { data: group } = useGroupQuery(route.params.groupId);
   const { payContribution } = useMemberActions();
+  const mountedRef = useRef(true);
   const [launching, setLaunching] = useState(false);
-  const [confirming, setConfirming] = useState(false);
+  const [recording, setRecording] = useState(false);
   const [launchMode, setLaunchMode] = useState<'call' | 'dial' | null>(null);
+  const [carrierResponse, setCarrierResponse] = useState('');
+  const [ussdCode, setUssdCode] = useState('*127#');
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    let mounted = true;
+  const runOneShot = useCallback(async (code: string) => {
+    try {
+      setLaunching(true);
+      setError('');
+      setCarrierResponse('');
+      setLaunchMode(null);
+      const result = await sendOneShotNativeUssd(code);
+      if (!mountedRef.current) {
+        return;
+      }
+      setCarrierResponse(result.response);
+      setRecording(true);
+      const completedResult = await payContribution.mutateAsync({ groupId: route.params.groupId, method: 'MockUSSD' });
+      if (!mountedRef.current) {
+        return;
+      }
+      navigation.replace(routes.paymentSuccess, {
+        autoDrawTriggered: completedResult.autoDrawTriggered,
+        payoutAmount: completedResult.payoutAmount,
+        receiptRef: completedResult.receiptRef,
+        amount: completedResult.amount,
+        method: completedResult.method,
+        nativeUssdResponse: result.response,
+      });
+    } catch (err) {
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err.message : 'Unable to complete the one-shot USSD request.');
+      }
+    } finally {
+      if (mountedRef.current) {
+        setLaunching(false);
+        setRecording(false);
+      }
+    }
+  }, [navigation, payContribution, route.params.groupId]);
 
-    async function openNativePrompt() {
+  const handleRetryOneShot = useCallback(async () => {
+    await runOneShot(ussdCode);
+  }, [runOneShot, ussdCode]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    async function bootOneShot() {
       try {
-        setLaunching(true);
-        setError('');
-        const mode = await launchNativeUssd('*127#');
-        if (mounted) {
-          setLaunchMode(mode);
-        }
-      } catch (err) {
-        if (mounted) {
-          setError(err instanceof Error ? err.message : 'Unable to open the native USSD code.');
-        }
-      } finally {
-        if (mounted) {
-          setLaunching(false);
-        }
+        await runOneShot('*127#');
+      } catch {
+        // handled inside runOneShot
       }
     }
 
-    openNativePrompt();
+    bootOneShot().catch(() => undefined);
     return () => {
-      mounted = false;
+      mountedRef.current = false;
     };
-  }, []);
+  }, [runOneShot]);
 
   if (!group || !session) {
     return <ScreenScroll><TitleBlock title="Loading USSD payment" subtitle="Preparing the native carrier flow." /></ScreenScroll>;
   }
   const safeGroup = group;
 
-  async function handleConfirmPayment() {
-    try {
-      setConfirming(true);
-      setError('');
-      const completedResult = await payContribution.mutateAsync({ groupId: safeGroup.Group_ID, method: 'MockUSSD' });
-      navigation.navigate(routes.paymentSuccess, {
-        autoDrawTriggered: completedResult.autoDrawTriggered,
-        payoutAmount: completedResult.payoutAmount,
-        receiptRef: completedResult.receiptRef,
-        amount: completedResult.amount,
-        method: completedResult.method,
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to record the USSD contribution.');
-    } finally {
-      setConfirming(false);
-    }
-  }
-
   async function handleLaunchAgain() {
     try {
       setLaunching(true);
       setError('');
-      const mode = await launchNativeUssd('*127#');
+      const mode = await launchNativeUssd(ussdCode);
       setLaunchMode(mode);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to reopen the native USSD code.');
@@ -461,41 +474,45 @@ export function MockUssdScreen({ route }: any) {
     <ScreenScroll>
       <TopBar title="Native USSD Payment" onBack={() => navigation.goBack()} rightLabel="Telebirr" />
       <Panel>
-        <Text style={{ color: palette.muted }}>Dialed code</Text>
-        <Text style={{ fontSize: 28, fontWeight: '900', color: palette.text, marginTop: 6 }}>*127#</Text>
+        <Text style={{ color: palette.muted }}>One-shot code</Text>
+        <Text style={{ fontSize: 28, fontWeight: '900', color: palette.text, marginTop: 6 }}>{ussdCode}</Text>
         <Text style={{ color: palette.muted, marginTop: 6 }}>
-          UniEqub now launches the phone's real USSD shortcode instead of simulating the numbered prompt inside the app.
+          This experiment uses Android's one-shot USSD API. If the carrier returns a single response, UniEqub records the mocked contribution immediately.
         </Text>
       </Panel>
       <Panel>
         <Text style={{ fontWeight: '800', color: palette.text }}>Payment context</Text>
         <View style={{ marginTop: 10, gap: 10 }}>
           <InfoRow title={safeGroup.Group_Name} subtitle={`Approved ref ${safeGroup.Virtual_Acc_Ref}`} right={`${safeGroup.Amount} ETB`} />
-          <InfoRow title="Carrier steps" subtitle="Choose Pay merchant, enter the group reference, confirm the exact amount, then authorize with your Telebirr PIN." />
-          <InfoRow title="Contribution verification only" subtitle="Because Telebirr callbacks are not integrated yet, only confirm here after the phone screen says the payment succeeded." />
+          <InfoRow title="Experiment scope" subtitle="This only works if your carrier or device accepts a single USSD request and returns a final response message." />
+          <InfoRow title="Fallback" subtitle="If the one-shot request fails, reopen the native dialer to see how the code behaves on this phone." />
         </View>
       </Panel>
       <HeroPanel>
-        <Pill label={launchMode === 'call' ? 'Direct call started' : launchMode === 'dial' ? 'Dialer opened' : 'Preparing phone flow'} tone="active" />
-        <Text style={{ color: '#fff', fontSize: 28, fontWeight: '900', marginTop: 10 }}>Finish the payment on your phone</Text>
+        <Pill label={launching ? 'Sending one-shot request' : recording ? 'Recording contribution' : carrierResponse ? 'Carrier response received' : launchMode ? 'Dialer fallback ready' : 'Preparing one-shot flow'} tone="active" />
+        <Text style={{ color: '#fff', fontSize: 28, fontWeight: '900', marginTop: 10 }}>One-shot USSD experiment</Text>
         <Text style={{ color: 'rgba(255,255,255,0.84)', marginTop: 6 }}>
-          {launchMode === 'call'
-            ? 'The shortcode was sent directly. Complete the native carrier prompts, then come back here.'
-            : 'If direct-call permission was denied, the dialer opened with the shortcode prefilled. Tap Call, complete the native prompts, then come back here.'}
+          {carrierResponse
+            ? carrierResponse
+            : launchMode === 'call'
+              ? 'The dialer fallback used a direct call. Complete it there if the one-shot API is not supported by the carrier.'
+              : launchMode === 'dial'
+                ? 'The dialer fallback is ready. Tap Call in the phone app if the one-shot API is rejected.'
+                : 'UniEqub is sending the code directly through TelephonyManager.sendUssdRequest().'}
         </Text>
       </HeroPanel>
       {error ? <Text style={{ color: palette.danger }}>{error}</Text> : null}
       <Panel>
-        <Text style={{ fontWeight: '800', color: palette.text }}>Before you confirm here</Text>
+        <Text style={{ fontWeight: '800', color: palette.text }}>Try another one-shot code</Text>
         <View style={{ marginTop: 10, gap: 10 }}>
-          <InfoRow title="Shortcode" subtitle="Dial *127# from the phone app if the native launch does not open correctly." />
+          <InputField label="USSD Code" value={ussdCode} onChangeText={setUssdCode} />
           <InfoRow title="Merchant reference" subtitle={safeGroup.Virtual_Acc_Ref} />
           <InfoRow title="Exact amount" subtitle={`${safeGroup.Amount} ETB`} />
         </View>
       </Panel>
-      <PrimaryButton label="Open Native USSD Again" onPress={handleLaunchAgain} loading={launching} disabled={launching || confirming} />
-      <PrimaryButton label="I Completed The USSD Payment" onPress={handleConfirmPayment} loading={confirming} disabled={launching || confirming} />
-      <PrimaryButton label="Cancel And Go Back" variant="secondary" onPress={() => navigation.goBack()} disabled={launching || confirming} />
+      <PrimaryButton label="Retry One-Shot Request" onPress={handleRetryOneShot} loading={launching} disabled={launching || recording} />
+      <PrimaryButton label="Open Dialer Fallback" onPress={handleLaunchAgain} variant="secondary" disabled={launching || recording} />
+      <PrimaryButton label="Cancel And Go Back" variant="secondary" onPress={() => navigation.goBack()} disabled={launching || recording} />
     </ScreenScroll>
   );
 }
@@ -506,6 +523,7 @@ export function PaymentSuccessScreen({ route }: any) {
   const amount = route.params?.amount ?? 0;
   const method: PaymentMethod = route.params?.method ?? 'Telebirr';
   const receiptRef = route.params?.receiptRef ?? 'TXN-882913';
+  const nativeUssdResponse = route.params?.nativeUssdResponse as string | undefined;
   return (
     <ScreenScroll>
       <TitleBlock title="Payment Received" subtitle="Your contribution is now recorded and visible to the rest of the group." align="center" />
@@ -518,6 +536,12 @@ export function PaymentSuccessScreen({ route }: any) {
         <View style={{ padding: 12, borderRadius: 16, backgroundColor: '#e8f8ee', borderWidth: 1, borderColor: '#cfead9' }}>
           <Text style={{ color: palette.success, fontWeight: '800' }}>This payment completed the round. Winner selection happened automatically and {payoutAmount} ETB is now ready for withdrawal.</Text>
         </View>
+      ) : null}
+      {nativeUssdResponse ? (
+        <Panel>
+          <Text style={{ color: palette.muted }}>Carrier response</Text>
+          <Text style={{ marginTop: 8, fontWeight: '700', color: palette.text }}>{nativeUssdResponse}</Text>
+        </Panel>
       ) : null}
       <PrimaryButton label="View Wallet" onPress={() => navigation.navigate(routes.wallet)} />
       <PrimaryButton label="Back To Group" variant="secondary" onPress={() => navigation.navigate(routes.groupStatus)} />

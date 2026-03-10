@@ -184,7 +184,7 @@ async function main() {
       throw arkeselMembershipError;
     }
 
-    const { data: arkeselRound, error: arkeselRoundError } = await service
+    const { error: arkeselRoundError } = await service
       .from('Round')
       .insert({
         Group_ID: arkeselGroup.Group_ID,
