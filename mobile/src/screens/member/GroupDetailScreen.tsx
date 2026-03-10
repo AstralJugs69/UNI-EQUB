@@ -8,6 +8,10 @@ import { routes } from '../../navigation/routes';
 import { formatCurrency, groupStudents } from './shared';
 import { memberStyles } from './styles';
 
+function isShowcaseGroup(groupId: string) {
+  return !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(groupId);
+}
+
 export function GroupDetailScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const { data } = useGroupQuery(route.params?.groupId ?? '');
@@ -30,6 +34,7 @@ export function GroupDetailScreen({ route }: any) {
   }
 
   const joinDisabled = safeGroup.Status !== 'Active' || joinGroup.isPending;
+  const showcaseOnly = isShowcaseGroup(safeGroup.Group_ID);
 
   return (
     <ScreenScroll>
@@ -43,6 +48,7 @@ export function GroupDetailScreen({ route }: any) {
         <Pill label={safeGroup.Frequency} tone="active" />
         <Pill label={`${safeGroup.Max_Members} members`} tone="neutral" />
       </View>
+      {showcaseOnly ? <StatusBanner tone="info" title="Preview-only seeded group" body="This group is shown from the local showcase dataset so you can review the browse and detail UI. Joining is disabled." /> : null}
       {safeGroup.Status !== 'Active' ? <StatusBanner tone="warning" title="This group is not joinable yet." body="Only active groups can accept new members." /> : null}
       <View style={memberStyles.twoCol}>
         <MetricTile label="Contribution" value={formatCurrency(safeGroup.Amount)} />
@@ -57,7 +63,7 @@ export function GroupDetailScreen({ route }: any) {
         </View>
       </SectionCard>
       <InlineError message={error} />
-      <PrimaryCTA label={safeGroup.Status === 'Active' ? 'Join Group' : 'Waiting For Approval'} onPress={handleJoin} loading={joinGroup.isPending} disabled={joinDisabled} />
+      <PrimaryCTA label={showcaseOnly ? 'Preview Only' : safeGroup.Status === 'Active' ? 'Join Group' : 'Waiting For Approval'} onPress={handleJoin} loading={joinGroup.isPending} disabled={joinDisabled || showcaseOnly} />
     </ScreenScroll>
   );
 }

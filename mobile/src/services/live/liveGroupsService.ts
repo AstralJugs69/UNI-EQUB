@@ -68,17 +68,41 @@ function syncRoundShape(round: RoundRecord | null | undefined) {
   }
 }
 
+function isUuidLike(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 export const liveGroupsService: GroupService = {
-  async listBrowseable(): Promise<GroupRecord[]> {
-    const response = await invoke<{ groups: GroupRecord[] }>({ action: 'listBrowseable' });
-    mockBackend.syncExternalGroups(response.groups);
-    return response.groups;
+  async listBrowseable(userId: string): Promise<GroupRecord[]> {
+    try {
+      const response = await invoke<{ groups: GroupRecord[] }>({ action: 'listBrowseable' });
+      if (response.groups.length) {
+        mockBackend.syncExternalGroups(response.groups);
+        return response.groups;
+      }
+    } catch {
+      // fall through to showcase seed groups when the live dataset is empty or unavailable
+    }
+
+    const showcaseGroups = await mockBackend.groups.listBrowseable(userId);
+    return showcaseGroups.map(group => ({
+      ...group,
+      Description: `${group.Description} UI showcase preview only.`,
+    }));
   },
 
   async getGroup(groupId: string): Promise<GroupRecord | null> {
-    const response = await invoke<{ group: GroupRecord }>({ action: 'getGroup', groupId });
-    syncGroupShape(response.group);
-    return response.group;
+    if (!isUuidLike(groupId)) {
+      return mockBackend.groups.getGroup(groupId);
+    }
+
+    try {
+      const response = await invoke<{ group: GroupRecord }>({ action: 'getGroup', groupId });
+      syncGroupShape(response.group);
+      return response.group;
+    } catch {
+      return mockBackend.groups.getGroup(groupId);
+    }
   },
 
   async getGroupStatus(userId: string, groupId: string): Promise<GroupStatusSnapshot> {
