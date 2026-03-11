@@ -3,6 +3,7 @@ import type { ContributionPayload } from '../_shared/contracts.ts';
 import { signContributionSession, verifyContributionSession, verifySession } from '../_shared/auth.ts';
 import { initiateSimulatedProvider } from '../_shared/paymentProviders.ts';
 import { normalizePhone } from '../_shared/phone.ts';
+import { ensureOpenRoundForGroup, getOpenRound } from '../_shared/rounds.ts';
 import { finalizeRoundIfReady } from '../_shared/roundLifecycle.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import type { GroupRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
@@ -61,14 +62,6 @@ async function requireGroup(groupId: string) {
   return data as GroupRecord;
 }
 
-async function getCurrentRound(groupId: string) {
-  const { data, error } = await supabaseAdmin.from('Round').select('*').eq('Group_ID', groupId).eq('Status', 'Open').order('Round_Number', { ascending: false }).maybeSingle();
-  if (error) {
-    throw error;
-  }
-  return data as RoundRecord | null;
-}
-
 async function getMembership(groupId: string, userId: string) {
   const { data, error } = await supabaseAdmin.from('GroupMembers').select('*').eq('Group_ID', groupId).eq('User_ID', userId).maybeSingle();
   if (error) {
@@ -109,7 +102,7 @@ async function successfulContribution(roundId: string, userId: string) {
 
 async function assertContributionReady(actor: UserRecord, groupId: string) {
   const group = await requireGroup(groupId);
-  const round = await getCurrentRound(groupId);
+  const round = await ensureOpenRoundForGroup(group);
   if (!round) {
     throw new Error('There is no open round for this group.');
   }
@@ -369,7 +362,7 @@ Deno.serve(async request => {
           return fail('Contribution session is invalid.', 400);
         }
         const group = await requireGroup(groupId);
-        const round = await getCurrentRound(groupId);
+        const round = await getOpenRound(groupId);
         if (!round || round.Round_ID !== roundId) {
           return fail('The round changed while this USSD session was open. Start again.', 409);
         }

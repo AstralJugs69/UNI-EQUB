@@ -1,6 +1,7 @@
 import { fail, json } from '../_shared/contracts.ts';
 import type { CreateGroupRequest, GroupLifecyclePayload } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
+import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import type { GroupRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
 
@@ -119,24 +120,9 @@ async function getMembership(groupId: string, userId: string) {
   return data as MembershipRecord | null;
 }
 
-async function getCurrentRound(groupId: string) {
-  const { data, error } = await supabaseAdmin.from('Round').select('*').eq('Group_ID', groupId).eq('Status', 'Open').order('Round_Number', { ascending: false }).maybeSingle();
-  if (error) {
-    throw error;
-  }
-  return data as RoundRecord | null;
-}
-
 async function ensureInitialRound(groupId: string) {
-  const existing = await getCurrentRound(groupId);
-  if (existing) {
-    return existing;
-  }
-  const { data, error } = await supabaseAdmin.from('Round').insert({ Group_ID: groupId, Round_Number: 1, Status: 'Open' }).select('*').single();
-  if (error) {
-    throw error;
-  }
-  return data as RoundRecord;
+  const group = await requireGroup(groupId);
+  return await ensureOpenRoundForGroup(group);
 }
 
 async function successfulContributions(roundId: string) {
@@ -185,7 +171,7 @@ async function getWinnerHistory(groupId: string) {
 
 async function getGroupStatusSnapshot(actor: UserRecord, groupId: string) {
   const group = await requireGroup(groupId);
-  const currentRound = await getCurrentRound(groupId);
+  const currentRound = await ensureOpenRoundForGroup(group);
   const memberships = await listActiveMemberships(groupId);
   const paidTransactions = currentRound ? await successfulContributions(currentRound.Round_ID) : [];
   const canCurrentUserPay = !!currentRound
@@ -221,7 +207,7 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
 
   for (const membership of (memberships ?? []) as MembershipRecord[]) {
     const candidateGroup = await requireGroup(membership.Group_ID);
-    const candidateRound = await getCurrentRound(candidateGroup.Group_ID);
+    const candidateRound = await ensureOpenRoundForGroup(candidateGroup);
     if (!candidateRound) {
       continue;
     }
@@ -242,7 +228,7 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
   if (!currentMembership) {
     currentMembership = (memberships ?? [])[0] as MembershipRecord | undefined;
     currentGroup = currentMembership ? await requireGroup(currentMembership.Group_ID) : null;
-    currentRound = currentGroup ? await getCurrentRound(currentGroup.Group_ID) : null;
+    currentRound = currentGroup ? await ensureOpenRoundForGroup(currentGroup) : null;
   }
 
   const paidTransactions = currentRound ? await successfulContributions(currentRound.Round_ID) : [];
