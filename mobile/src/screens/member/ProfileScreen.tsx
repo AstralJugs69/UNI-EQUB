@@ -1,8 +1,10 @@
-﻿import React from 'react';
+import React from 'react';
+import { View } from 'react-native';
 import { AppScreen, ListRow, LoadingState, MetricTile, PrimaryCTA, SectionCard, TopAppBar, TitleBlock } from '../../components/ui';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
 import { MemberNav } from './shared';
+import { memberStyles } from './styles';
 
 export function ProfileScreen() {
   const { session, logout } = useAuth();
@@ -14,10 +16,13 @@ export function ProfileScreen() {
   return (
     <AppScreen footer={<MemberNav active={routes.profile} />}>
       <TopAppBar title="Profile And Settings" />
-      <TitleBlock title={session.user.fullName} subtitle={`${session.user.role} • ${session.user.kycStatus}`} align="center" />
+      <TitleBlock title={session.user.fullName} subtitle={`${session.user.role} - ${session.user.kycStatus}`} align="center" />
       <SectionCard>
-        <MetricTile label="University" value="Addis Ababa University" />
-        <MetricTile label="Year" value="3rd Year" />
+        <TitleBlock title="Account snapshot" subtitle="Keep the most important profile details visible without pushing the settings sections too far down the screen." />
+        <View style={memberStyles.metricsGrid}>
+          <MetricTile label="University" value="Addis Ababa University" />
+          <MetricTile label="Year" value="3rd Year" />
+        </View>
       </SectionCard>
       <SectionCard variant="soft">
         <TitleBlock title="Preferences" subtitle="These values describe the current Android demo setup for the member account." />

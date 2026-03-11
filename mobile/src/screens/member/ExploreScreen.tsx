@@ -27,7 +27,7 @@ export function ExploreScreen() {
           </View>
           <Text style={memberStyles.sectionTitle}>{group.Group_Name}</Text>
           <Text style={memberStyles.mutedText}>{group.Description}</Text>
-          <View style={memberStyles.twoCol}>
+          <View style={memberStyles.metricsGrid}>
             <MetricTile label="Contribution" value={formatCurrency(group.Amount)} />
             <MetricTile label="Slots" value={`${group.Max_Members}`} helper="Maximum members" />
           </View>

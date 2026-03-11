@@ -19,12 +19,13 @@ export function PaymentScreen({ route }: any) {
     return <LoadingState title="Loading payment" subtitle="Preparing contribution details and available provider paths." />;
   }
   const safeGroup = group;
+  const usesNativeTestFlow = method === 'Telebirr' || method === 'MockUSSD';
 
   async function handleConfirm() {
     try {
       setError('');
-      if (method === 'MockUSSD') {
-        navigation.navigate(routes.mockUssd, { groupId: safeGroup.Group_ID });
+      if (usesNativeTestFlow) {
+        navigation.navigate(routes.mockUssd, { groupId: safeGroup.Group_ID, method });
         return;
       }
       const result = await payContribution.mutateAsync({ groupId: safeGroup.Group_ID, method });
@@ -42,14 +43,14 @@ export function PaymentScreen({ route }: any) {
 
   return (
     <ScreenScroll>
-      <TopAppBar title="Pay Contribution" onBack={() => navigation.goBack()} rightLabel={`Round ${route.params?.roundNumber ?? safeGroup.Frequency}`} />
+      <TopAppBar title="Pay Contribution" onBack={() => navigation.goBack()} rightLabel={safeGroup.Frequency} />
       <TitleBlock title={formatCurrency(safeGroup.Amount)} subtitle={`${safeGroup.Group_Name} • reference ${safeGroup.Virtual_Acc_Ref}`} />
-      <View style={memberStyles.twoCol}>
+      <View style={memberStyles.metricsGrid}>
         <MetricTile label="Payment" value={paymentMethodLabel(method)} tone="active" />
         <MetricTile label="Cycle" value={safeGroup.Frequency} />
       </View>
       <SectionCard>
-        <TitleBlock title="Choose the payment path" subtitle="Standard providers and experimental paths are kept visually separate so members understand what they are using." />
+        <TitleBlock title="Choose the payment path" subtitle="Telebirr and USSD Lab both use the same native testing shortcut in this build. Chapa stays separate." />
         <SegmentedTabs
           options={[
             { key: 'Telebirr', label: 'Telebirr' },
@@ -60,15 +61,15 @@ export function PaymentScreen({ route }: any) {
           onSelect={key => setMethod(key as PaymentMethod)}
         />
       </SectionCard>
-      {method === 'MockUSSD' ? (
-        <StatusBanner tone="warning" title="Experimental Android-only payment path" body="This route uses the native carrier or one-shot USSD experiment for demo purposes. It is not production payment verification." />
+      {usesNativeTestFlow ? (
+        <StatusBanner tone="warning" title="Testing shortcut enabled" body="UniEqub opens *127# natively. The contribution is marked successful when you close the native dialup and return to the app." />
       ) : (
         <SectionCard variant="soft">
-          <ListRow title={`${paymentMethodLabel(method)} selected`} subtitle="This provider path records the mocked contribution after backend confirmation." leadingIcon="payments" />
+          <ListRow title={`${paymentMethodLabel(method)} selected`} subtitle="This provider stays separate from the native *127# testing shortcut." leadingIcon="payments" />
         </SectionCard>
       )}
       <InlineError message={error} />
-      <PrimaryCTA label={method === 'MockUSSD' ? 'Open Experimental USSD' : `Confirm ${paymentMethodLabel(method)} Payment`} onPress={handleConfirm} loading={payContribution.isPending} disabled={payContribution.isPending} />
+      <PrimaryCTA label={usesNativeTestFlow ? 'Open Native *127# Test' : `Confirm ${paymentMethodLabel(method)} Payment`} onPress={handleConfirm} loading={payContribution.isPending} disabled={payContribution.isPending} />
       <SecondaryCTA label="Back To Group" onPress={() => navigation.goBack()} disabled={payContribution.isPending} />
     </ScreenScroll>
   );

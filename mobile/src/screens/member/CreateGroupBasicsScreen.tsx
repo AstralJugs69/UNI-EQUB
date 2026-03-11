@@ -38,7 +38,7 @@ export function CreateGroupBasicsScreen() {
           onSelect={key => setFrequency(key as 'Weekly' | 'Bi-weekly' | 'Monthly')}
         />
       </SectionCard>
-      <View style={memberStyles.twoCol}>
+      <View style={memberStyles.metricsGrid}>
         <MetricTile label="Contribution" value={formatCurrency(parsedAmount)} />
         <MetricTile label="Estimated Pot" value={formatCurrency(estimatedPot)} helper={`${parsedMembers || 0} members`} tone="active" />
       </View>

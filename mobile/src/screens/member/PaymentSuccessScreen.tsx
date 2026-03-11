@@ -13,7 +13,6 @@ export function PaymentSuccessScreen({ route }: any) {
   const amount = route.params?.amount ?? 0;
   const method: PaymentMethod = route.params?.method ?? 'Telebirr';
   const receiptRef = route.params?.receiptRef ?? 'TXN-882913';
-  const nativeUssdResponse = route.params?.nativeUssdResponse as string | undefined;
 
   return (
     <ScreenScroll>
@@ -26,12 +25,6 @@ export function PaymentSuccessScreen({ route }: any) {
       </SectionCard>
       {route.params?.autoDrawTriggered ? (
         <StatusBanner tone="success" title="This payment completed the round." body={`Winner selection happened automatically and ${payoutAmount.toLocaleString()} ETB is now ready for withdrawal.`} />
-      ) : null}
-      {nativeUssdResponse ? (
-        <SectionCard variant="soft">
-          <Text style={memberStyles.sectionTitle}>Carrier response</Text>
-          <Text style={memberStyles.mutedText}>{nativeUssdResponse}</Text>
-        </SectionCard>
       ) : null}
       <PrimaryCTA label="View Wallet" onPress={() => navigation.navigate(routes.wallet)} />
       <SecondaryCTA label="Back To Group" onPress={() => navigation.navigate(routes.groupStatus)} />

@@ -1,5 +1,5 @@
-﻿import React from 'react';
-import { Text } from 'react-native';
+import React from 'react';
+import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AppScreen, HeroCard, LoadingState, MetricTile, PrimaryCTA, SectionCard, StatusBanner, TopAppBar } from '../../components/ui';
 import { useWalletQuery } from '../../hooks/useAppQueries';
@@ -24,8 +24,10 @@ export function WalletScreen() {
         <Text style={memberStyles.heroBody}>{data.readyPayout > 0 ? `${formatCurrency(data.readyPayout)} is ready for wallet clearance after winner selection.` : 'No pending payout right now.'}</Text>
       </HeroCard>
       <SectionCard>
-        <MetricTile label="Ready Payout" value={formatCurrency(data.readyPayout)} tone={data.readyPayout > 0 ? 'good' : 'neutral'} />
-        <MetricTile label="Clearance Path" value={data.defaultDestination} />
+        <View style={memberStyles.metricsGrid}>
+          <MetricTile label="Ready Payout" value={formatCurrency(data.readyPayout)} tone={data.readyPayout > 0 ? 'good' : 'neutral'} />
+          <MetricTile label="Clearance Path" value={data.defaultDestination} />
+        </View>
       </SectionCard>
       {data.readyPayout > 0 ? (
         <StatusBanner tone="success" title="Payout is ready." body="Open the withdrawal screen to clear it from the wallet ledger." />

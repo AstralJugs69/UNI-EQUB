@@ -50,7 +50,7 @@ export function GroupDetailScreen({ route }: any) {
       </View>
       {showcaseOnly ? <StatusBanner tone="info" title="Preview-only seeded group" body="This group is shown from the local showcase dataset so you can review the browse and detail UI. Joining is disabled." /> : null}
       {safeGroup.Status !== 'Active' ? <StatusBanner tone="warning" title="This group is not joinable yet." body="Only active groups can accept new members." /> : null}
-      <View style={memberStyles.twoCol}>
+      <View style={memberStyles.metricsGrid}>
         <MetricTile label="Contribution" value={formatCurrency(safeGroup.Amount)} />
         <MetricTile label="Virtual Ref" value={safeGroup.Virtual_Acc_Ref || 'Pending'} helper="Assigned after approval" />
       </View>

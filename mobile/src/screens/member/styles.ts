@@ -3,7 +3,7 @@ import { palette, radii, spacing } from '../../theme/tokens';
 
 export const memberStyles = StyleSheet.create({
   sectionGap: {
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   rowWrap: {
     flexDirection: 'row',
@@ -12,10 +12,17 @@ export const memberStyles = StyleSheet.create({
   },
   twoCol: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    alignItems: 'stretch',
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
   },
   imageHeroWrap: {
-    height: 184,
+    height: 164,
     borderRadius: radii.xl,
     overflow: 'hidden',
   },
@@ -30,6 +37,7 @@ export const memberStyles = StyleSheet.create({
   },
   mutedText: {
     color: palette.textMuted,
+    lineHeight: 20,
   },
   strongText: {
     color: palette.text,
@@ -37,7 +45,7 @@ export const memberStyles = StyleSheet.create({
   },
   heroValue: {
     color: palette.white,
-    fontSize: 34,
+    fontSize: 30,
     fontWeight: '900',
     marginTop: spacing.xs,
   },
@@ -47,7 +55,7 @@ export const memberStyles = StyleSheet.create({
     lineHeight: 21,
   },
   actionGroup: {
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   listGroup: {
     gap: spacing.xs,

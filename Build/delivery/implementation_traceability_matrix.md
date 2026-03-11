@@ -13,10 +13,10 @@
 | T-09 | Stage B | Section 3.2.5 | Mirrored admin reports and export payload contract | report service and admin export UI | Completed in mock |
 | T-10 | Stage C | Sections 6.1, 6.2, 7.1 | Real backend auth/token/KYC implementation | `supabase/functions/register-login/`, `supabase/functions/kyc-submit-review/`, `_shared/auth.ts`, `_shared/twilioVerify.ts`, signed KYC upload path, `mobile/src/services/live/`, `Build/delivery/evidence/kyc-upload-validation.json` | In Progress |
 | T-11 | Stage D | Sections 6.3, 7.2, 7.3 | Real backend group lifecycle implementation | `supabase/functions/group-lifecycle/`, `mobile/src/services/live/liveGroupsService.ts`, hosted runtime check for create/approve/join/dashboard | In Progress |
-| T-12 | Stage E | Section 6.4, 7.5 | Real backend contribution and reconciliation implementation with Android-native USSD launch | `supabase/functions/contribution-reconcile/`, `_shared/paymentProviders.ts`, `_shared/phone.ts`, `mobile/src/services/live/livePaymentsService.ts`, Android USSD launcher, hosted runtime contribution check | In Progress |
+| T-12 | Stage E | Section 6.4, 7.5 | Real backend contribution and reconciliation implementation with Android-native USSD launch | `supabase/functions/contribution-reconcile/`, `_shared/paymentProviders.ts`, `_shared/phone.ts`, `mobile/src/services/live/livePaymentsService.ts`, unified Android `*127#` test launcher, hosted runtime contribution check | In Progress |
 | T-12A | Stage E | Section 6.4 | Hosted provider-style USSD simulator for sandbox development, including Arkesel-compatible callback handling | `supabase/functions/ussd-simulator/`, `mobile/scripts/validate-ussd-simulator.js`, `Build/delivery/tools/ussd_simulator_harness.html` | Completed |
 | T-13 | Stage F | Sections 6.5-6.7 | Real backend auto draw, payout, reminder implementation | `_shared/roundLifecycle.ts`, `contribution-reconcile`, `liveNotificationsService.ts`, seeded final-draw script | In Progress |
-| T-14 | Stage G | Sections 3.2.5, 3.3 | Real admin metrics, exports, hardening, and redesigned UI state completion | `report-export`, `liveReportsService.ts`, `Build/delivery/evidence/report-export-validation.json`, modular auth/member/admin screens, rebuilt `mobile/src/components/ui.tsx`, updated theme tokens | In Progress |
+| T-14 | Stage G | Sections 3.2.5, 3.3 | Real admin metrics, exports, hardening, and redesigned UI state completion | `report-export`, `liveReportsService.ts`, `Build/delivery/evidence/report-export-validation.json`, modular auth/member/admin screens, rebuilt `mobile/src/components/ui.tsx`, `mobile/src/components/ULoader.tsx`, updated theme tokens | In Progress |
 | T-15 | Stage H | Testing and deployment methodology | APK, emulator/device validation, UAT evidence | tests, startup automation | In Progress |
 
 ## Traceability rules
@@ -24,5 +24,4 @@
 - `Completed` means the repo already satisfies the capability at the intended implementation layer.
 - `Not Started` means real implementation work for that capability has not begun.
 - Any contract change must be reflected in `types`, `service contracts`, `mock backend`, and the eventual Edge Function implementation to preserve parity.
-
 

@@ -1,8 +1,8 @@
 # UniEqub Delivery Progress Spec
 
-Version: 1.0
-Last Updated: 2026-03-10
-Current Wave: UI/UX redesign, native-Android polish, and screen modularization are active on top of the live contribution/draw stack; remaining focus is provider adapters, hardening, and release validation
+Version: 1.1
+Last Updated: 2026-03-11
+Current Wave: final polish is active; the native USSD test flow has been simplified to a single launch-and-return shortcut and the app is moving through branded loading, tighter phone-fit spacing, and final release validation
 Overall Status: In Progress
 
 ## 1. Execution Rules
@@ -18,7 +18,7 @@ Overall Status: In Progress
   - repo/workspace bootstrap
   - React Native scaffold
   - mirrored mock service layer
-- Android native USSD shortcode launch for contribution initiation, with backend-confirmed simulated reconciliation after return
+- Android native USSD shortcode launch for contribution initiation, now simplified to a single `*127#` launch-and-return testing shortcut for Telebirr and MockUSSD
 - Hosted provider-style USSD simulator callback endpoint and local harness for sandbox preparation
   - member/admin UI scaffolding
   - fixed-schema SQL bootstrap
@@ -33,9 +33,11 @@ Overall Status: In Progress
   - live notifications, reminder derivation, and admin overview reads
   - mobile env wiring no longer depends on hardcoded Supabase keys in source
   - real KYC storage upload path
+  - animated branded `U` loading system now replaces spinner-based loading in shared UI states
 - Still pending for real MVP completion:
   - real provider integrations beyond the simulated reconciliation path
   - emulator evidence, release APK flow, and broader UAT capture
+  - final on-device screen-fit and animation review across all member/admin flows
 
 ## 3. Sequential Work Tracker
 
@@ -75,7 +77,7 @@ Overall Status: In Progress
 | 32 | D5 | Stage D | Implement live join validation and membership write | Plan Stage D | Completed | D1, D3 | `group-lifecycle` join action, hosted runtime check | Group join rules enforced by backend | Done |
 | 33 | D6 | Stage D | Implement live dashboard/group-status snapshots | Plan Stage D | Completed | D5 | `group-lifecycle` dashboard/status actions, `liveGroupsService.ts`, hosted runtime check | Member dashboard and group status fully run from live backend | Done |
 | 34 | E1 | Stage E | Implement live contribution initiation contract matching the Android-native USSD launch flow | Plan Stage E | Completed | D6 | `supabase/functions/contribution-reconcile/index.ts`, `livePaymentsService.ts`, Android native launcher, hosted runtime check | App launches native carrier shortcode and keeps backend in control of reconciliation | Done |
-| 35 | E2 | Stage E | Implement live simulated USSD payment reconciliation path after native return | Plan Stage E | Completed | E1 | `contribution-reconcile` hosted runtime check, native USSD confirmation flow | Successful user-confirmed USSD payment writes real transaction row | Done |
+| 35 | E2 | Stage E | Implement live simulated USSD payment reconciliation path after native return | Plan Stage E | Completed | E1 | `contribution-reconcile` hosted runtime check, unified native `*127#` launch-and-return flow | Successful user-confirmed USSD payment writes real transaction row | Done |
 | 36 | E3 | Stage E | Implement sender phone normalization in backend | Plan Stage E | Completed | E2 | `_shared/phone.ts`, `contribution-reconcile` callback reconciliation | `+251` normalization and matching logic exists live | Done |
 | 37 | E4 | Stage E | Prevent duplicate current-round contribution at backend | Plan Stage E | Completed | E2 | `contribution-reconcile` validation path | Same user cannot pay same round twice | Done |
 | 38 | E5 | Stage E | Replace transaction history query with live backend data | Plan Stage E | Completed | E2 | `livePaymentsService.ts`, `contribution-reconcile` read action | History is fully backed by real transactions | Done |
@@ -88,7 +90,7 @@ Overall Status: In Progress
 | 45 | F6 | Stage F | Replace wallet/notification/reminder UI with live backend data | Plan Stage F | Completed | F3-F5 | `livePaymentsService.ts`, `liveNotificationsService.ts`, `liveReportsService.ts` | Wallet and notifications no longer depend on mock backend | Done |
 | 46 | G1 | Stage G | Implement live admin metrics/overview data | Plan Stage G | Completed | C-D-F stages | `report-export`, admin dashboard query path | Admin dashboard uses real backend metrics | Done |
 | 47 | G2 | Stage G | Implement real report export generation (PDF/CSV) | Plan Stage G | Completed | G1 | `report-export`, `liveReportsService.ts`, `Build/delivery/evidence/report-export-validation.json` | Export outputs are generated, not placeholder strings | CSV is text; PDF is binary base64 with `%PDF-` header |
-| 48 | G3 | Stage G | Add full loading / empty / retry / low-bandwidth UX states | Plan Stage G | In Progress | B-stage app screens | modularized screen files, redesigned shared UI primitives, loading/empty states added across auth/member/admin | All critical screens have production-ready state handling | Loading and empty states are now broadly implemented; retry and low-bandwidth tuning remain |
+| 48 | G3 | Stage G | Add full loading / empty / retry / low-bandwidth UX states | Plan Stage G | In Progress | B-stage app screens | modularized screen files, redesigned shared UI primitives, animated `U` loader, loading/empty states added across auth/member/admin | All critical screens have production-ready state handling | Loading and empty states are broadly implemented and spinner-based loading was replaced; retry and low-bandwidth tuning remain |
 | 49 | G4 | Stage G | Remove remaining mock/demo wording from user-facing UI | Plan Stage G | Completed | B-stage app screens | redesigned screen copy in modular auth/member/admin surfaces | No debug/mock language visible in normal user surfaces | Experimental one-shot USSD labeling remains intentionally explicit |
 | 50 | G5 | Stage G | Review security hardening for transport, token checks, retries | Plan Stage G | Not Started | C-F live backend | None | Security review items implemented against live backend | Pending |
 | 51 | H1 | Stage H | Expand automated tests beyond mock backend core | Plan Stage H | In Progress | B-stage app scaffold | Jest service tests exist | Screen/provider/backend integration tests added | Partial |
@@ -122,7 +124,9 @@ Overall Status: In Progress
 - Live mobile auth/KYC wiring: `mobile/src/services/live/liveAuthService.ts`, `mobile/src/services/live/liveKycService.ts`, `mobile/src/providers/AuthProvider.tsx`
 - Live group lifecycle backend: `supabase/functions/group-lifecycle/index.ts`, `mobile/src/services/live/liveGroupsService.ts`
 - Live simulated contribution backend: `supabase/functions/contribution-reconcile/index.ts`, `mobile/src/services/live/livePaymentsService.ts`
+- Native Android test USSD flow: `mobile/src/services/native/ussdLauncher.ts`, `mobile/android/app/src/main/java/com/com.uniequb/NativeUssdModule.kt`, `mobile/src/screens/member/MockUssdScreen.tsx`
 - Live notifications/reports: `mobile/src/services/live/liveNotificationsService.ts`, `mobile/src/services/live/liveReportsService.ts`, `supabase/functions/report-export/index.ts`
+- Animated loading system: `mobile/src/components/ULoader.tsx`, `mobile/src/components/ui.tsx`, `mobile/src/navigation/AppNavigator.tsx`
 - Mobile env wiring: `mobile/.env.example`, `mobile/src/services/supabaseClient.ts`
 - Seed script for final-draw scenario: `mobile/scripts/seed-final-draw.js`
 - Startup automation: `scripts/start-android-dev.ps1`
@@ -137,8 +141,7 @@ Overall Status: In Progress
 - The fixed schema has no persisted group description or rejected status field. The live backend currently honors that constraint, which means rejected-group UX and rich group copy still need a product-safe handling strategy.
 - True image capture is wired, but it still relies on device camera/gallery permissions and has not yet been validated on a physical device in this workspace session.
 - Android debug testing is now automated, but release APK generation and emulator validation are still pending.
-- Major screen-level inline style debt was removed by modularizing auth/member/admin surfaces and rebuilding the shared UI layer; residual polish still needs on-device validation.
+- Major screen-level inline style debt was removed by modularizing auth/member/admin surfaces and rebuilding the shared UI layer; the final phone-fit polish pass now needs on-device validation.
 - The mock layer is now close to the intended backend contracts, but any future contract change must be updated in both the mock implementation and the Edge Function scaffolds immediately.
-
 
 

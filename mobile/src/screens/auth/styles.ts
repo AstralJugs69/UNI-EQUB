@@ -5,12 +5,13 @@ export const authStyles = StyleSheet.create({
   centeredContent: {
     flexGrow: 1,
     justifyContent: 'center',
+    paddingVertical: spacing.sm,
   },
   stack: {
     gap: spacing.md,
   },
   heroImageWrap: {
-    height: 240,
+    height: 204,
     borderRadius: radii.xl,
     overflow: 'hidden',
   },
@@ -19,8 +20,8 @@ export const authStyles = StyleSheet.create({
     height: '100%',
   },
   brandMark: {
-    width: 64,
-    height: 64,
+    width: 60,
+    height: 60,
     borderRadius: radii.xl,
     backgroundColor: palette.primarySoft,
     alignItems: 'center',
@@ -28,7 +29,7 @@ export const authStyles = StyleSheet.create({
   },
   brandLetter: {
     color: palette.primaryDark,
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
   },
   centered: {
@@ -57,11 +58,12 @@ export const authStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.sm,
   },
   kycActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   progressTrack: {
     height: 10,
@@ -75,13 +77,13 @@ export const authStyles = StyleSheet.create({
   },
   heroActions: {
     gap: spacing.sm,
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
   },
   segmentedWrap: {
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   footerActions: {
-    gap: spacing.sm,
+    gap: spacing.xs,
     marginTop: spacing.xs,
   },
 });

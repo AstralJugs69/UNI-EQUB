@@ -1,4 +1,4 @@
-module.exports = {
+﻿module.exports = {
   presets: ['module:@react-native/babel-preset'],
   plugins: [
     ['module:react-native-dotenv', {
@@ -7,5 +7,6 @@ module.exports = {
       safe: false,
       allowUndefined: false,
     }],
+    'react-native-reanimated/plugin',
   ],
 };

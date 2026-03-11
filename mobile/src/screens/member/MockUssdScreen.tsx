@@ -1,11 +1,14 @@
 ﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { AppState, Text, View } from 'react-native';
+import type { AppStateStatus } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { InlineError, InputField, LoadingState, Pill, PrimaryCTA, ScreenScroll, SecondaryCTA, SectionCard, TopAppBar } from '../../components/ui';
+import { InlineError, LoadingState, MiniULoader, Pill, ScreenScroll, SecondaryCTA, SectionCard, TopAppBar } from '../../components/ui';
 import { useGroupQuery, useMemberActions } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
-import { launchNativeUssd, sendOneShotNativeUssd } from '../../services/native/ussdLauncher';
+import { launchNativeUssd } from '../../services/native/ussdLauncher';
+import type { PaymentMethod } from '../../types/domain';
+import { paymentMethodLabel } from './shared';
 import { memberStyles } from './styles';
 
 export function MockUssdScreen({ route }: any) {
@@ -14,26 +17,22 @@ export function MockUssdScreen({ route }: any) {
   const { data: group } = useGroupQuery(route.params.groupId);
   const { payContribution } = useMemberActions();
   const mountedRef = useRef(true);
+  const awaitingReturnRef = useRef(false);
+  const leftAppRef = useRef(false);
+  const handledReturnRef = useRef(false);
+  const method = (route.params?.method ?? 'MockUSSD') as PaymentMethod;
+
   const [launching, setLaunching] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [launchMode, setLaunchMode] = useState<'call' | 'dial' | null>(null);
-  const [carrierResponse, setCarrierResponse] = useState('');
-  const [ussdCode, setUssdCode] = useState('*127#');
+  const [status, setStatus] = useState<'idle' | 'opening' | 'waiting' | 'recording'>('idle');
   const [error, setError] = useState('');
 
-  const runOneShot = useCallback(async (code: string) => {
+  const recordContribution = useCallback(async () => {
     try {
-      setLaunching(true);
-      setError('');
-      setCarrierResponse('');
-      setLaunchMode(null);
-      const result = await sendOneShotNativeUssd(code);
-      if (!mountedRef.current) {
-        return;
-      }
-      setCarrierResponse(result.response);
       setRecording(true);
-      const completedResult = await payContribution.mutateAsync({ groupId: route.params.groupId, method: 'MockUSSD' });
+      setStatus('recording');
+      setError('');
+      const completedResult = await payContribution.mutateAsync({ groupId: route.params.groupId, method });
       if (!mountedRef.current) {
         return;
       }
@@ -43,73 +42,90 @@ export function MockUssdScreen({ route }: any) {
         receiptRef: completedResult.receiptRef,
         amount: completedResult.amount,
         method: completedResult.method,
-        nativeUssdResponse: result.response,
       });
     } catch (err) {
       if (mountedRef.current) {
-        setError(err instanceof Error ? err.message : 'Unable to complete the one-shot USSD request.');
+        setError(err instanceof Error ? err.message : 'Unable to record the USSD contribution.');
+        setStatus('waiting');
+      }
+    } finally {
+      if (mountedRef.current) {
+        setRecording(false);
+      }
+    }
+  }, [method, navigation, payContribution, route.params.groupId]);
+
+  const openNativeDialup = useCallback(async () => {
+    try {
+      setLaunching(true);
+      setStatus('opening');
+      setError('');
+      awaitingReturnRef.current = false;
+      leftAppRef.current = false;
+      handledReturnRef.current = false;
+      await launchNativeUssd('*127#');
+      if (!mountedRef.current) {
+        return;
+      }
+      awaitingReturnRef.current = true;
+      setStatus('waiting');
+    } catch (err) {
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err.message : 'Unable to open the native *127# flow.');
+        setStatus('idle');
       }
     } finally {
       if (mountedRef.current) {
         setLaunching(false);
-        setRecording(false);
       }
     }
-  }, [navigation, payContribution, route.params.groupId]);
-
-  const handleRetryOneShot = useCallback(async () => {
-    await runOneShot(ussdCode);
-  }, [runOneShot, ussdCode]);
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
-    runOneShot('*127#').catch(() => undefined);
+    openNativeDialup().catch(() => undefined);
+
+    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (!awaitingReturnRef.current || handledReturnRef.current) {
+        return;
+      }
+      if (nextState === 'background' || nextState === 'inactive') {
+        leftAppRef.current = true;
+        return;
+      }
+      if (nextState === 'active' && leftAppRef.current) {
+        handledReturnRef.current = true;
+        awaitingReturnRef.current = false;
+        recordContribution().catch(() => undefined);
+      }
+    });
+
     return () => {
       mountedRef.current = false;
+      subscription.remove();
     };
-  }, [runOneShot]);
+  }, [openNativeDialup, recordContribution]);
 
   if (!group || !session) {
-    return <LoadingState title="Loading USSD payment" subtitle="Preparing the Android-native experiment and payment context." />;
+    return <LoadingState title="Loading USSD payment" subtitle="Preparing the native testing dialup and contribution context." />;
   }
 
-  async function handleLaunchAgain() {
-    try {
-      setLaunching(true);
-      setError('');
-      const mode = await launchNativeUssd(ussdCode);
-      setLaunchMode(mode);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to reopen the native USSD code.');
-    } finally {
-      setLaunching(false);
-    }
-  }
-
-  const stateLabel = launching
-    ? 'Sending one-shot request'
-    : recording
-      ? 'Recording contribution'
-      : carrierResponse
-        ? 'Carrier response received'
-        : launchMode
-          ? 'Dialer fallback ready'
-          : 'Preparing one-shot flow';
+  const statusLabel = status === 'opening'
+    ? 'Opening native dialup'
+    : status === 'waiting'
+      ? 'Waiting for app return'
+      : status === 'recording'
+        ? 'Recording contribution'
+        : 'Ready';
 
   return (
     <ScreenScroll>
-      <TopAppBar title="Experimental USSD Lab" onBack={() => navigation.goBack()} rightLabel="Android only" />
+      <TopAppBar title="Native *127# Test" onBack={() => navigation.goBack()} rightLabel="Testing only" />
       <SectionCard style={memberStyles.experimentalCard}>
-        <Pill label={stateLabel} tone="active" />
-        <Text style={memberStyles.experimentalTitle}>One-shot USSD experiment</Text>
+        <Pill label={statusLabel} tone="active" />
+        <Text style={memberStyles.experimentalTitle}>{paymentMethodLabel(method)} native shortcut</Text>
         <Text style={memberStyles.experimentalBody}>
-          {carrierResponse
-            ? carrierResponse
-            : launchMode === 'call'
-              ? 'The dialer fallback used a direct call. Complete it there if the one-shot API is not supported by the carrier.'
-              : launchMode === 'dial'
-                ? 'The dialer fallback is ready. Tap Call in the phone app if the one-shot API is rejected.'
-                : 'UniEqub is sending the code directly through TelephonyManager.sendUssdRequest().'}
+          UniEqub opens *127# and waits for you to leave the native dialup. As soon as you close it and return to the app, this test build records the contribution as successful.
         </Text>
       </SectionCard>
       <SectionCard>
@@ -118,14 +134,19 @@ export function MockUssdScreen({ route }: any) {
           <Text style={memberStyles.strongText}>{group.Group_Name}</Text>
           <Text style={memberStyles.mutedText}>Reference {group.Virtual_Acc_Ref}</Text>
           <Text style={memberStyles.mutedText}>Contribution amount {group.Amount} ETB</Text>
+          <Text style={memberStyles.mutedText}>Close the native dialup immediately and return here to complete the test payment.</Text>
         </View>
       </SectionCard>
-      <SectionCard variant="soft">
-        <InputField label="One-shot USSD code" value={ussdCode} onChangeText={setUssdCode} helper="Use this to test the Android one-shot USSD API path on your current carrier." />
-      </SectionCard>
+      {(launching || recording) ? (
+        <SectionCard variant="soft">
+          <View style={memberStyles.rowWrap}>
+            <MiniULoader size={22} />
+            <Text style={memberStyles.strongText}>{status === 'recording' ? 'Recording the contribution now...' : 'Opening the native *127# shortcut...'}</Text>
+          </View>
+        </SectionCard>
+      ) : null}
       <InlineError message={error} />
-      <PrimaryCTA label="Retry One-Shot Request" onPress={handleRetryOneShot} loading={launching} disabled={launching || recording} />
-      <SecondaryCTA label="Open Dialer Fallback" onPress={handleLaunchAgain} disabled={launching || recording} />
+      <SecondaryCTA label="Open *127# Again" onPress={() => openNativeDialup()} disabled={launching || recording} />
       <SecondaryCTA label="Cancel And Go Back" onPress={() => navigation.goBack()} disabled={launching || recording} />
     </ScreenScroll>
   );

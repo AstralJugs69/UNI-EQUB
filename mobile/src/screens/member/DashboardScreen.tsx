@@ -36,7 +36,7 @@ export function DashboardScreen() {
             <SecondaryCTA label="Create Equb" onPress={() => navigation.navigate(routes.createBasics)} />
           </View>
         </HeroCard>
-        <View style={memberStyles.twoCol}>
+        <View style={memberStyles.metricsGrid}>
           <MetricTile label="KYC Status" value={session.user.kycStatus} tone={session.user.kycStatus === 'Verified' ? 'good' : 'warn'} />
           <MetricTile label="Saved So Far" value={formatCurrency(data.totalSaved)} />
         </View>
@@ -68,7 +68,7 @@ export function DashboardScreen() {
         <Text style={memberStyles.heroBody}>{group.Group_Name} is at {data.paidCount}/{data.totalMembers} paid. Your contribution is the fastest way to push the round forward.</Text>
         <PrimaryCTA label="Pay This Round" onPress={() => navigation.navigate(routes.payment, { groupId: group.Group_ID })} />
       </HeroCard>
-      <View style={memberStyles.twoCol}>
+      <View style={memberStyles.metricsGrid}>
         <MetricTile label="Total Saved" value={formatCurrency(data.totalSaved)} helper="Successful contributions only" />
         <MetricTile label="Ready Payout" value={formatCurrency(data.readyPayout)} tone={data.readyPayout > 0 ? 'good' : 'neutral'} helper={data.readyPayout > 0 ? 'Available in wallet' : 'No pending payout'} />
       </View>

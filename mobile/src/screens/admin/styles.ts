@@ -4,6 +4,12 @@ import { palette, spacing } from '../../theme/tokens';
 export const adminStyles = StyleSheet.create({
   twoCol: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
   },
   rowWrap: {
@@ -21,8 +27,9 @@ export const adminStyles = StyleSheet.create({
   },
   mutedText: {
     color: palette.textMuted,
+    lineHeight: 20,
   },
   actionGroup: {
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
 });

@@ -1,6 +1,5 @@
 import React, { PropsWithChildren } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StatusBar,
@@ -12,6 +11,7 @@ import {
 import type { StyleProp, TextInputProps, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon } from './Icon';
+import { AnimatedULoader, MiniULoader } from './ULoader';
 import { iconSize, palette, radii, shadows, spacing, typography } from '../theme/tokens';
 
 type Tone = 'neutral' | 'active' | 'good' | 'warn' | 'bad';
@@ -31,7 +31,11 @@ export function AppScreen({
   backgroundColor?: string;
 }>) {
   const body = scroll ? (
-    <ScrollView contentContainerStyle={[styles.screenContent, contentStyle]} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      contentContainerStyle={[styles.screenContent, contentStyle]}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       {children}
     </ScrollView>
   ) : (
@@ -197,8 +201,8 @@ export function LoadingState({
 }) {
   return (
     <AppScreen scroll={false} contentStyle={styles.loadingWrap}>
-      <ActivityIndicator size="large" color={palette.primary} />
-      <Text style={styles.loadingTitle}>{title}</Text>
+      <AnimatedULoader size={104} />
+      {title ? <Text style={styles.loadingTitle}>{title}</Text> : null}
       {subtitle ? <Text style={styles.loadingSubtitle}>{subtitle}</Text> : null}
     </AppScreen>
   );
@@ -286,7 +290,7 @@ export function AppButton({
     >
       <View style={styles.buttonInner}>
         {loading ? (
-          <ActivityIndicator color={variant === 'primary' ? palette.white : palette.text} />
+          <MiniULoader size={18} />
         ) : icon ? (
           <Icon name={icon} size={iconSize.sm} color={variant === 'primary' ? palette.white : palette.text} />
         ) : null}
@@ -497,8 +501,8 @@ export function BottomNav({
 }
 
 export const uiStyles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: spacing.sm },
-  twoCol: { flexDirection: 'row', gap: spacing.sm },
+  row: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
+  twoCol: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   flexOne: { flex: 1 },
   centeredRow: { flexDirection: 'row', alignItems: 'center' },
 });
@@ -510,8 +514,8 @@ const styles = StyleSheet.create({
   screenContent: {
     minHeight: '100%',
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xxxl,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xl,
     gap: spacing.md,
   },
   screenFill: {
@@ -519,18 +523,18 @@ const styles = StyleSheet.create({
   },
   footerWrap: {
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.xs,
     backgroundColor: palette.background,
   },
   appBar: {
-    minHeight: 64,
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
   backButton: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radii.md,
@@ -557,7 +561,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   appBarRight: {
-    minWidth: 72,
+    minWidth: 60,
     alignItems: 'flex-end',
   },
   sectionCard: {
@@ -565,8 +569,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: palette.border,
-    padding: spacing.md,
-    gap: spacing.sm,
+    padding: spacing.sm + 2,
+    gap: spacing.xs,
     ...shadows.card,
   },
   sectionCardSoft: {
@@ -597,10 +601,10 @@ const styles = StyleSheet.create({
     width: 170,
     height: 170,
     borderRadius: radii.pill,
-    backgroundColor: 'rgba(204,123,55,0.26)',
+    backgroundColor: 'rgba(29, 97, 184, 0.22)',
   },
   heroContent: {
-    padding: spacing.lg,
+    padding: spacing.md,
     gap: spacing.xs,
   },
   centered: {
@@ -624,7 +628,7 @@ const styles = StyleSheet.create({
   banner: {
     borderRadius: radii.md,
     borderWidth: 1,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm + 2,
     paddingVertical: spacing.sm,
     flexDirection: 'row',
     gap: spacing.sm,
@@ -712,12 +716,14 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   metricTile: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: 148,
+    minWidth: 136,
     borderRadius: radii.lg,
     backgroundColor: palette.surface,
     borderWidth: 1,
     borderColor: palette.border,
-    padding: spacing.md,
+    padding: spacing.sm + 2,
     gap: spacing.xxs,
   },
   metricTileActive: {
@@ -741,7 +747,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   button: {
-    minHeight: 52,
+    minHeight: 50,
     borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -791,7 +797,7 @@ const styles = StyleSheet.create({
   },
   segmentItem: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 42,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radii.md,
@@ -846,8 +852,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   listRowIconWrap: {
-    width: 42,
-    height: 42,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radii.md,
@@ -855,6 +861,7 @@ const styles = StyleSheet.create({
   },
   listRowText: {
     flex: 1,
+    minWidth: 0,
     gap: spacing.xxs,
   },
   listRowTitle: {
@@ -884,7 +891,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   inputWrap: {
-    minHeight: 54,
+    minHeight: 52,
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: palette.borderStrong,
@@ -904,11 +911,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   textareaWrap: {
-    minHeight: 124,
+    minHeight: 118,
     alignItems: 'flex-start',
   },
   textarea: {
-    minHeight: 100,
+    minHeight: 94,
     width: '100%',
     textAlignVertical: 'top',
   },
@@ -940,15 +947,15 @@ const styles = StyleSheet.create({
   bottomNav: {
     flexDirection: 'row',
     paddingHorizontal: spacing.xs,
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.sm,
+    paddingTop: spacing.xxs,
+    paddingBottom: spacing.xs,
   },
   bottomNavItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xxs,
-    minHeight: 52,
+    minHeight: 48,
     borderRadius: radii.md,
   },
   bottomNavLabel: {
@@ -960,3 +967,5 @@ const styles = StyleSheet.create({
     color: palette.primaryDark,
   },
 });
+
+export { AnimatedULoader, MiniULoader } from './ULoader';
