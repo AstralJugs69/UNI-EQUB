@@ -8,7 +8,7 @@ export function HistoryScreen() {
   const { data: rows = [] } = useTransactionsQuery();
 
   return (
-    <AppScreen footer={<MemberNav active={routes.history} />}>
+    <AppScreen footer={<MemberNav active={routes.history} />} footerFlush>
       <TopAppBar title="Transaction Ledger" subtitle="History" />
       {!rows.length ? (
         <EmptyState icon="receipt-long" title="No transactions yet" subtitle="Contributions and payouts will appear here as soon as the first cycle activity is recorded." />

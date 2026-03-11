@@ -22,11 +22,13 @@ export function AppScreen({
   children,
   contentStyle,
   footer,
+  footerFlush = false,
   scroll = true,
   backgroundColor = palette.background,
 }: PropsWithChildren<{
   contentStyle?: StyleProp<ViewStyle>;
   footer?: React.ReactNode;
+  footerFlush?: boolean;
   scroll?: boolean;
   backgroundColor?: string;
 }>) {
@@ -46,7 +48,7 @@ export function AppScreen({
     <SafeAreaView style={[styles.screenRoot, { backgroundColor }]} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor={backgroundColor} />
       {body}
-      {footer ? <View style={styles.footerWrap}>{footer}</View> : null}
+      {footer ? <View style={[styles.footerWrap, footerFlush && styles.footerWrapFlush]}>{footer}</View> : null}
     </SafeAreaView>
   );
 }
@@ -525,6 +527,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.xs,
     backgroundColor: palette.background,
+  },
+  footerWrapFlush: {
+    paddingHorizontal: 0,
+    paddingBottom: 0,
   },
   appBar: {
     minHeight: 58,

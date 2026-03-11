@@ -16,7 +16,7 @@ export function AdminDashboardScreen() {
   }
 
   return (
-    <AppScreen footer={<AdminNav active={routes.adminDashboard} />}>
+    <AppScreen footer={<AdminNav active={routes.adminDashboard} />} footerFlush>
       <TopAppBar title="Command Center" subtitle="Admin Workspace" rightLabel="Healthy" />
       <SectionCard>
         <View style={adminStyles.metricsGrid}>

@@ -14,7 +14,7 @@ export function ProfileScreen() {
   }
 
   return (
-    <AppScreen footer={<MemberNav active={routes.profile} />}>
+    <AppScreen footer={<MemberNav active={routes.profile} />} footerFlush>
       <TopAppBar title="Profile And Settings" />
       <TitleBlock title={session.user.fullName} subtitle={`${session.user.role} - ${session.user.kycStatus}`} align="center" />
       <SectionCard>

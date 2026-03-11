@@ -10,7 +10,7 @@ export function AdminKycScreen() {
   const item = data?.[0];
 
   return (
-    <AppScreen footer={<AdminNav active={routes.adminKyc} />}>
+    <AppScreen footer={<AdminNav active={routes.adminKyc} />} footerFlush>
       <TopAppBar title="KYC Review" subtitle="Admin Queue" rightLabel={`${data?.length ?? 0} pending`} />
       {item ? (
         <>

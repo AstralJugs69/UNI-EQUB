@@ -16,7 +16,7 @@ export function WalletScreen() {
   }
 
   return (
-    <AppScreen footer={<MemberNav active={routes.wallet} />}>
+    <AppScreen footer={<MemberNav active={routes.wallet} />} footerFlush>
       <TopAppBar title="Payouts" subtitle="Wallet" rightLabel={data.readyPayout > 0 ? 'Ready' : 'Idle'} />
       <HeroCard>
         <Text style={memberStyles.heroBody}>Available balance</Text>

@@ -11,7 +11,7 @@ export function AdminGroupsScreen() {
   const item = data?.[0];
 
   return (
-    <AppScreen footer={<AdminNav active={routes.adminGroups} />}>
+    <AppScreen footer={<AdminNav active={routes.adminGroups} />} footerFlush>
       <TopAppBar title="Group Review" subtitle="Admin Queue" rightLabel={`${data?.length ?? 0} pending`} />
       {item ? (
         <>

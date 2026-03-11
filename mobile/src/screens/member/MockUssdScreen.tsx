@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Text, View } from 'react-native';
 import type { AppStateStatus } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -14,25 +14,40 @@ import { memberStyles } from './styles';
 export function MockUssdScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const { session } = useAuth();
-  const { data: group } = useGroupQuery(route.params.groupId);
+  const groupId = route.params.groupId as string;
+  const { data: group } = useGroupQuery(groupId);
   const { payContribution } = useMemberActions();
+  const method = (route.params?.method ?? 'MockUSSD') as PaymentMethod;
+
   const mountedRef = useRef(true);
   const awaitingReturnRef = useRef(false);
   const leftAppRef = useRef(false);
   const handledReturnRef = useRef(false);
-  const method = (route.params?.method ?? 'MockUSSD') as PaymentMethod;
+  const launchInFlightRef = useRef(false);
+  const recordInFlightRef = useRef(false);
+  const launchedOnMountRef = useRef(false);
+  const payContributionRef = useRef(payContribution.mutateAsync);
 
   const [launching, setLaunching] = useState(false);
   const [recording, setRecording] = useState(false);
   const [status, setStatus] = useState<'idle' | 'opening' | 'waiting' | 'recording'>('idle');
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    payContributionRef.current = payContribution.mutateAsync;
+  }, [payContribution.mutateAsync]);
+
   const recordContribution = useCallback(async () => {
+    if (recordInFlightRef.current) {
+      return;
+    }
+
     try {
+      recordInFlightRef.current = true;
       setRecording(true);
       setStatus('recording');
       setError('');
-      const completedResult = await payContribution.mutateAsync({ groupId: route.params.groupId, method });
+      const completedResult = await payContributionRef.current({ groupId, method });
       if (!mountedRef.current) {
         return;
       }
@@ -46,35 +61,44 @@ export function MockUssdScreen({ route }: any) {
     } catch (err) {
       if (mountedRef.current) {
         setError(err instanceof Error ? err.message : 'Unable to record the USSD contribution.');
-        setStatus('waiting');
+        setStatus('idle');
       }
     } finally {
+      recordInFlightRef.current = false;
       if (mountedRef.current) {
         setRecording(false);
       }
     }
-  }, [method, navigation, payContribution, route.params.groupId]);
+  }, [groupId, method, navigation]);
 
   const openNativeDialup = useCallback(async () => {
+    if (launchInFlightRef.current || awaitingReturnRef.current || recordInFlightRef.current) {
+      return;
+    }
+
     try {
+      launchInFlightRef.current = true;
+      awaitingReturnRef.current = true;
+      leftAppRef.current = false;
+      handledReturnRef.current = false;
       setLaunching(true);
       setStatus('opening');
       setError('');
-      awaitingReturnRef.current = false;
-      leftAppRef.current = false;
-      handledReturnRef.current = false;
       await launchNativeUssd('*127#');
       if (!mountedRef.current) {
         return;
       }
-      awaitingReturnRef.current = true;
       setStatus('waiting');
     } catch (err) {
+      awaitingReturnRef.current = false;
+      leftAppRef.current = false;
+      handledReturnRef.current = false;
       if (mountedRef.current) {
         setError(err instanceof Error ? err.message : 'Unable to open the native *127# flow.');
         setStatus('idle');
       }
     } finally {
+      launchInFlightRef.current = false;
       if (mountedRef.current) {
         setLaunching(false);
       }
@@ -83,22 +107,28 @@ export function MockUssdScreen({ route }: any) {
 
   useEffect(() => {
     mountedRef.current = true;
-    openNativeDialup().catch(() => undefined);
 
     const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       if (!awaitingReturnRef.current || handledReturnRef.current) {
         return;
       }
+
       if (nextState === 'background' || nextState === 'inactive') {
         leftAppRef.current = true;
         return;
       }
+
       if (nextState === 'active' && leftAppRef.current) {
         handledReturnRef.current = true;
         awaitingReturnRef.current = false;
         recordContribution().catch(() => undefined);
       }
     });
+
+    if (!launchedOnMountRef.current) {
+      launchedOnMountRef.current = true;
+      openNativeDialup().catch(() => undefined);
+    }
 
     return () => {
       mountedRef.current = false;
@@ -125,7 +155,7 @@ export function MockUssdScreen({ route }: any) {
         <Pill label={statusLabel} tone="active" />
         <Text style={memberStyles.experimentalTitle}>{paymentMethodLabel(method)} native shortcut</Text>
         <Text style={memberStyles.experimentalBody}>
-          UniEqub opens *127# and waits for you to leave the native dialup. As soon as you close it and return to the app, this test build records the contribution as successful.
+          UniEqub opens *127# once and waits for you to leave the native dialup. As soon as you close it and return to the app, this test build records the contribution as successful.
         </Text>
       </SectionCard>
       <SectionCard>
@@ -146,7 +176,7 @@ export function MockUssdScreen({ route }: any) {
         </SectionCard>
       ) : null}
       <InlineError message={error} />
-      <SecondaryCTA label="Open *127# Again" onPress={() => openNativeDialup()} disabled={launching || recording} />
+      <SecondaryCTA label="Open *127# Again" onPress={() => { openNativeDialup().catch(() => undefined); }} disabled={launching || recording || status === 'waiting'} />
       <SecondaryCTA label="Cancel And Go Back" onPress={() => navigation.goBack()} disabled={launching || recording} />
     </ScreenScroll>
   );

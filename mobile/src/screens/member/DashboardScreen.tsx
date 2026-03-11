@@ -23,7 +23,7 @@ export function DashboardScreen() {
 
   if (!group) {
     return (
-      <AppScreen footer={<MemberNav active={routes.dashboard} />}>
+      <AppScreen footer={<MemberNav active={routes.dashboard} />} footerFlush>
         {session.user.kycStatus !== 'Verified' ? (
           <StatusBanner tone="warning" title="KYC review is still pending." body="Group creation and payout withdrawal stay locked until an admin approves your ID review." />
         ) : null}
@@ -58,7 +58,7 @@ export function DashboardScreen() {
   }
 
   return (
-    <AppScreen footer={<MemberNav active={routes.dashboard} />}>
+    <AppScreen footer={<MemberNav active={routes.dashboard} />} footerFlush>
       {session.user.kycStatus !== 'Verified' ? (
         <StatusBanner tone="warning" title="KYC review is still pending." body="You can view your cycle, but group creation and payout withdrawal remain restricted until approval." />
       ) : null}

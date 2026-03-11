@@ -10,7 +10,7 @@ export function NotificationsScreen() {
   const unreadCount = data.filter(item => item.unread).length;
 
   return (
-    <AppScreen footer={<MemberNav active={routes.notifications} />}>
+    <AppScreen footer={<MemberNav active={routes.notifications} />} footerFlush>
       <TopAppBar title="Notifications" subtitle="Inbox" rightLabel={`${unreadCount} unread`} />
       {!data.length ? (
         <EmptyState icon="notifications-none" title="No notifications yet" subtitle="Round reminders, winner announcements, and approvals will show up here once activity starts." />

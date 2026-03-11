@@ -12,7 +12,7 @@ export function AdminReportsScreen() {
   const { sendReminders, exportReport } = useAdminActions();
 
   return (
-    <AppScreen footer={<AdminNav active={routes.adminReports} />}>
+    <AppScreen footer={<AdminNav active={routes.adminReports} />} footerFlush>
       <TopAppBar title="Audit And Reports" subtitle="Exports" rightLabel="Ready" />
       <SectionCard>
         <TitleBlock title="Report packages" subtitle="Export the current backend summaries in PDF or CSV." />

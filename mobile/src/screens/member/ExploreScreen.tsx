@@ -12,7 +12,7 @@ export function ExploreScreen() {
   const { data = [] } = useGroupsQuery();
 
   return (
-    <AppScreen footer={<MemberNav active={routes.explore} />}>
+    <AppScreen footer={<MemberNav active={routes.explore} />} footerFlush>
       <TopAppBar title="Available Equbs" subtitle="Explore" />
       <SectionCard variant="soft">
         <Text style={memberStyles.mutedText}>Browse approved groups by cadence, contribution amount, and open slots.</Text>
