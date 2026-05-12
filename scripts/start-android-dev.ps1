@@ -1,6 +1,7 @@
-﻿param(
+param(
     [switch]$Clean,
-    [switch]$ResetCache
+    [switch]$ResetCache,
+    [switch]$Debug
 )
 
 $ErrorActionPreference = 'Stop'
@@ -120,6 +121,24 @@ function Ensure-DeviceOrEmulator([string]$AdbPath, [string]$EmulatorPath) {
     throw 'Emulator did not become available in time.'
 }
 
+function Install-BuildVariant {
+    param(
+        [string]$GradleWrapper,
+        [bool]$DebugMode
+    )
+
+    if ($DebugMode) {
+        Write-Step 'Installing debug build'
+        & $GradleWrapper installDebug
+        if ($LASTEXITCODE -ne 0) { throw 'Gradle installDebug failed.' }
+        return
+    }
+
+    Write-Step 'Installing packaged release build'
+    & $GradleWrapper installRelease
+    if ($LASTEXITCODE -ne 0) { throw 'Gradle installRelease failed.' }
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $mobileDir = Join-Path $repoRoot 'mobile'
 $androidDir = Join-Path $mobileDir 'android'
@@ -143,24 +162,29 @@ $env:Path = "$javaHome\bin;$sdkPath\platform-tools;$sdkPath\emulator;$env:Path"
 
 Write-Step "Android SDK: $sdkPath"
 Write-Step "Java Home: $javaHome"
-
-if (-not (Test-MetroRunning)) {
-    Write-Step 'Starting Metro in a new PowerShell window'
-    Start-MetroWindow -MobileDir $mobileDir -ResetCache:$ResetCache
-} else {
-    Write-Step 'Metro is already running'
-}
-
-Wait-ForMetro
-Write-Step 'Metro is listening on port 8081'
+Write-Step ($(if ($Debug) { 'Build mode: debug (Metro required)' } else { 'Build mode: release (Metro not required)' }))
 
 $devices = Ensure-DeviceOrEmulator $adbPath $emulatorPath
 Write-Step ("Connected targets: " + ($devices -join ', '))
 
-foreach ($device in $devices) {
-    & $adbPath -s $device reverse tcp:8081 tcp:8081 | Out-Null
+if ($Debug) {
+    if (-not (Test-MetroRunning)) {
+        Write-Step 'Starting Metro in a new PowerShell window'
+        Start-MetroWindow -MobileDir $mobileDir -ResetCache:$ResetCache
+    } else {
+        Write-Step 'Metro is already running'
+    }
+
+    Wait-ForMetro
+    Write-Step 'Metro is listening on port 8081'
+
+    foreach ($device in $devices) {
+        & $adbPath -s $device reverse tcp:8081 tcp:8081 | Out-Null
+    }
+    Write-Step 'adb reverse configured for port 8081'
+} elseif ($ResetCache) {
+    Write-Step 'Ignoring -ResetCache because the packaged release build does not use Metro'
 }
-Write-Step 'adb reverse configured for port 8081'
 
 Push-Location $androidDir
 try {
@@ -170,9 +194,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Gradle clean failed.' }
     }
 
-    Write-Step 'Installing debug build'
-    & $gradleWrapper installDebug
-    if ($LASTEXITCODE -ne 0) { throw 'Gradle installDebug failed.' }
+    Install-BuildVariant -GradleWrapper $gradleWrapper -DebugMode:$Debug
 }
 finally {
     Pop-Location
@@ -182,4 +204,8 @@ foreach ($device in $devices) {
     & $adbPath -s $device shell am start -n com.uniequb/com.uniequb.MainActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER | Out-Null
 }
 
-Write-Step 'UniEqub debug app launched successfully'
+if ($Debug) {
+    Write-Step 'UniEqub debug app launched successfully'
+} else {
+    Write-Step 'UniEqub packaged release app launched successfully'
+}
