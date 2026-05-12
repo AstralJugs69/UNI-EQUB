@@ -1,20 +1,29 @@
-﻿# UniEqub Workspace
+# UniEqub Workspace
 
-This repository is organized as an implementation workspace around the fixed academic master spec.
+This repository is organized as an implementation workspace around the original academic MVP master spec and the Phase 2 additive expansion plan.
 
 ## Structure
 - `mobile/`: Bare React Native Android-first client in TypeScript.
-- `supabase/`: SQL and Edge Function skeletons aligned to the fixed schema and service-layer rules.
+- `supabase/`: SQL and Edge Function implementation aligned to the original five-table MVP core plus planned Phase 2 additive companion tables.
 - `Build/master_spec/`: source-of-truth technical specification.
 - `Build/docs/`: original report and extracted UI reference assets.
-- `Build/delivery/`: delivery tracker, implementation traceability, and execution docs.
+- `Build/delivery/`: delivery tracker, implementation traceability, execution docs, and Phase 2 expansion planning.
 
 ## Current implementation status
 - React Native mobile scaffold created.
 - Mocked end-to-end member/admin flow implemented in-app through service contracts.
-- Fixed-schema SQL scaffold created.
+- MVP baseline SQL scaffold created for the five core tables; Phase 2 companion tables are planned additively.
 - Edge Function skeletons created for the critical backend workflows.
 - Delivery progress spec and traceability matrix initialized.
+
+
+## Phase 2 expansion planning
+- Source of truth: `Build/delivery/phase2_expansion_spec.md`
+- Edge Function impact analysis: `Build/delivery/phase2_edge_function_impact.md`
+- Phase 2 lifts the earlier no-new-tables restriction for additive companion tables only.
+- The original five core MVP tables remain canonical: `User`, `EqubGroup`, `GroupMembers`, `Round`, and `Transaction`.
+- Planned additions include group formation, contribution obligations, mock provider attempts, wallet/simulated ledger entries, payout maturity, reliability restrictions, durable notifications, audit events, and app configuration.
+- Payment behavior remains sandbox/mock for the capstone; real payment provider integration is future work only.
 
 ## Commands
 - `npm run mobile:start`
@@ -47,5 +56,5 @@ The simulator accepts either the generic gateway payload or the Arkesel-style pa
 
 The tracked source no longer hardcodes the mobile Supabase URL/key pair.
 
-## Important constraint
-The database tables are fixed. Missing behavior must be implemented in Edge Functions, derived queries, storage, or provider logs rather than additional tables.
+## Important persistence rule
+The original MVP core tables remain preserved: `User`, `EqubGroup`, `GroupMembers`, `Round`, and `Transaction`. Phase 2 may add companion tables only when they extend the existing implementation additively and follow `Build/delivery/phase2_expansion_spec.md`.

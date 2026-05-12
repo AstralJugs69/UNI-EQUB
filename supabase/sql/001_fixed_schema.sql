@@ -1,5 +1,5 @@
-﻿-- UniEqub fixed schema bootstrap.
--- This schema intentionally creates only the five tables declared in the living technical spec.
+-- UniEqub MVP baseline schema bootstrap.
+-- This schema intentionally creates the five core MVP tables. Phase 2 may add companion tables in later migrations; do not destructively replace these core tables.
 
 create extension if not exists "pgcrypto";
 

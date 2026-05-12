@@ -1,11 +1,13 @@
-﻿# UniEqub End-to-End MVP Implementation Plan
+# UniEqub End-to-End MVP Implementation Plan
 
-Version: 1.0  
-Last Updated: 2026-03-07  
-Source Inputs: `Build/master_spec/uni_equb_living_technical_spec_v_1.md`, current repo state, active delivery decisions
+Version: 1.1
+Last Updated: 2026-05-12
+Source Inputs: `Build/master_spec/uni_equb_living_technical_spec_v_1.md`, `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current repo state, active delivery decisions
 
 ## 1. Delivery Objective
-UniEqub will be delivered as an Android-first MVP built with bare React Native and a Supabase-backed service layer. The project must cover the full member and admin lifecycle defined in the master spec: registration, KYC review, group creation and approval, joining, contribution tracking, automatic winner selection, payout withdrawal, reminders, history, and admin reporting. The fixed persistence model is non-negotiable. No new database tables may be introduced outside `User`, `EqubGroup`, `GroupMembers`, `Round`, and `Transaction`.
+UniEqub will be delivered as an Android-first MVP built with bare React Native and a Supabase-backed service layer. The original Stage A-H delivery covers the full member and admin lifecycle defined in the master spec: registration, KYC review, group creation and approval, joining, contribution tracking, automatic winner selection, payout withdrawal, reminders, history, and admin reporting.
+
+For the original MVP baseline, `User`, `EqubGroup`, `GroupMembers`, `Round`, and `Transaction` remain the canonical academic foundation. Phase 2 lifts the earlier no-new-tables restriction and allows additive companion tables as defined in `Build/delivery/phase2_expansion_spec.md`. The Phase 2 rule is additive preservation: do not remove or destructively replace the existing MVP implementation; extend it through companion tables, service-layer logic, indexes, constraints, and new Edge Function capabilities.
 
 The implementation will proceed in two layers:
 - A high-fidelity mocked service layer that mirrors the final backend contracts and business rules.
@@ -24,9 +26,24 @@ The implementation will proceed in two layers:
 - UI source of truth: master spec and approved product flows; the HTML mock is reference-only.
 - Execution model: single builder, sequential delivery.
 
+### 2.1 Phase 2 Expansion Override
+The original locked decision that prohibited new tables is superseded for Phase 2 by `Build/delivery/phase2_expansion_spec.md`. New tables may be added when they are additive companions to the five core MVP tables and preserve existing flows.
+
+Phase 2 priorities are:
+- group formation lobby before canonical `EqubGroup` creation
+- contribution obligations and obligation-based round readiness
+- mock payment provider attempts and duplicate-callback protection
+- wallet/simulated ledger entries
+- payout requests, reserves, and maturity/vesting release schedules
+- reliability profiles and restrictions separate from KYC
+- durable notifications and append-oriented audit events
+- configuration-driven business rules through `app_config`
+
+Wallet terminology is acceptable for defense-stage documentation and UI only when the system clearly states that wallet behavior is simulated/mock and not real fund custody.
+
 ## 3. Architecture To Build
 ### 3.1 Mobile Layers
-- `src/types`: domain and API-facing types that mirror the fixed schema and service responses.
+- `src/types`: domain and API-facing types that mirror the MVP core schema, service responses, and Phase 2 companion models as they are introduced.
 - `src/services/contracts`: stable interfaces for auth, KYC, groups, payments, notifications, and reports.
 - `src/services/mock`: mirrored backend behavior used until live backend parity is achieved.
 - `src/providers`: auth, services, query, app bootstrapping.
@@ -36,7 +53,7 @@ The implementation will proceed in two layers:
 - `src/theme`: tokens and shared visual system.
 
 ### 3.2 Backend Layers
-- `supabase/sql`: fixed schema bootstrap, seed data, and future policy or view scripts that do not break schema constraints.
+- `supabase/sql`: MVP baseline schema bootstrap, seed data, and Phase 2 additive migrations that preserve the core tables.
 - `supabase/functions/register-login`: register, OTP, login, restore-session behavior.
 - `supabase/functions/kyc-submit-review`: KYC upload/review/ban flows.
 - `supabase/functions/group-lifecycle`: browse, create request, approve/reject, freeze, join.
@@ -48,7 +65,7 @@ The implementation will proceed in two layers:
 ### 3.3 Mock-to-Live Parity Rule
 Every mock service must preserve the final backend contract shape and the same business rules. The mock layer must simulate:
 - validation failures
-- fixed-schema storage constraints
+- MVP baseline storage constraints and Phase 2 companion-table constraints
 - KYC gating
 - duplicate and conflict protection
 - payment reconciliation results
@@ -69,7 +86,7 @@ Tasks:
 - scaffold bare React Native Android app in `mobile/`
 - add required runtime and dev dependencies
 - establish root scripts for start, typecheck, lint, tests, and Android startup automation
-- create `supabase/` structure and fixed-schema SQL bootstrap
+- create `supabase/` structure and MVP baseline SQL bootstrap
 - create delivery documents in `Build/delivery/`
 - create initial implementation traceability matrix
 - verify the repo compiles and unit tests run
@@ -78,7 +95,7 @@ Outputs:
 - runnable RN workspace
 - stable folder conventions
 - root documentation and startup scripts
-- fixed-schema SQL baseline
+- MVP baseline SQL core
 
 Acceptance:
 - `npx tsc --noEmit` passes
@@ -89,7 +106,7 @@ Acceptance:
 Goal: make the app flow against a realistic service layer before the real backend is implemented.
 
 Tasks:
-- define all domain types aligned to the fixed schema
+- define all domain types aligned to the MVP baseline schema
 - define stable service interfaces for auth, KYC, groups, payments, notifications, reports
 - create deterministic seed data for members, admin, groups, rounds, transactions, notifications
 - implement mirrored mock backend that enforces the same business rules expected from Edge Functions
@@ -110,7 +127,7 @@ Goal: replace mocked auth/KYC logic with real backend implementation.
 
 Tasks:
 - implement password hashing and user creation in fixed `User` table
-- implement OTP challenge generation and validation in service logic without new tables
+- implement OTP challenge generation and validation in service logic without new tables for the MVP baseline
 - implement stateless session token issuance and validation
 - implement session restore and logout behavior
 - implement KYC file storage path and `Student_ID_Img` updates
@@ -264,4 +281,30 @@ Acceptance:
 - Android SDK/device setup is environment work, not product implementation, but remains necessary for release validation.
 - The implementation plan is sequential because the project is being executed by a single builder.
 - A task should be marked complete in the progress tracker only when its acceptance condition is met in the repo.
+
+## 8. Phase 2 Expansion Planning Addendum
+Phase 2 implementation must follow `Build/delivery/phase2_expansion_spec.md` as the planning source of truth. This addendum does not erase the Stage A-H MVP plan; it extends the completed/in-progress MVP spine.
+
+### 8.1 Documentation Alignment Requirement
+Before Phase 2 code implementation, docs that still describe the five-table model as immutable must be updated or explicitly marked as MVP-baseline-only. The current implementation plan, progress spec, traceability matrix, README, and master spec must all point to the Phase 2 expansion rule.
+
+### 8.2 Phase 2 Database Foundation
+The first implementation wave should add migrations for the expansion foundation tables listed in the Phase 2 spec: `app_config`, `audit_events`, `notifications`, `group_requests`, `group_join_requests`, `group_invitations`, `contribution_obligations`, `payment_provider_attempts`, `ledger_entries`, `payout_requests`, `payout_release_schedules`, `user_reliability_profiles`, and `user_restrictions`.
+
+### 8.3 Phase 2 Service Strategy
+Frontend service contracts should be extended only when screens need them. Sensitive writes for audit, ledger, provider attempts, payout requests, reliability, and restrictions must be server-side Edge Function responsibilities. Existing auth, KYC, group, payment, notification, and reporting services remain valid during migration.
+
+### 8.4 Phase 2 Acceptance Themes
+Phase 2 acceptance is not just table creation. It must prove:
+- group formation creates canonical groups only after approval
+- contribution obligations are generated idempotently when rounds open
+- draw readiness is obligation-based rather than transaction-count-only
+- duplicate mock provider callbacks cannot create duplicate successful transactions
+- payout maturity creates immediate release plus reserve records where required
+- reliability restrictions are separate from KYC state
+- notifications are durable while legacy derived notices are phased out
+- sensitive admin/system actions write audit events
+
+### 8.5 Edge Function Impact Guidance
+Phase 2 database additions should not remove Edge Functions from sensitive workflows. `Build/delivery/phase2_edge_function_impact.md` defines the intended split: PostgreSQL owns durable workflow state, constraints, idempotency, views, notifications, ledger, audit, and config; Edge Functions remain responsible for authorization, command orchestration, mock provider simulation, admin decisions, draw/payout/default workflows, and report export.
 
