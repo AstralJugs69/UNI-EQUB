@@ -1,0 +1,51 @@
+{
+  "scenario": "phase2-foundation-static-validation",
+  "migration": "supabase/migrations/20260513090000_phase2_foundation_companion_tables.sql",
+  "companionTables": [
+    "app_config",
+    "audit_events",
+    "notifications",
+    "group_requests",
+    "group_join_requests",
+    "group_invitations",
+    "contribution_obligations",
+    "payment_provider_attempts",
+    "ledger_entries",
+    "payout_requests",
+    "payout_release_schedules",
+    "user_reliability_profiles",
+    "user_restrictions"
+  ],
+  "appConfigKeys": [
+    "min_group_members",
+    "max_group_members",
+    "group_formation_expiry_days",
+    "frozen_group_poll_hours",
+    "required_perfect_groups_for_trusted_status",
+    "new_user_active_group_limit",
+    "low_risk_recovery_group_max_payout",
+    "default_grace_period_hours",
+    "mock_payment_timeout_minutes",
+    "first_cycle_payout_release_ratio",
+    "minimum_immediate_payout_amount",
+    "payout_rounding_strategy",
+    "enable_private_vesting_override"
+  ],
+  "guardrails": [
+    "idx_transaction_successful_contribution_once",
+    "idx_transaction_active_payout_once",
+    "idx_equbgroup_virtual_acc_ref_unique",
+    "contribution_obligations_round_user_unique",
+    "payment_provider_attempts_idempotency_key_unique",
+    "idx_payment_provider_attempts_gateway_reference_unique",
+    "payout_requests_round_winner_unique",
+    "idx_user_restrictions_active_type_unique"
+  ],
+  "appendOnlyTriggers": [
+    "audit_events_prevent_update_delete",
+    "ledger_entries_prevent_update_delete"
+  ],
+  "destructiveCoreTableCheck": "passed",
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-12T22:07:04.882Z"
+}

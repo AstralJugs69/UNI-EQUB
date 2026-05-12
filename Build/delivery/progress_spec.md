@@ -1,8 +1,8 @@
 # UniEqub Delivery Progress Spec
 
-Version: 1.2
-Last Updated: 2026-05-12
-Current Wave: Phase 2 expansion planning is active; the existing MVP spine remains in place while additive companion tables, service modules, durable notifications, audit logging, obligation-based readiness, and payout maturity are planned in `Build/delivery/phase2_expansion_spec.md` and broken into execution tasks in `Build/delivery/phase2_development_progress_tracker.md`
+Version: 1.3
+Last Updated: 2026-05-13
+Current Wave: Phase 2 foundation implementation has started; the existing MVP spine remains in place while additive companion tables, durable workflow state, idempotency guardrails, and local validation evidence are tracked in `Build/delivery/phase2_development_progress_tracker.md`
 Overall Status: In Progress
 
 ## 1. Execution Rules
@@ -38,7 +38,7 @@ Overall Status: In Progress
   - emulator evidence, release APK flow, and broader UAT capture
   - final on-device screen-fit and animation review across all member/admin flows
 - Phase 2 expansion planning now intentionally keeps payments sandbox/mock-only instead of pursuing real provider integration for this capstone phase.
-- Phase 2 implementation is not started yet; the planning source of truth is `Build/delivery/phase2_expansion_spec.md`, Edge Function boundary guidance is in `Build/delivery/phase2_edge_function_impact.md`, and the detailed execution tracker is `Build/delivery/phase2_development_progress_tracker.md`.
+- Phase 2 implementation has started with a repo-local foundation migration and credential-free static validation. The planning source of truth remains `Build/delivery/phase2_expansion_spec.md`, Edge Function boundary guidance is in `Build/delivery/phase2_edge_function_impact.md`, and the detailed execution tracker is `Build/delivery/phase2_development_progress_tracker.md`.
 
 ## 3. Sequential Work Tracker
 
@@ -113,7 +113,7 @@ Overall Status: In Progress
 | M5 Auto Draw / Payout / Reminders | Live round completion, payout creation, reminder derivation, and wallet clearance are active | In Progress |
 | M6 Admin / Reports / Hardening | Admin overview and live CSV/PDF export are active; hardening remains incomplete | In Progress |
 | M7 QA / APK / Submission | Only partial validation exists | Not Started |
-| M8 Phase 2 Expansion | Expansion spec, Edge Function impact analysis, and detailed development tracker exist for additive tables, group formation, obligations, mock provider attempts, ledger, payout maturity, reliability, notifications, audit, config, QA, and user-only tasks | Planning |
+| M8 Phase 2 Expansion | Expansion specs and tracker exist; initial additive foundation migration now creates Phase 2 companion tables, guardrails, comments, RLS enablement, and local validation evidence | In Progress |
 
 ## 5. Evidence Inventory
 - Workspace bootstrap: `mobile/`, `supabase/`, root `package.json`, `README.md`
@@ -133,6 +133,7 @@ Overall Status: In Progress
 - Seed script for final-draw scenario: `mobile/scripts/seed-final-draw.js`
 - Startup automation: `scripts/start-android-dev.ps1`
 - Evidence artifacts: `Build/delivery/evidence/kyc-upload-validation.json`, `Build/delivery/evidence/wallet-clearance-validation.json`, `Build/delivery/evidence/report-export-validation.json`, `Build/delivery/evidence/debug-apk-build.json`, `Build/delivery/evidence/ussd-simulator-validation.json`
+- Phase 2 foundation migration and validation: `supabase/migrations/20260513090000_phase2_foundation_companion_tables.sql`, `mobile/scripts/validate-phase2-foundation.js`, `Build/delivery/evidence/phase2-foundation-validation.json`
 - UAT checklist: `Build/delivery/uat_checklist.md`
 - Delivery docs: `Build/delivery/implementation_plan.md`, `Build/delivery/implementation_traceability_matrix.md`, `Build/delivery/progress_spec.md`, `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, `Build/delivery/phase2_development_progress_tracker.md`
 
@@ -145,6 +146,7 @@ Overall Status: In Progress
 - Android debug testing is now automated, but release APK generation and emulator validation are still pending.
 - Major screen-level inline style debt was removed by modularizing auth/member/admin surfaces and rebuilding the shared UI layer; the final phone-fit polish pass now needs on-device validation.
 - The mock layer is now close to the intended backend contracts, but any future contract change must be updated in both the mock implementation and the Edge Function scaffolds immediately.
+- The Phase 2 foundation migration exists in repo but has not been applied to a target Supabase environment; P2-118 remains blocked until the user provides or approves the deployment/access mode.
 
 ## 7. Phase 2 Expansion Planning Tracker
 
@@ -152,8 +154,8 @@ Phase 2 is a planned additive expansion, not a replacement of the MVP implementa
 
 | Seq | ID | Phase | Task | Status | Evidence | Acceptance Condition | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| P2-01 | P2-DOC | Phase 0 | Create Phase 2 planning specs and detailed execution tracker | Completed | `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, `Build/delivery/phase2_development_progress_tracker.md`, updated delivery docs | Docs clearly allow additive companion tables, define the database/Edge Function boundary, and scope Agent/User/Both tasks for Phase 2 | Planning complete; implementation not started |
-| P2-02 | P2-DB | Phase 1 | Add Phase 2 foundation migrations | Not Started | None | Core companion tables exist with constraints/indexes | Pending implementation |
+| P2-01 | P2-DOC | Phase 0 | Create Phase 2 planning specs and detailed execution tracker | Completed | `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, `Build/delivery/phase2_development_progress_tracker.md`, updated delivery docs | Docs clearly allow additive companion tables, define the database/Edge Function boundary, and scope Agent/User/Both tasks for Phase 2 | Planning complete; foundation implementation has started |
+| P2-02 | P2-DB | Phase 1 | Add Phase 2 foundation migrations | Completed in repo; target apply blocked | `supabase/migrations/20260513090000_phase2_foundation_companion_tables.sql`, `Build/delivery/evidence/phase2-foundation-validation.json` | Core companion tables exist with constraints/indexes | Migration and static validation are complete locally; Supabase application waits on P2-118/P2-003 |
 | P2-03 | P2-SHARED | Phase 2 | Add shared backend helpers for config, audit, notifications, obligations, ledger, payment attempts, reliability, and payout vesting | Not Started | None | Edge Functions use shared helpers for sensitive writes | Pending implementation |
 | P2-04 | P2-FORM | Phase 3 | Add group formation lobby backend and service contract migration | Not Started | None | User-facing group creation can gather members before canonical group approval | Pending implementation |
 | P2-05 | P2-OBLIG | Phase 4 | Add contribution obligations and mock provider attempt lifecycle | Not Started | None | Round readiness is obligation-based and duplicate callbacks are idempotent | Pending implementation |

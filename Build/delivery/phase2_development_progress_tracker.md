@@ -1,8 +1,8 @@
 # UniEqub Phase 2 Development Progress Tracker
 
-Version: 1.0
-Last Updated: 2026-05-12
-Status: Not Started for implementation; planning complete
+Version: 1.1
+Last Updated: 2026-05-13
+Status: Phase 1 database foundation started; initial companion-table migration and static validation evidence are in repo
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -62,29 +62,29 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-007 | Agent | Convert approved policy values into `app_config` seed data once user decisions exist. | Blocked | P2-006 | Seed migration or SQL seed script includes approved values. | Migration/seed SQL |
 | P2-008 | User | Confirm whether KYC history tables should be built in the first implementation wave or after the core Phase 2 tables. | Not Started | Phase 2 spec | Priority decision is recorded. | `Build/delivery/evidence/kyc-history-priority.md` |
 | P2-009 | User | Confirm whether disbanded groups map to `Completed`, a new `Disbanded` status, or freeze-event-only terminal state. | Not Started | Phase 2 spec | Canonical disbandment representation is chosen before refund-ticket work. | `Build/delivery/evidence/disbanded-group-status-decision.md` |
-| P2-010 | Agent | Keep README, implementation plan, traceability, and progress docs aligned when scope or priority changes. | In Progress | Ongoing implementation | Docs point to current Phase 2 tracker/specs and do not contradict implementation. | Updated delivery docs |
+| P2-010 | Agent | Keep README, implementation plan, traceability, and progress docs aligned when scope or priority changes. | In Progress | Ongoing implementation | Docs point to current Phase 2 tracker/specs and do not contradict implementation. | Updated delivery docs; latest batch updated tracker/progress/traceability/README |
 
 ### Phase 1 — Database Foundation and Guardrails
 
 | ID | Owner | Task | Status | Depends On | Acceptance Condition | Required Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| P2-101 | Agent | Add SQL migration for `app_config` with JSONB value, type, description, updater, and timestamp columns. | Not Started | P2-006 | Migration creates table, checks, indexes, and seed values. | Supabase migration file |
-| P2-102 | Agent | Add SQL migration for append-oriented `audit_events`. | Not Started | None | Table exists with actor/entity metadata and update/delete prevention strategy documented or enforced. | Supabase migration + tests/SQL notes |
-| P2-103 | Agent | Add SQL migration for durable `notifications`. | Not Started | None | Table supports user inbox, severity, action route, related entity, metadata, read timestamp, expiry, and delivery timestamp. | Supabase migration |
-| P2-104 | Agent | Add SQL migration for `group_requests`. | Not Started | P2-101 | Table supports draft/forming/pending/approved/rejected/expired/cancelled lifecycle and links to approved `EqubGroup`. | Supabase migration |
-| P2-105 | Agent | Add SQL migration for `group_join_requests`. | Not Started | P2-104 | Table stores public/private pre-membership interest with decision metadata. | Supabase migration |
-| P2-106 | Agent | Add SQL migration for `group_invitations`. | Not Started | P2-104 | Table supports invite code/link and direct phone/student-ID invitation. | Supabase migration |
-| P2-107 | Agent | Add SQL migration for `contribution_obligations`. | Not Started | Core schema | Table has one expected payment row per user/round with statuses and paid transaction link. | Supabase migration |
-| P2-108 | Agent | Add SQL migration for `payment_provider_attempts`. | Not Started | P2-107 | Table stores mock provider lifecycle, payloads, idempotency key, gateway ref, verification result, and failure details. | Supabase migration |
-| P2-109 | Agent | Add SQL migration for append-oriented `ledger_entries`. | Not Started | Core schema | Table stores simulated wallet/ledger entries with direction, entry type, metadata, and references. | Supabase migration |
-| P2-110 | Agent | Add SQL migration for `payout_requests`. | Not Started | Core schema | Table separates payout lifecycle from `Transaction` and stores immediate/reserved amounts. | Supabase migration |
-| P2-111 | Agent | Add SQL migration for `payout_release_schedules`. | Not Started | P2-110, P2-107 | Table stores release triggers, amounts, status, and release timestamp. | Supabase migration |
-| P2-112 | Agent | Add SQL migration for `user_reliability_profiles`. | Not Started | Core `User` | Table stores public status and internal metrics separate from KYC. | Supabase migration |
-| P2-113 | Agent | Add SQL migration for `user_restrictions`. | Not Started | P2-112 | Table stores active/cleared/escalated restriction records and recovery counters. | Supabase migration |
-| P2-114 | Agent | Add mandatory duplicate-protection indexes for current `Transaction` behavior. | Not Started | Core schema | DB prevents duplicate successful contribution per user/round and duplicate payout request per winner/round. | Supabase migration |
-| P2-115 | Agent | Add indexes for Phase 2 query paths and admin dashboards. | Not Started | P2-101-P2-113 | Indexes cover formation, obligations, attempts, ledger references, payout requests, restrictions, audit, and notifications. | Supabase migration |
-| P2-116 | Agent | Add table comments or migration notes explaining Phase 2 companion-table relationship to core MVP tables. | Not Started | P2-101-P2-113 | Future readers understand that core tables are preserved. | Migration comments/docs |
-| P2-117 | Agent | Create local SQL validation script or checklist for Phase 2 migrations. | Not Started | P2-101-P2-116 | SQL can be validated locally or through documented Supabase command. | Script or documented command |
+| P2-101 | Agent | Add SQL migration for `app_config` with JSONB value, type, description, updater, and timestamp columns. | Completed | Phase 2 spec; P2-006 still required for approved production values | Migration creates table, checks, indexes, and seed values. | `supabase/migrations/20260513090000_phase2_foundation_companion_tables.sql`; `Build/delivery/evidence/phase2-foundation-validation.json` |
+| P2-102 | Agent | Add SQL migration for append-oriented `audit_events`. | Completed | None | Table exists with actor/entity metadata and update/delete prevention strategy documented or enforced. | Migration creates table comment and `audit_events_prevent_update_delete` trigger |
+| P2-103 | Agent | Add SQL migration for durable `notifications`. | Completed | None | Table supports user inbox, severity, action route, related entity, metadata, read timestamp, expiry, and delivery timestamp. | Migration creates table and inbox/related-entity indexes |
+| P2-104 | Agent | Add SQL migration for `group_requests`. | Completed | P2-101 | Table supports draft/forming/pending/approved/rejected/expired/cancelled lifecycle and links to approved `EqubGroup`. | Migration creates table with status checks, approval link, and workflow indexes |
+| P2-105 | Agent | Add SQL migration for `group_join_requests`. | Completed | P2-104 | Table stores public/private pre-membership interest with decision metadata. | Migration creates table with status checks and unique request-per-user guardrail |
+| P2-106 | Agent | Add SQL migration for `group_invitations`. | Completed | P2-104 | Table supports invite code/link and direct phone/student-ID invitation. | Migration creates table with target check and unique non-null invite-code index |
+| P2-107 | Agent | Add SQL migration for `contribution_obligations`. | Completed | Core schema | Table has one expected payment row per user/round with statuses and paid transaction link. | Migration creates table with `contribution_obligations_round_user_unique` |
+| P2-108 | Agent | Add SQL migration for `payment_provider_attempts`. | Completed | P2-107 | Table stores mock provider lifecycle, payloads, idempotency key, gateway ref, verification result, and failure details. | Migration creates table with idempotency and gateway-reference guardrails |
+| P2-109 | Agent | Add SQL migration for append-oriented `ledger_entries`. | Completed | Core schema | Table stores simulated wallet/ledger entries with direction, entry type, metadata, and references. | Migration creates table comment and `ledger_entries_prevent_update_delete` trigger |
+| P2-110 | Agent | Add SQL migration for `payout_requests`. | Completed | Core schema | Table separates payout lifecycle from `Transaction` and stores immediate/reserved amounts. | Migration creates table with round/winner uniqueness and payout amount checks |
+| P2-111 | Agent | Add SQL migration for `payout_release_schedules`. | Completed | P2-110, P2-107 | Table stores release triggers, amounts, status, and release timestamp. | Migration creates table with payout/status and trigger-obligation indexes |
+| P2-112 | Agent | Add SQL migration for `user_reliability_profiles`. | Completed | Core `User` | Table stores public status and internal metrics separate from KYC. | Migration creates table with reliability status/count checks |
+| P2-113 | Agent | Add SQL migration for `user_restrictions`. | Completed | P2-112 | Table stores active/cleared/escalated restriction records and recovery counters. | Migration creates table with active restriction uniqueness by user/type |
+| P2-114 | Agent | Add mandatory duplicate-protection indexes for current `Transaction` behavior. | Completed | Core schema | DB prevents duplicate successful contribution per user/round and duplicate payout request per winner/round. | Migration adds `idx_transaction_successful_contribution_once` and `idx_transaction_active_payout_once` |
+| P2-115 | Agent | Add indexes for Phase 2 query paths and admin dashboards. | Completed | P2-101-P2-113 | Indexes cover formation, obligations, attempts, ledger references, payout requests, restrictions, audit, and notifications. | Migration adds lookup, active/pending workflow, idempotency, and dashboard indexes |
+| P2-116 | Agent | Add table comments or migration notes explaining Phase 2 companion-table relationship to core MVP tables. | Completed | P2-101-P2-113 | Future readers understand that core tables are preserved. | Migration header and `comment on table` statements for each companion table |
+| P2-117 | Agent | Create local SQL validation script or checklist for Phase 2 migrations. | Completed | P2-101-P2-116 | SQL can be validated locally or through documented Supabase command. | `mobile/scripts/validate-phase2-foundation.js`; `npm run qa:phase2-foundation` evidence |
 | P2-118 | User | Apply or approve Phase 2 migrations in the target Supabase environment. | Blocked | P2-101-P2-117, P2-003 | Target database contains Phase 2 foundation tables. | `Build/delivery/evidence/phase2-db-migration.json` |
 | P2-119 | Agent | Backfill default `user_reliability_profiles` for existing users. | Not Started | P2-112 | Existing members/admins have profile rows with correct initial status. | SQL/backfill script + evidence |
 | P2-120 | Agent | Backfill contribution obligations for existing open rounds in demo data. | Not Started | P2-107 | Existing open rounds have obligations or documented exclusion. | SQL/backfill script + evidence |
@@ -227,10 +227,10 @@ The tracker should be updated after every implementation batch. A row is `Comple
 
 ## 6. Current Critical Path
 
-The shortest clean path to implementation is:
+The shortest clean path from the current repo state is:
 
 1. User confirms Phase 2 scope, config decisions, Supabase access mode, and wallet wording.
-2. Agent implements database foundation migrations and guardrails.
+2. User applies or approves the Phase 2 foundation migration against the target Supabase environment.
 3. Agent implements shared helpers and type splits.
 4. Agent implements group formation before touching payment complexity.
 5. Agent implements obligations and provider attempts before changing draw logic.
@@ -257,12 +257,12 @@ These items cannot be honestly completed by the coding agent without user action
 
 ## 8. Agent-Only First Batch Recommendation
 
-Once the user confirms policy decisions and access mode, the first agent implementation batch should be:
+Initial repo-local Phase 1 foundation batch completed on 2026-05-13:
 
-1. create Phase 2 migrations for `app_config`, `audit_events`, `notifications`, `group_requests`, `group_join_requests`, `group_invitations`, `contribution_obligations`, `payment_provider_attempts`, `ledger_entries`, `payout_requests`, `payout_release_schedules`, `user_reliability_profiles`, and `user_restrictions`
-2. add duplicate-protection indexes that protect current behavior
-3. add `_shared/config.ts`, `_shared/audit.ts`, `_shared/notifications.ts`, and `_shared/obligations.ts`
-4. split `EqubGroupStatus` and `GroupRequestStatus`
-5. add tests or scripts proving migrations/helper assumptions
+1. created Phase 2 migration `supabase/migrations/20260513090000_phase2_foundation_companion_tables.sql`
+2. added companion tables for config, audit, notifications, formation, obligations, provider attempts, ledger, payout requests/schedules, reliability, and restrictions
+3. added duplicate/idempotency guardrails for successful contributions, active payout transactions, provider idempotency keys, gateway references, obligations, payout requests, and active restrictions
+4. added table comments and RLS enablement for Phase 2 companion tables
+5. added `mobile/scripts/validate-phase2-foundation.js` and evidence at `Build/delivery/evidence/phase2-foundation-validation.json`
 
-This batch gives the rest of Phase 2 a stable foundation without prematurely rewriting the UI.
+Remaining first-wave work is shared helper/type-contract implementation plus user-only Supabase application and policy approval tasks.

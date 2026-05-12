@@ -4,7 +4,7 @@ This repository is organized as an implementation workspace around the original 
 
 ## Structure
 - `mobile/`: Bare React Native Android-first client in TypeScript.
-- `supabase/`: SQL and Edge Function implementation aligned to the original five-table MVP core plus planned Phase 2 additive companion tables.
+- `supabase/`: SQL and Edge Function implementation aligned to the original five-table MVP core plus Phase 2 additive companion tables.
 - `Build/master_spec/`: source-of-truth technical specification.
 - `Build/docs/`: original report and extracted UI reference assets.
 - `Build/delivery/`: delivery tracker, implementation traceability, execution docs, and Phase 2 expansion planning.
@@ -12,7 +12,7 @@ This repository is organized as an implementation workspace around the original 
 ## Current implementation status
 - React Native mobile scaffold created.
 - Mocked end-to-end member/admin flow implemented in-app through service contracts.
-- MVP baseline SQL scaffold created for the five core tables; Phase 2 companion tables are planned additively.
+- MVP baseline SQL scaffold created for the five core tables; the first Phase 2 companion-table migration is now in `supabase/migrations/`.
 - Edge Function skeletons created for the critical backend workflows.
 - Delivery progress spec and traceability matrix initialized.
 
@@ -23,10 +23,11 @@ This repository is organized as an implementation workspace around the original 
 - Phase 2 development tracker: `Build/delivery/phase2_development_progress_tracker.md`
 - Phase 2 lifts the earlier no-new-tables restriction for additive companion tables only.
 - The original five core MVP tables remain canonical: `User`, `EqubGroup`, `GroupMembers`, `Round`, and `Transaction`.
-- Planned additions include group formation, contribution obligations, mock provider attempts, wallet/simulated ledger entries, payout maturity, reliability restrictions, durable notifications, audit events, and app configuration.
+- The initial Phase 2 foundation migration adds group formation, contribution obligation, mock provider attempt, wallet/simulated ledger, payout request/schedule, reliability restriction, durable notification, audit event, and app configuration tables.
 - Payment behavior remains sandbox/mock for the capstone; real payment provider integration is future work only.
 
 ## Commands
+- `npm test`
 - `npm run mobile:start`
 - `npm run mobile:android`
 - `npm run mobile:test`
@@ -36,6 +37,7 @@ This repository is organized as an implementation workspace around the original 
 - `npm run qa:kyc-upload`
 - `npm run qa:wallet-clearance`
 - `npm run qa:ussd-simulator`
+- `npm run qa:phase2-foundation`
 - `node .\mobile\scripts\seed-final-draw.js --phone 09XXXXXXXX --name "Your Name"`
 
 ## Hosted USSD simulator
