@@ -1,8 +1,16 @@
 # UniEqub Living Technical Spec
 
-Version: v1  
-Status: Working source of truth  
+Version: v1
+Status: Working source of truth
 Purpose: A lean but complete technical specification for building the UniEqub Android MVP without having to reopen the full academic report.
+
+---
+
+## Phase 2 Expansion Notice
+
+This living technical spec remains the source of truth for the original MVP baseline. As of 2026-05-12, Phase 2 planning lifts the original no-new-tables restriction for additive companion tables only. The five original tables (`User`, `EqubGroup`, `GroupMembers`, `Round`, and `Transaction`) remain canonical MVP foundations, but Phase 2 expansion work should follow `Build/delivery/phase2_expansion_spec.md` for group formation, contribution obligations, mock provider attempts, simulated ledger entries, payout maturity, reliability restrictions, durable notifications, audit events, and app configuration.
+
+Any section below that describes the persistence model as immutable should be read as MVP-baseline guidance unless it is explicitly updated for Phase 2.
 
 ---
 
@@ -54,8 +62,8 @@ This document is the implementation source of truth.
 3. Submitted project document
 4. Original UML/class/use case diagrams
 
-### Critical Rule
-The database tables are fixed and may not be changed. Missing behavior must be implemented in code, service logic, derived queries, validation rules, or external/provider logs.
+### Critical Rule for MVP Baseline
+For the original MVP baseline, the five core database tables were treated as fixed. Phase 2 supersedes the no-new-tables restriction only for additive companion tables that preserve `User`, `EqubGroup`, `GroupMembers`, `Round`, and `Transaction`. Phase 2 table additions and service changes must follow `Build/delivery/phase2_expansion_spec.md`.
 
 ---
 
@@ -185,9 +193,9 @@ Responsibilities:
 
 ---
 
-## 7. Immutable Persistence Model
+## 7. MVP Baseline Persistence Model
 
-This section reflects the actual database schema that must not be modified.
+This section reflects the original MVP database schema. These five tables remain canonical and must not be destructively replaced. Phase 2 may add companion tables as described in `Build/delivery/phase2_expansion_spec.md`.
 
 ### 7.1 User
 Fields:
@@ -528,7 +536,7 @@ Each group may have one virtual account reference that remains active for the gr
 
 ## 12. Corrected Use Cases
 
-These use cases are the implementation versions, corrected to fit the immutable DB.
+These use cases are the original MVP implementation versions, corrected to fit the MVP baseline DB. Phase 2 use cases are tracked in `Build/delivery/phase2_expansion_spec.md`.
 
 ### SUC-001 RegisterMember
 Actors:
@@ -960,27 +968,27 @@ Workaround:
 Workaround:
 - use `Banned`
 
-### No OTP table
+### MVP baseline: No OTP table
 Workaround:
 - service-layer or provider-based OTP state
 
-### No session table
+### MVP baseline: No session table
 Workaround:
 - token/session handled in auth layer
 
-### No audit table
+### MVP baseline: No audit table
 Workaround:
 - application/server/provider logs
 
-### No notification log table
+### MVP baseline: No notification log table
 Workaround:
 - provider logs or backend structured logs
 
-### No dedicated contribution/payout tables
+### MVP baseline: No dedicated contribution/payout tables
 Workaround:
 - use `Transaction.Type`
 
-### No dedicated report table
+### MVP baseline: No dedicated report table
 Workaround:
 - generate on demand from live data
 
@@ -1082,7 +1090,7 @@ Build the MVP around a small number of strong truths:
 - one round table for draw and winner state
 - service-layer logic for everything the fixed DB cannot express directly
 
-If a choice conflicts with the old diagrams but matches the fixed schema and this spec, follow this spec.
+If a choice conflicts with the old diagrams but matches the MVP baseline schema and this spec, follow this spec. For Phase 2 expansion conflicts, follow `Build/delivery/phase2_expansion_spec.md`.
 
 
 

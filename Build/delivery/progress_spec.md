@@ -1,8 +1,8 @@
 # UniEqub Delivery Progress Spec
 
-Version: 1.1
-Last Updated: 2026-03-11
-Current Wave: final polish is active; the native USSD test flow has been simplified to a single launch-and-return shortcut and the app is moving through branded loading, tighter phone-fit spacing, and final release validation
+Version: 1.2
+Last Updated: 2026-05-12
+Current Wave: Phase 2 expansion planning is active; the existing MVP spine remains in place while additive companion tables, service modules, durable notifications, audit logging, obligation-based readiness, and payout maturity are planned in `Build/delivery/phase2_expansion_spec.md`
 Overall Status: In Progress
 
 ## 1. Execution Rules
@@ -11,7 +11,7 @@ Overall Status: In Progress
 - A task is marked `Completed` only when the repo already satisfies its acceptance condition.
 - A task is marked `In Progress` when implementation exists but the acceptance condition is not fully met.
 - A task is marked `Not Started` when meaningful repo work has not begun.
-- Scope may not be added here unless the implementation plan and traceability matrix are updated first.
+- Scope may not be added here unless the implementation plan and traceability matrix are updated first. Phase 2 scope is now governed by `Build/delivery/phase2_expansion_spec.md`.
 
 ## 2. Current Summary
 - Finished enough to continue product work:
@@ -21,7 +21,7 @@ Overall Status: In Progress
 - Android native USSD shortcode launch for contribution initiation, now simplified to a single `*127#` launch-and-return testing shortcut for Telebirr and MockUSSD
 - Hosted provider-style USSD simulator callback endpoint and local harness for sandbox preparation
   - member/admin UI scaffolding
-  - fixed-schema SQL bootstrap
+  - MVP baseline SQL bootstrap
   - Edge Function directory/contracts scaffold
   - modularized auth/member/admin screen structure with Android-leaning design system
   - automated Android debug startup script
@@ -34,10 +34,11 @@ Overall Status: In Progress
   - mobile env wiring no longer depends on hardcoded Supabase keys in source
   - real KYC storage upload path
   - animated branded `U` loading system now replaces spinner-based loading in shared UI states
-- Still pending for real MVP completion:
-  - real provider integrations beyond the simulated reconciliation path
+- Still pending for original MVP completion:
   - emulator evidence, release APK flow, and broader UAT capture
   - final on-device screen-fit and animation review across all member/admin flows
+- Phase 2 expansion planning now intentionally keeps payments sandbox/mock-only instead of pursuing real provider integration for this capstone phase.
+- Phase 2 implementation is not started yet; the planning source of truth is `Build/delivery/phase2_expansion_spec.md`, with Edge Function boundary guidance in `Build/delivery/phase2_edge_function_impact.md`.
 
 ## 3. Sequential Work Tracker
 
@@ -49,11 +50,11 @@ Overall Status: In Progress
 | 04 | A4 | Stage A | Add root Android startup automation script | Plan Stage A | Completed | A2 | `scripts/start-android-dev.ps1` | Single command can start Metro, reverse port, install, and launch debug app | Done |
 | 05 | A5 | Stage A | Confirm Android debug run on physical device/emulator | Plan Stage A | Completed | A4 | startup script run, physical-device install success | App installs and launches from automated startup flow | Done on connected physical device |
 | 06 | A6 | Stage A | Establish environment/config strategy for mobile and backend | Plan Stage A | Completed | A1 | `mobile/.env.example`, `mobile/src/services/supabaseClient.ts`, `README.md` | Explicit env file strategy documented and wired | Mobile env now uses `.env`; backend secrets remain in Supabase project secrets |
-| 07 | A7 | Stage A | Validate fixed schema against master spec | Plan Stage A | Completed | A1 | `supabase/sql/001_fixed_schema.sql` | Only fixed tables are represented | Done |
-| 08 | B1 | Stage B | Define domain types aligned to fixed schema | Plan Stage B | Completed | A2 | `mobile/src/types/domain.ts` | Domain types cover fixed entities and app-facing snapshots | Done |
+| 07 | A7 | Stage A | Validate MVP baseline schema against master spec | Plan Stage A | Completed | A1 | `supabase/sql/001_fixed_schema.sql` | Original five core MVP tables are represented | Done; Phase 2 may add companion tables later |
+| 08 | B1 | Stage B | Define domain types aligned to MVP baseline schema | Plan Stage B | Completed | A2 | `mobile/src/types/domain.ts` | Domain types cover MVP core entities and app-facing snapshots | Done; Phase 2 type split is planned |
 | 09 | B2 | Stage B | Define stable service contracts for auth/KYC/groups/payments/notifications/reports | Plan Stage B | Completed | B1 | `mobile/src/services/contracts/index.ts` | App depends on contracts, not direct backend shape guesses | Done |
 | 10 | B3 | Stage B | Create deterministic seed data for users, groups, rounds, transactions, notifications | Plan Stage B | Completed | B1 | `mobile/src/data/seed.ts` | Seed data supports repeatable member/admin flows | Done |
-| 11 | B4 | Stage B | Implement mirrored mock auth flow with session restore | Plan Stage B | Completed | B2, B3 | `mockBackend.ts`, auth provider | Register/login/restore exist with fixed-schema semantics | Done |
+| 11 | B4 | Stage B | Implement mirrored mock auth flow with session restore | Plan Stage B | Completed | B2, B3 | `mockBackend.ts`, auth provider | Register/login/restore exist with MVP baseline semantics | Done |
 | 12 | B5 | Stage B | Implement mirrored OTP challenge flow | Plan Stage B | Completed | B4 | `mockBackend.ts`, auth screens, tests | OTP request and verify behave like service-layer auth logic | Done |
 | 13 | B6 | Stage B | Implement mirrored KYC submit/review/ban flow | Plan Stage B | Completed | B2, B3 | `mockBackend.ts`, auth/admin screens | KYC gating and admin review paths function through contracts | Done |
 | 14 | B7 | Stage B | Implement mirrored group request / approval / rejection / freeze behavior | Plan Stage B | Completed | B2, B3 | `mockBackend.ts`, admin/member screens | Group status transitions follow master spec and compliance control | Done |
@@ -65,14 +66,14 @@ Overall Status: In Progress
 | 20 | B13 | Stage B | Implement mirrored report list/export payloads | Plan Stage B | Completed | B2 | report service + admin reports screen | Export contract returns structured file payload | Done as mock output |
 | 21 | B14 | Stage B | Add automated tests for critical mock state transitions | Plan Stage B | Completed | B4-B13 | `mockBackend.test.ts` | Tests cover auth, OTP, auto-draw, freeze behavior | Done |
 | 22 | C1 | Stage C | Replace mock register/login with real Edge Function implementation | Plan Stage C | Completed | A6, B2 | `supabase/functions/register-login/index.ts`, deployed to project `yxgfvkxdiicvckcwpdmc`, `liveAuthService.ts`, device OTP test | Auth provider uses live backend endpoint for register/login | Done |
-| 23 | C2 | Stage C | Implement real password hashing and fixed-table auth persistence | Plan Stage C | Completed | C1 | `supabase/functions/_shared/auth.ts`, successful live registration/login | `Password_Hash` is generated and verified server-side | Done |
+| 23 | C2 | Stage C | Implement real password hashing against MVP core `User` persistence | Plan Stage C | Completed | C1 | `supabase/functions/_shared/auth.ts`, successful live registration/login | `Password_Hash` is generated and verified server-side | Done |
 | 24 | C3 | Stage C | Implement real stateless token issuance and validation | Plan Stage C | Completed | C1 | `supabase/functions/_shared/auth.ts`, `AuthProvider.tsx`, live restore flow | Restore/session validation works against real backend tokens | Done |
 | 25 | C4 | Stage C | Implement real OTP generation/verification path | Plan Stage C | Completed | C1 | `supabase/functions/_shared/twilioVerify.ts`, live SMS OTP test on device | OTP no longer mocked in service layer | Done |
 | 26 | C5 | Stage C | Implement real KYC file storage and image reference handling | Plan Stage C | Completed | A6, C1 | `kyc-submit-review`, `liveKycService.ts`, signed upload path | `Student_ID_Img` stores real uploaded reference | Storage upload is real; current UI still uploads a dev placeholder image until image-picker work lands |
 | 27 | C6 | Stage C | Implement real admin KYC review/ban path | Plan Stage C | Completed | C5 | `supabase/functions/kyc-submit-review/index.ts`, `liveKycService.ts`, deployed function | KYC decisions persist against live backend | Done, with storage upload still pending under C5 |
 | 28 | D1 | Stage D | Implement live browseable groups query | Plan Stage D | Completed | C3 | `supabase/functions/group-lifecycle/index.ts`, `liveGroupsService.ts`, hosted runtime check | Browse screen uses real backend data | Done |
 | 29 | D2 | Stage D | Implement live create-group request path | Plan Stage D | Completed | C6 | `group-lifecycle` createRequest, hosted runtime check | Verified member can submit `Pending` group request | Done |
-| 30 | D3 | Stage D | Implement live admin approve/reject/freeze path | Plan Stage D | In Progress | D2 | `group-lifecycle` admin actions, hosted runtime check | Group status transitions persist server-side | Approve and freeze are live; reject follows the fixed-schema pending-state rule and needs final UX handling |
+| 30 | D3 | Stage D | Implement live admin approve/reject/freeze path | Plan Stage D | In Progress | D2 | `group-lifecycle` admin actions, hosted runtime check | Group status transitions persist server-side | Approve and freeze are live; Phase 2 will move rich rejection handling into `group_requests.status = Rejected` instead of canonical `EqubGroup.Status` |
 | 31 | D4 | Stage D | Generate and persist `Virtual_Acc_Ref` on approval | Plan Stage D | Completed | D3 | `group-lifecycle` approve action, hosted runtime check | Approved groups receive unique collection ref | Done |
 | 32 | D5 | Stage D | Implement live join validation and membership write | Plan Stage D | Completed | D1, D3 | `group-lifecycle` join action, hosted runtime check | Group join rules enforced by backend | Done |
 | 33 | D6 | Stage D | Implement live dashboard/group-status snapshots | Plan Stage D | Completed | D5 | `group-lifecycle` dashboard/status actions, `liveGroupsService.ts`, hosted runtime check | Member dashboard and group status fully run from live backend | Done |
@@ -107,15 +108,16 @@ Overall Status: In Progress
 | M0 Bootstrap | Workspace, scripts, schema scaffold, and startup automation exist | Mostly Completed |
 | M1 Domain / Contracts | Types, contracts, seeds, and mirrored mock backend exist | Mostly Completed |
 | M2 Auth / KYC | Live auth, OTP, KYC review, and storage upload path are active | In Progress |
-| M3 Groups | Live browse/create/approve/join/dashboard flow is active; reject UX still needs final handling under the fixed-schema rule | In Progress |
-| M4 Payments | Live simulated contribution writes, history reads, normalization, and adapter boundaries are active; real provider calls are still absent | In Progress |
+| M3 Groups | Live browse/create/approve/join/dashboard flow is active; Phase 2 will move user-facing pre-approval gathering to `group_requests` while preserving canonical `EqubGroup` rows | In Progress |
+| M4 Payments | Live simulated contribution writes, history reads, normalization, and adapter boundaries are active; Phase 2 keeps provider behavior mock/sandbox and adds durable attempt tracking | In Progress |
 | M5 Auto Draw / Payout / Reminders | Live round completion, payout creation, reminder derivation, and wallet clearance are active | In Progress |
 | M6 Admin / Reports / Hardening | Admin overview and live CSV/PDF export are active; hardening remains incomplete | In Progress |
 | M7 QA / APK / Submission | Only partial validation exists | Not Started |
+| M8 Phase 2 Expansion | Expansion spec exists for additive tables, group formation, obligations, mock provider attempts, ledger, payout maturity, reliability, notifications, audit, and config | Planning |
 
 ## 5. Evidence Inventory
 - Workspace bootstrap: `mobile/`, `supabase/`, root `package.json`, `README.md`
-- Fixed schema: `supabase/sql/001_fixed_schema.sql`
+- MVP baseline schema: `supabase/sql/001_fixed_schema.sql`
 - Seed data: `supabase/sql/002_seed_minimal.sql`, `mobile/src/data/seed.ts`
 - Service contracts: `mobile/src/services/contracts/index.ts`
 - Mirrored mock backend: `mobile/src/services/mock/mockBackend.ts`
@@ -132,16 +134,30 @@ Overall Status: In Progress
 - Startup automation: `scripts/start-android-dev.ps1`
 - Evidence artifacts: `Build/delivery/evidence/kyc-upload-validation.json`, `Build/delivery/evidence/wallet-clearance-validation.json`, `Build/delivery/evidence/report-export-validation.json`, `Build/delivery/evidence/debug-apk-build.json`, `Build/delivery/evidence/ussd-simulator-validation.json`
 - UAT checklist: `Build/delivery/uat_checklist.md`
-- Delivery docs: `Build/delivery/implementation_plan.md`, `Build/delivery/implementation_traceability_matrix.md`, `Build/delivery/progress_spec.md`
+- Delivery docs: `Build/delivery/implementation_plan.md`, `Build/delivery/implementation_traceability_matrix.md`, `Build/delivery/progress_spec.md`, `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`
 
 ## 6. Open Risks
-- Live backend implementation is only partial; auth, KYC, groups, contributions, reminders, and admin overview are live, but some payout, export, and provider behaviors still use simplified implementations.
+- Live backend implementation is only partial; auth, KYC, groups, contributions, reminders, and admin overview are live, but some payout, export, and provider behaviors still use simplified implementations. Phase 2 deliberately keeps provider behavior sandbox/mock for the capstone and adds durable attempt/audit coverage instead of real payment integration.
 - The original `payout-withdraw` slug was inconsistent in the hosted project; the app now uses the stable `wallet-clearance` route instead.
 - The seeded final-draw scenario needs one real member phone number because OTP login is mandatory; a dummy seeded tester account would not be usable by the user.
-- The fixed schema has no persisted group description or rejected status field. The live backend currently honors that constraint, which means rejected-group UX and rich group copy still need a product-safe handling strategy.
+- The original fixed schema has no persisted group description or rejected status field. Phase 2 resolves this additively through `group_requests` and related formation tables rather than adding `Rejected` to canonical `EqubGroup.Status`.
 - True image capture is wired, but it still relies on device camera/gallery permissions and has not yet been validated on a physical device in this workspace session.
 - Android debug testing is now automated, but release APK generation and emulator validation are still pending.
 - Major screen-level inline style debt was removed by modularizing auth/member/admin surfaces and rebuilding the shared UI layer; the final phone-fit polish pass now needs on-device validation.
 - The mock layer is now close to the intended backend contracts, but any future contract change must be updated in both the mock implementation and the Edge Function scaffolds immediately.
 
+## 7. Phase 2 Expansion Planning Tracker
+
+Phase 2 is a planned additive expansion, not a replacement of the MVP implementation. The detailed source of truth is `Build/delivery/phase2_expansion_spec.md`.
+
+| Seq | ID | Phase | Task | Status | Evidence | Acceptance Condition | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P2-01 | P2-DOC | Phase 0 | Create Phase 2 expansion specification and mark old no-new-tables constraint as MVP-baseline-only | Completed | `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, updated delivery docs | Docs clearly allow additive companion tables and define the database/Edge Function boundary for Phase 2 | Planning complete; implementation not started |
+| P2-02 | P2-DB | Phase 1 | Add Phase 2 foundation migrations | Not Started | None | Core companion tables exist with constraints/indexes | Pending implementation |
+| P2-03 | P2-SHARED | Phase 2 | Add shared backend helpers for config, audit, notifications, obligations, ledger, payment attempts, reliability, and payout vesting | Not Started | None | Edge Functions use shared helpers for sensitive writes | Pending implementation |
+| P2-04 | P2-FORM | Phase 3 | Add group formation lobby backend and service contract migration | Not Started | None | User-facing group creation can gather members before canonical group approval | Pending implementation |
+| P2-05 | P2-OBLIG | Phase 4 | Add contribution obligations and mock provider attempt lifecycle | Not Started | None | Round readiness is obligation-based and duplicate callbacks are idempotent | Pending implementation |
+| P2-06 | P2-PAYOUT | Phase 5 | Add payout maturity, reserves, and release schedules | Not Started | None | Early probationary winners receive configured immediate release plus reserve schedule | Pending implementation |
+| P2-07 | P2-AUDIT | Phase 6 | Make notifications durable and audit sensitive events | Not Started | None | Major system/admin events create notifications and audit rows | Pending implementation |
+| P2-08 | P2-DEFAULT | Phase 7 | Add default/freeze/poll/refund-ticket staged recovery flow | Not Started | None | Defaults can restrict users, freeze groups, and drive resolution/refund tickets | Deferred until foundation is stable |
 
