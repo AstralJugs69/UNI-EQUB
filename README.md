@@ -20,6 +20,7 @@ This repository is organized as an implementation workspace around the original 
 ## Phase 2 expansion planning
 - Source of truth: `Build/delivery/phase2_expansion_spec.md`
 - Edge Function impact analysis: `Build/delivery/phase2_edge_function_impact.md`
+- Phase 2 development tracker: `Build/delivery/phase2_development_progress_tracker.md`
 - Phase 2 lifts the earlier no-new-tables restriction for additive companion tables only.
 - The original five core MVP tables remain canonical: `User`, `EqubGroup`, `GroupMembers`, `Round`, and `Transaction`.
 - Planned additions include group formation, contribution obligations, mock provider attempts, wallet/simulated ledger entries, payout maturity, reliability restrictions, durable notifications, audit events, and app configuration.

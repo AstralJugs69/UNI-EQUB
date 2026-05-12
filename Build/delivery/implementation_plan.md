@@ -2,7 +2,7 @@
 
 Version: 1.1
 Last Updated: 2026-05-12
-Source Inputs: `Build/master_spec/uni_equb_living_technical_spec_v_1.md`, `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current repo state, active delivery decisions
+Source Inputs: `Build/master_spec/uni_equb_living_technical_spec_v_1.md`, `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, `Build/delivery/phase2_development_progress_tracker.md`, current repo state, active delivery decisions
 
 ## 1. Delivery Objective
 UniEqub will be delivered as an Android-first MVP built with bare React Native and a Supabase-backed service layer. The original Stage A-H delivery covers the full member and admin lifecycle defined in the master spec: registration, KYC review, group creation and approval, joining, contribution tracking, automatic winner selection, payout withdrawal, reminders, history, and admin reporting.
@@ -308,3 +308,5 @@ Phase 2 acceptance is not just table creation. It must prove:
 ### 8.5 Edge Function Impact Guidance
 Phase 2 database additions should not remove Edge Functions from sensitive workflows. `Build/delivery/phase2_edge_function_impact.md` defines the intended split: PostgreSQL owns durable workflow state, constraints, idempotency, views, notifications, ledger, audit, and config; Edge Functions remain responsible for authorization, command orchestration, mock provider simulation, admin decisions, draw/payout/default workflows, and report export.
 
+### 8.6 Phase 2 Execution Tracker
+`Build/delivery/phase2_development_progress_tracker.md` is the step-by-step Phase 2 execution tracker. It separates Agent, User, and Both-owned work so implementation does not stall on tasks that require human credentials, device validation, policy decisions, report diagrams, release signing, or supervisor approval.

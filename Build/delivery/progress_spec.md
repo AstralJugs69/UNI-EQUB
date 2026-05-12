@@ -2,11 +2,11 @@
 
 Version: 1.2
 Last Updated: 2026-05-12
-Current Wave: Phase 2 expansion planning is active; the existing MVP spine remains in place while additive companion tables, service modules, durable notifications, audit logging, obligation-based readiness, and payout maturity are planned in `Build/delivery/phase2_expansion_spec.md`
+Current Wave: Phase 2 expansion planning is active; the existing MVP spine remains in place while additive companion tables, service modules, durable notifications, audit logging, obligation-based readiness, and payout maturity are planned in `Build/delivery/phase2_expansion_spec.md` and broken into execution tasks in `Build/delivery/phase2_development_progress_tracker.md`
 Overall Status: In Progress
 
 ## 1. Execution Rules
-- This document is the live execution tracker for the MVP.
+- This document is the live execution tracker for the MVP baseline. Phase 2 implementation detail is tracked in `Build/delivery/phase2_development_progress_tracker.md`.
 - Tasks are ordered sequentially for single-builder delivery.
 - A task is marked `Completed` only when the repo already satisfies its acceptance condition.
 - A task is marked `In Progress` when implementation exists but the acceptance condition is not fully met.
@@ -38,7 +38,7 @@ Overall Status: In Progress
   - emulator evidence, release APK flow, and broader UAT capture
   - final on-device screen-fit and animation review across all member/admin flows
 - Phase 2 expansion planning now intentionally keeps payments sandbox/mock-only instead of pursuing real provider integration for this capstone phase.
-- Phase 2 implementation is not started yet; the planning source of truth is `Build/delivery/phase2_expansion_spec.md`, with Edge Function boundary guidance in `Build/delivery/phase2_edge_function_impact.md`.
+- Phase 2 implementation is not started yet; the planning source of truth is `Build/delivery/phase2_expansion_spec.md`, Edge Function boundary guidance is in `Build/delivery/phase2_edge_function_impact.md`, and the detailed execution tracker is `Build/delivery/phase2_development_progress_tracker.md`.
 
 ## 3. Sequential Work Tracker
 
@@ -113,7 +113,7 @@ Overall Status: In Progress
 | M5 Auto Draw / Payout / Reminders | Live round completion, payout creation, reminder derivation, and wallet clearance are active | In Progress |
 | M6 Admin / Reports / Hardening | Admin overview and live CSV/PDF export are active; hardening remains incomplete | In Progress |
 | M7 QA / APK / Submission | Only partial validation exists | Not Started |
-| M8 Phase 2 Expansion | Expansion spec exists for additive tables, group formation, obligations, mock provider attempts, ledger, payout maturity, reliability, notifications, audit, and config | Planning |
+| M8 Phase 2 Expansion | Expansion spec, Edge Function impact analysis, and detailed development tracker exist for additive tables, group formation, obligations, mock provider attempts, ledger, payout maturity, reliability, notifications, audit, config, QA, and user-only tasks | Planning |
 
 ## 5. Evidence Inventory
 - Workspace bootstrap: `mobile/`, `supabase/`, root `package.json`, `README.md`
@@ -134,7 +134,7 @@ Overall Status: In Progress
 - Startup automation: `scripts/start-android-dev.ps1`
 - Evidence artifacts: `Build/delivery/evidence/kyc-upload-validation.json`, `Build/delivery/evidence/wallet-clearance-validation.json`, `Build/delivery/evidence/report-export-validation.json`, `Build/delivery/evidence/debug-apk-build.json`, `Build/delivery/evidence/ussd-simulator-validation.json`
 - UAT checklist: `Build/delivery/uat_checklist.md`
-- Delivery docs: `Build/delivery/implementation_plan.md`, `Build/delivery/implementation_traceability_matrix.md`, `Build/delivery/progress_spec.md`, `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`
+- Delivery docs: `Build/delivery/implementation_plan.md`, `Build/delivery/implementation_traceability_matrix.md`, `Build/delivery/progress_spec.md`, `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, `Build/delivery/phase2_development_progress_tracker.md`
 
 ## 6. Open Risks
 - Live backend implementation is only partial; auth, KYC, groups, contributions, reminders, and admin overview are live, but some payout, export, and provider behaviors still use simplified implementations. Phase 2 deliberately keeps provider behavior sandbox/mock for the capstone and adds durable attempt/audit coverage instead of real payment integration.
@@ -152,7 +152,7 @@ Phase 2 is a planned additive expansion, not a replacement of the MVP implementa
 
 | Seq | ID | Phase | Task | Status | Evidence | Acceptance Condition | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| P2-01 | P2-DOC | Phase 0 | Create Phase 2 expansion specification and mark old no-new-tables constraint as MVP-baseline-only | Completed | `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, updated delivery docs | Docs clearly allow additive companion tables and define the database/Edge Function boundary for Phase 2 | Planning complete; implementation not started |
+| P2-01 | P2-DOC | Phase 0 | Create Phase 2 planning specs and detailed execution tracker | Completed | `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, `Build/delivery/phase2_development_progress_tracker.md`, updated delivery docs | Docs clearly allow additive companion tables, define the database/Edge Function boundary, and scope Agent/User/Both tasks for Phase 2 | Planning complete; implementation not started |
 | P2-02 | P2-DB | Phase 1 | Add Phase 2 foundation migrations | Not Started | None | Core companion tables exist with constraints/indexes | Pending implementation |
 | P2-03 | P2-SHARED | Phase 2 | Add shared backend helpers for config, audit, notifications, obligations, ledger, payment attempts, reliability, and payout vesting | Not Started | None | Edge Functions use shared helpers for sensitive writes | Pending implementation |
 | P2-04 | P2-FORM | Phase 3 | Add group formation lobby backend and service contract migration | Not Started | None | User-facing group creation can gather members before canonical group approval | Pending implementation |
@@ -161,3 +161,4 @@ Phase 2 is a planned additive expansion, not a replacement of the MVP implementa
 | P2-07 | P2-AUDIT | Phase 6 | Make notifications durable and audit sensitive events | Not Started | None | Major system/admin events create notifications and audit rows | Pending implementation |
 | P2-08 | P2-DEFAULT | Phase 7 | Add default/freeze/poll/refund-ticket staged recovery flow | Not Started | None | Defaults can restrict users, freeze groups, and drive resolution/refund tickets | Deferred until foundation is stable |
 
+For detailed P2 task decomposition, owners, user-only blockers, dependencies, and evidence requirements, use `Build/delivery/phase2_development_progress_tracker.md`.

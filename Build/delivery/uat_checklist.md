@@ -49,3 +49,6 @@ Last Updated: 2026-03-08
 - Build debug APK
 - Install on Android device or emulator
 - Run basic smoke pass on splash, auth, dashboard, group, payment, wallet, admin
+
+## Phase 2 UAT planning note
+Phase 2 UAT scenarios, user-only validation tasks, required evidence files, and final delivery gates are tracked in `Build/delivery/phase2_development_progress_tracker.md`. The checklist above remains valid for the original MVP baseline until Phase 2 screens and services are implemented.

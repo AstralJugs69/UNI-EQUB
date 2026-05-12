@@ -4,6 +4,7 @@ Version: 1.0
 Last Updated: 2026-05-12
 Status: Planning source of truth for Phase 2 expansion
 Related Edge Function impact analysis: `Build/delivery/phase2_edge_function_impact.md`
+Detailed development tracker: `Build/delivery/phase2_development_progress_tracker.md`
 Supersedes: the original MVP-only fixed-table constraint for Phase 2 work while preserving the five core MVP tables
 
 ## 1. Purpose of This Expansion

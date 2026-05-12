@@ -3,6 +3,7 @@
 Version: 1.0
 Last Updated: 2026-05-12
 Status: Planning companion to `Build/delivery/phase2_expansion_spec.md`
+Detailed development tracker: `Build/delivery/phase2_development_progress_tracker.md`
 
 ## 1. Purpose
 
