@@ -1,27 +1,35 @@
 # Implementation Traceability Matrix
 
-| ID | Stage | Master Spec Source | Planned Capability | Current Repo Evidence | Current Status |
+| ID | Stage | Master / Delivery Source | Planned Capability | Current Repo Evidence | Current Status |
 | --- | --- | --- | --- | --- | --- |
-| T-01 | Stage A | Sections 3, 4, 5 | Workspace bootstrap, repo structure, tooling baseline | `mobile/`, `supabase/`, root scripts, `README.md` | Completed |
-| T-02 | Stage A | Sections 3, 7 | Fixed schema captured without table expansion | `supabase/sql/001_fixed_schema.sql` | Completed |
-| T-03 | Stage B | Sections 5, 6, 7 | Domain types and service contracts aligned to fixed entities | `mobile/src/types/domain.ts`, `mobile/src/services/contracts/index.ts` | Completed |
-| T-04 | Stage B | Sections 6.1, 6.2 | Mirrored auth, OTP, KYC submission/review/ban behavior | `mobile/src/services/mock/mockBackend.ts`, auth screens/tests | Completed in mock |
-| T-05 | Stage B | Section 6.3 | Mirrored group create request, approval, rejection, join, freeze behavior | mock backend + member/admin group screens | Completed in mock |
-| T-06 | Stage B | Section 6.4 | Mirrored contribution initiation and reconciliation path, including USSD verification behavior | payment screen, mock backend payment flow, `mockBackend.test.ts` | Completed in mock |
-| T-07 | Stage B | Sections 6.5, 6.6 | Mirrored automatic draw and payout creation/withdrawal | mock backend auto-draw logic, wallet/withdraw screens, tests | Completed in mock |
-| T-08 | Stage B | Section 6.7 | Mirrored reminder generation and notification center behavior | notification service, reminder queue, admin reports screen | Completed in mock |
-| T-09 | Stage B | Section 3.2.5 | Mirrored admin reports and export payload contract | report service and admin export UI | Completed in mock |
-| T-10 | Stage C | Sections 6.1, 6.2, 7.1 | Real backend auth/token/KYC implementation | `supabase/functions/register-login/`, `supabase/functions/kyc-submit-review/`, `_shared/auth.ts`, `_shared/twilioVerify.ts`, signed KYC upload path, `mobile/src/services/live/`, `Build/delivery/evidence/kyc-upload-validation.json` | In Progress |
-| T-11 | Stage D | Sections 6.3, 7.2, 7.3 | Real backend group lifecycle implementation | `supabase/functions/group-lifecycle/`, `mobile/src/services/live/liveGroupsService.ts`, hosted runtime check for create/approve/join/dashboard | In Progress |
-| T-12 | Stage E | Section 6.4, 7.5 | Real backend contribution and reconciliation implementation with Android-native USSD launch | `supabase/functions/contribution-reconcile/`, `_shared/paymentProviders.ts`, `_shared/phone.ts`, `mobile/src/services/live/livePaymentsService.ts`, unified Android `*127#` test launcher, hosted runtime contribution check | In Progress |
-| T-12A | Stage E | Section 6.4 | Hosted provider-style USSD simulator for sandbox development, including Arkesel-compatible callback handling | `supabase/functions/ussd-simulator/`, `mobile/scripts/validate-ussd-simulator.js`, `Build/delivery/tools/ussd_simulator_harness.html` | Completed |
-| T-13 | Stage F | Sections 6.5-6.7 | Real backend auto draw, payout, reminder implementation | `_shared/roundLifecycle.ts`, `contribution-reconcile`, `liveNotificationsService.ts`, seeded final-draw script | In Progress |
-| T-14 | Stage G | Sections 3.2.5, 3.3 | Real admin metrics, exports, hardening, and redesigned UI state completion | `report-export`, `liveReportsService.ts`, `Build/delivery/evidence/report-export-validation.json`, modular auth/member/admin screens, rebuilt `mobile/src/components/ui.tsx`, `mobile/src/components/ULoader.tsx`, updated theme tokens | In Progress |
+| T-01 | Stage A | Master spec Sections 3, 4, 5 | Workspace bootstrap, repo structure, tooling baseline | `mobile/`, `supabase/`, root scripts, `README.md` | Completed |
+| T-02 | Stage A | Master spec Sections 3, 7; Phase 2 spec Sections 2, 19 | Original five-table MVP schema captured as core foundation; Phase 2 permits additive companion tables | `supabase/sql/001_fixed_schema.sql`, `Build/delivery/phase2_expansion_spec.md` | Completed for MVP; Phase 2 expansion planned |
+| T-03 | Stage B | Master spec Sections 5, 6, 7 | Domain types and service contracts aligned to fixed MVP entities | `mobile/src/types/domain.ts`, `mobile/src/services/contracts/index.ts` | Completed |
+| T-04 | Stage B | Master spec Sections 6.1, 6.2 | Mirrored auth, OTP, KYC submission/review/ban behavior | `mobile/src/services/mock/mockBackend.ts`, auth screens/tests | Completed in mock |
+| T-05 | Stage B | Master spec Section 6.3 | Mirrored group create request, approval, rejection, join, freeze behavior | mock backend + member/admin group screens | Completed in mock |
+| T-06 | Stage B | Master spec Section 6.4 | Mirrored contribution initiation and reconciliation path, including USSD verification behavior | payment screen, mock backend payment flow, `mockBackend.test.ts` | Completed in mock |
+| T-07 | Stage B | Master spec Sections 6.5, 6.6 | Mirrored automatic draw and payout creation/withdrawal | mock backend auto-draw logic, wallet/withdraw screens, tests | Completed in mock |
+| T-08 | Stage B | Master spec Section 6.7 | Mirrored reminder generation and notification center behavior | notification service, reminder queue, admin reports screen | Completed in mock |
+| T-09 | Stage B | Master spec Section 3.2.5 | Mirrored admin reports and export payload contract | report service and admin export UI | Completed in mock |
+| T-10 | Stage C | Master spec Sections 6.1, 6.2, 7.1 | Real backend auth/token/KYC implementation | `supabase/functions/register-login/`, `supabase/functions/kyc-submit-review/`, `_shared/auth.ts`, `_shared/twilioVerify.ts`, signed KYC upload path, `mobile/src/services/live/`, `Build/delivery/evidence/kyc-upload-validation.json` | In Progress |
+| T-11 | Stage D | Master spec Sections 6.3, 7.2, 7.3 | Real backend group lifecycle implementation | `supabase/functions/group-lifecycle/`, `mobile/src/services/live/liveGroupsService.ts`, hosted runtime check for create/approve/join/dashboard | In Progress |
+| T-12 | Stage E | Master spec Section 6.4, 7.5 | Real backend simulated contribution and reconciliation implementation with Android-native USSD launch | `supabase/functions/contribution-reconcile/`, `_shared/paymentProviders.ts`, `_shared/phone.ts`, `mobile/src/services/live/livePaymentsService.ts`, unified Android `*127#` test launcher, hosted runtime contribution check | In Progress |
+| T-12A | Stage E | Master spec Section 6.4 | Hosted provider-style USSD simulator for sandbox development, including Arkesel-compatible callback handling | `supabase/functions/ussd-simulator/`, `mobile/scripts/validate-ussd-simulator.js`, `Build/delivery/tools/ussd_simulator_harness.html` | Completed |
+| T-13 | Stage F | Master spec Sections 6.5-6.7 | Real backend auto draw, payout, reminder implementation | `_shared/roundLifecycle.ts`, `contribution-reconcile`, `liveNotificationsService.ts`, seeded final-draw script | In Progress |
+| T-14 | Stage G | Master spec Sections 3.2.5, 3.3 | Real admin metrics, exports, hardening, and redesigned UI state completion | `report-export`, `liveReportsService.ts`, `Build/delivery/evidence/report-export-validation.json`, modular auth/member/admin screens, rebuilt `mobile/src/components/ui.tsx`, `mobile/src/components/ULoader.tsx`, updated theme tokens | In Progress |
 | T-15 | Stage H | Testing and deployment methodology | APK, emulator/device validation, UAT evidence | tests, startup automation | In Progress |
+| T-16 | Phase 2 | Phase 2 spec Sections 1-3, 22; Edge Function impact spec | Phase 2 expansion planning source of truth with additive companion-table rule and database/Edge Function boundary | `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md` | Completed for planning |
+| T-17 | Phase 2 | Phase 2 spec Sections 4, 5, 19 | Group formation lobby, public/private gathering, invitations, and lightweight announcements before canonical `EqubGroup` approval | planned `group_requests`, `group_join_requests`, `group_invitations`, `group_announcements` | Not Started |
+| T-18 | Phase 2 | Phase 2 spec Sections 6, 7, 21 | Contribution obligations, mock provider attempts, idempotency, and obligation-based round readiness | planned `contribution_obligations`, `payment_provider_attempts`, mandatory duplicate-protection indexes | Not Started |
+| T-19 | Phase 2 | Phase 2 spec Sections 8, 9 | Wallet/simulated ledger, payout requests, payout reserves, and maturity release schedules | planned `ledger_entries`, `payout_requests`, `payout_release_schedules` | Not Started |
+| T-20 | Phase 2 | Phase 2 spec Sections 9, 10, 17 | Reliability profiles, active restrictions, recovery rules, and app-configured business policy | planned `user_reliability_profiles`, `user_restrictions`, `app_config` | Not Started |
+| T-21 | Phase 2 | Phase 2 spec Sections 14-16, 18 | KYC history expansion, durable notifications, append-oriented audit events, and server-side security controls | planned `kyc_submissions`, `kyc_documents`, `notifications`, `audit_events`; shared helpers | Not Started |
+| T-22 | Phase 2 | Phase 2 spec Sections 11-13, 19.3 | Default recovery, frozen-group polling, and refund-ticket simulation after foundation is stable | planned `group_freeze_events`, `group_resolution_polls`, `group_resolution_poll_options`, `group_resolution_votes`, `refund_tickets` | Deferred |
 
 ## Traceability rules
 - `Completed in mock` means the capability exists in the mirrored mock service layer and UI flow, but not yet in live Supabase-backed runtime.
 - `Completed` means the repo already satisfies the capability at the intended implementation layer.
 - `Not Started` means real implementation work for that capability has not begun.
-- Any contract change must be reflected in `types`, `service contracts`, `mock backend`, and the eventual Edge Function implementation to preserve parity.
-
+- `Deferred` means the capability is accepted in the Phase 2 design but intentionally waits for prerequisite foundation work.
+- The original MVP core tables (`User`, `EqubGroup`, `GroupMembers`, `Round`, `Transaction`) remain canonical. Phase 2 permits additive companion tables only when they preserve existing flows.
+- Any contract change must be reflected in `types`, `service contracts`, mock behavior where still used, and eventual Edge Function implementation to preserve parity.
