@@ -66,6 +66,7 @@ interface DatabaseState {
   auditLogs: string[];
   reminderQueue: string[];
   providerLogs: ProviderLog[];
+  rejectedGroupIds: string[];
 }
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -91,6 +92,7 @@ export class MockBackend implements AppServices {
       auditLogs: ['KYC approved for Dawit Abebe • 09:15 AM', 'Cycle frozen for suspicious mismatch • 08:47 AM'],
       reminderQueue: ['Dorm A Savings Group • 1 unpaid member • automatic reminder queued', 'AAU Coders Circle • 2 unpaid members • automatic reminder queued'],
       providerLogs: [],
+      rejectedGroupIds: [],
     };
   }
 
@@ -405,7 +407,7 @@ export class MockBackend implements AppServices {
 
     listPendingApprovals: async (): Promise<GroupApprovalItem[]> => {
       return this.db.groups
-        .filter(group => group.Status === 'Pending')
+        .filter(group => group.Status === 'Pending' && !this.db.rejectedGroupIds.includes(group.Group_ID))
         .map(group => ({ group: clone(group), creator: clone(this.requireUser(group.Creator_ID)), note: 'Review amount, membership size, and creator status.' }));
     },
 
@@ -419,7 +421,9 @@ export class MockBackend implements AppServices {
 
     reject: async (groupId: string): Promise<void> => {
       const group = this.requireGroup(groupId);
-      group.Status = 'Rejected';
+      if (!this.db.rejectedGroupIds.includes(group.Group_ID)) {
+        this.db.rejectedGroupIds.push(group.Group_ID);
+      }
       this.db.auditLogs.unshift(`Group rejected: ${group.Group_Name}`);
       this.pushNotification(group.Creator_ID, 'Group rejected', 'Your Equb request was rejected during admin review.');
     },

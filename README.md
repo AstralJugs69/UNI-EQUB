@@ -24,6 +24,7 @@ This repository is organized as an implementation workspace around the original 
 - Phase 2 lifts the earlier no-new-tables restriction for additive companion tables only.
 - The original five core MVP tables remain canonical: `User`, `EqubGroup`, `GroupMembers`, `Round`, and `Transaction`.
 - The initial Phase 2 foundation migration adds group formation, contribution obligation, mock provider attempt, wallet/simulated ledger, payout request/schedule, reliability restriction, durable notification, audit event, and app configuration tables.
+- The first shared Phase 2 backend helper batch adds config, audit, notification, reliability, and obligation scaffolding while leaving sensitive writes behind Edge Functions.
 - Payment behavior remains sandbox/mock for the capstone; real payment provider integration is future work only.
 
 ## Commands
@@ -38,6 +39,7 @@ This repository is organized as an implementation workspace around the original 
 - `npm run qa:wallet-clearance`
 - `npm run qa:ussd-simulator`
 - `npm run qa:phase2-foundation`
+- `npm run qa:phase2-shared`
 - `node .\mobile\scripts\seed-final-draw.js --phone 09XXXXXXXX --name "Your Name"`
 
 ## Hosted USSD simulator

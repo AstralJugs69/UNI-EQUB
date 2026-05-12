@@ -1,8 +1,8 @@
 # UniEqub Phase 2 Development Progress Tracker
 
-Version: 1.1
+Version: 1.2
 Last Updated: 2026-05-13
-Status: Phase 1 database foundation started; initial companion-table migration and static validation evidence are in repo
+Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding started with local validation evidence
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -62,7 +62,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-007 | Agent | Convert approved policy values into `app_config` seed data once user decisions exist. | Blocked | P2-006 | Seed migration or SQL seed script includes approved values. | Migration/seed SQL |
 | P2-008 | User | Confirm whether KYC history tables should be built in the first implementation wave or after the core Phase 2 tables. | Not Started | Phase 2 spec | Priority decision is recorded. | `Build/delivery/evidence/kyc-history-priority.md` |
 | P2-009 | User | Confirm whether disbanded groups map to `Completed`, a new `Disbanded` status, or freeze-event-only terminal state. | Not Started | Phase 2 spec | Canonical disbandment representation is chosen before refund-ticket work. | `Build/delivery/evidence/disbanded-group-status-decision.md` |
-| P2-010 | Agent | Keep README, implementation plan, traceability, and progress docs aligned when scope or priority changes. | In Progress | Ongoing implementation | Docs point to current Phase 2 tracker/specs and do not contradict implementation. | Updated delivery docs; latest batch updated tracker/progress/traceability/README |
+| P2-010 | Agent | Keep README, implementation plan, traceability, and progress docs aligned when scope or priority changes. | In Progress | Ongoing implementation | Docs point to current Phase 2 tracker/specs and do not contradict implementation. | Updated delivery docs; latest batches updated tracker/progress/traceability/README |
 
 ### Phase 1 — Database Foundation and Guardrails
 
@@ -93,17 +93,17 @@ The tracker should be updated after every implementation batch. A row is `Comple
 
 | ID | Owner | Task | Status | Depends On | Acceptance Condition | Required Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| P2-201 | Agent | Split domain types into `EqubGroupStatus` and `GroupRequestStatus`. | Not Started | P2-104 | `Rejected` is not modeled as canonical `EqubGroup.Status`; group request statuses are separate. | Typecheck passing |
-| P2-202 | Agent | Add Phase 2 domain types for config, audit, notifications, formation, obligations, attempts, ledger, payouts, reliability, restrictions. | Not Started | P2-101-P2-113 | Mobile/shared TypeScript can represent Phase 2 payloads without overloading MVP types. | Typecheck passing |
-| P2-203 | Agent | Add `_shared/config.ts` helper for loading and validating `app_config`. | Not Started | P2-101 | Edge Functions read config consistently with fallback/default behavior. | Unit/edge helper test or validation script |
-| P2-204 | Agent | Add `_shared/audit.ts` helper for append-only audit event writes. | Not Started | P2-102 | Sensitive functions can write audit events with actor/entity metadata. | Helper tests or smoke script |
-| P2-205 | Agent | Add `_shared/notifications.ts` helper for durable notification creation. | Not Started | P2-103 | Functions can create consistent notification rows. | Helper tests or smoke script |
-| P2-206 | Agent | Add `_shared/reliability.ts` helper for public status, active restrictions, and active group limits. | Not Started | P2-112, P2-113 | Join/pay/payout checks can query a single helper. | Helper tests |
-| P2-207 | Agent | Add `_shared/obligations.ts` helper for round obligation generation and readiness. | Not Started | P2-107 | Round open and payment flows can generate/read obligations idempotently. | Helper tests |
+| P2-201 | Agent | Split domain types into `EqubGroupStatus` and `GroupRequestStatus`. | Completed | P2-104 | `Rejected` is not modeled as canonical `EqubGroup.Status`; group request statuses are separate. | `mobile/src/types/domain.ts`; `supabase/functions/_shared/types.ts`; `Build/delivery/evidence/phase2-shared-validation.json`; typecheck passing |
+| P2-202 | Agent | Add Phase 2 domain types for config, audit, notifications, formation, obligations, attempts, ledger, payouts, reliability, restrictions. | Completed | P2-101-P2-113 | Mobile/shared TypeScript can represent Phase 2 payloads without overloading MVP types. | `mobile/src/types/domain.ts`; `supabase/functions/_shared/types.ts`; typecheck passing |
+| P2-203 | Agent | Add `_shared/config.ts` helper for loading and validating `app_config`. | Completed | P2-101 | Edge Functions read config consistently with fallback/default behavior. | `supabase/functions/_shared/config.ts`; `npm run qa:phase2-shared` |
+| P2-204 | Agent | Add `_shared/audit.ts` helper for append-only audit event writes. | Completed | P2-102 | Sensitive functions can write audit events with actor/entity metadata. | `supabase/functions/_shared/audit.ts`; `npm run qa:phase2-shared` |
+| P2-205 | Agent | Add `_shared/notifications.ts` helper for durable notification creation. | Completed | P2-103 | Functions can create consistent notification rows. | `supabase/functions/_shared/notifications.ts`; `npm run qa:phase2-shared` |
+| P2-206 | Agent | Add `_shared/reliability.ts` helper for public status, active restrictions, and active group limits. | Completed | P2-112, P2-113 | Join/pay/payout checks can query a single helper. | `supabase/functions/_shared/reliability.ts`; `npm run qa:phase2-shared` |
+| P2-207 | Agent | Add `_shared/obligations.ts` helper for round obligation generation and readiness. | Completed | P2-107 | Round open and payment flows can generate/read obligations idempotently. | `supabase/functions/_shared/obligations.ts`; `npm run qa:phase2-shared` |
 | P2-208 | Agent | Add `_shared/paymentAttempts.ts` helper for idempotent provider attempt lifecycle. | Not Started | P2-108 | Mock provider callbacks cannot duplicate successful transactions. | Helper tests |
 | P2-209 | Agent | Add `_shared/ledger.ts` helper for append-oriented simulated ledger entries. | Not Started | P2-109 | Contribution, payout, reserve, default, refund flows write ledger entries consistently. | Helper tests |
 | P2-210 | Agent | Add `_shared/payoutVesting.ts` helper for maturity, immediate release, reserve, and release schedule calculation. | Not Started | P2-101, P2-110, P2-111, P2-112 | Payout flow can compute trusted vs probationary payouts deterministically. | Helper tests |
-| P2-211 | Agent | Update `_shared/contracts.ts` with Phase 2 command payloads without breaking existing MVP actions. | Not Started | P2-201-P2-210 | Old actions still compile; new action payloads are typed. | Typecheck passing |
+| P2-211 | Agent | Update `_shared/contracts.ts` with Phase 2 command payloads without breaking existing MVP actions. | In Progress | P2-201-P2-210 | Old actions still compile; new action payloads are typed. | Group formation command payload scaffold added in `supabase/functions/_shared/contracts.ts`; payment/payout command payloads remain pending |
 | P2-212 | Agent | Add service-contract placeholders for frontend-facing Phase 2 services only where screens need them. | Not Started | P2-202 | `AppServices` grows intentionally and does not expose sensitive direct-write helpers. | Typecheck passing |
 | P2-213 | Agent | Add tests for helper-level status transitions and idempotency. | Not Started | P2-203-P2-210 | Tests cover config, audit write, obligation generation, duplicate attempt, payout vesting formula. | Jest or script output |
 
@@ -265,4 +265,12 @@ Initial repo-local Phase 1 foundation batch completed on 2026-05-13:
 4. added table comments and RLS enablement for Phase 2 companion tables
 5. added `mobile/scripts/validate-phase2-foundation.js` and evidence at `Build/delivery/evidence/phase2-foundation-validation.json`
 
-Remaining first-wave work is shared helper/type-contract implementation plus user-only Supabase application and policy approval tasks.
+Second repo-local Phase 2 helper/type batch completed on 2026-05-13:
+
+1. split canonical `EqubGroupStatus` from pre-approval `GroupRequestStatus`
+2. added Phase 2 companion record types in mobile and shared Edge Function type files
+3. added shared helpers for config, audit event writes, durable notification writes, reliability gates, and contribution obligations
+4. added group-formation command payload scaffolding without changing existing MVP action names
+5. added `mobile/scripts/validate-phase2-shared.js` and evidence at `Build/delivery/evidence/phase2-shared-validation.json`
+
+Remaining first-wave work is payment-attempt, ledger, payout-vesting helpers, deeper helper tests, target Supabase migration application, and user-only policy approval tasks.

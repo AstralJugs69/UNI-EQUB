@@ -6,6 +6,7 @@
 
 export type RegisterLoginAction = 'register' | 'requestOtp' | 'verifyOtp' | 'beginLogin' | 'completeLogin' | 'login' | 'restore';
 export type GroupLifecycleAction = 'listBrowseable' | 'getGroup' | 'getGroupStatus' | 'createRequest' | 'listPending' | 'approve' | 'reject' | 'freeze' | 'join' | 'getDashboard';
+export type GroupFormationAction = 'listPublic' | 'getRequest' | 'createRequest' | 'requestJoin' | 'acceptJoin' | 'removeParticipant' | 'invite' | 'acceptInvite' | 'submitForApproval' | 'adminApprove' | 'adminReject';
 export type ContributionAction = 'payContribution' | 'startContributionUssd' | 'submitContributionUssd' | 'listTransactions' | 'getWallet' | 'reconcileProviderCallback';
 export type ReportAction = 'getAdminOverview' | 'listReports' | 'exportReport';
 
@@ -70,6 +71,33 @@ export interface GroupLifecyclePayload {
   token: string;
   groupId?: string;
   createRequest?: CreateGroupRequest;
+}
+
+export interface CreateGroupFormationRequest {
+  groupName: string;
+  description?: string;
+  amount: number;
+  frequency: 'Weekly' | 'Bi-weekly' | 'Monthly';
+  minMembers?: number;
+  maxMembers: number;
+  visibility: 'Public' | 'Private';
+  inviteMode?: 'PublicRequest' | 'InviteCode' | 'DirectInvite' | 'InviteCodeAndDirect';
+  vestingEnabled?: boolean;
+  riskWarningAccepted?: boolean;
+  termsVersion?: string;
+}
+
+export interface GroupFormationPayload {
+  action: GroupFormationAction;
+  token: string;
+  requestId?: string;
+  joinRequestId?: string;
+  invitationId?: string;
+  inviteCode?: string;
+  targetUserId?: string;
+  invitedPhoneOrStudentId?: string;
+  decisionReason?: string;
+  createRequest?: CreateGroupFormationRequest;
 }
 
 export interface ContributionPayload {

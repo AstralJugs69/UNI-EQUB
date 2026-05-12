@@ -1,11 +1,47 @@
-﻿export interface UserRecord {
+export type UserRole = 'Member' | 'Admin';
+export type KycStatus = 'Unverified' | 'Verified' | 'Banned';
+export type EqubGroupStatus = 'Pending' | 'Active' | 'Frozen' | 'Completed';
+export type GroupRequestStatus = 'Draft' | 'Forming' | 'PendingApproval' | 'Approved' | 'Rejected' | 'Expired' | 'Cancelled';
+export type GroupJoinRequestStatus = 'Requested' | 'Accepted' | 'Rejected' | 'Removed' | 'Withdrawn' | 'Expired';
+export type GroupInvitationStatus = 'Pending' | 'Accepted' | 'Declined' | 'Expired' | 'Cancelled';
+export type RoundStatus = 'Open' | 'Locked' | 'Completed';
+export type TransactionStatus = 'Pending' | 'Successful' | 'Failed';
+export type TransactionType = 'Contribution' | 'Payout';
+export type PaymentMethod = 'Telebirr' | 'MockUSSD' | 'ChapaSandbox';
+export type AppConfigValueType = 'integer' | 'number' | 'boolean' | 'string' | 'object' | 'placeholder';
+export type AuditActorRole = UserRole | 'System' | 'EdgeFunction';
+export type NotificationSeverity = 'Info' | 'Success' | 'Warning' | 'Error';
+export type ContributionObligationStatus = 'Unpaid' | 'PendingPayment' | 'Paid' | 'Late' | 'Defaulted' | 'Waived' | 'RefundPending';
+export type PaymentProviderAttemptStatus = 'Initiated' | 'Pending' | 'Successful' | 'Failed' | 'Timeout' | 'Cancelled' | 'Duplicate' | 'InvalidAmount';
+export type LedgerDirection = 'Credit' | 'Debit' | 'Memo';
+export type LedgerEntryType =
+  | 'ContributionReceived'
+  | 'PaymentAttemptPending'
+  | 'PaymentAttemptFailed'
+  | 'PayoutRequestCreated'
+  | 'PayoutReleased'
+  | 'PayoutReserved'
+  | 'PayoutReleaseScheduled'
+  | 'PayoutReleaseCancelled'
+  | 'ReserveReleased'
+  | 'ReserveFrozen'
+  | 'DefaultOffset'
+  | 'RefundTicketCreated'
+  | 'PenaltySimulated'
+  | 'GroupDisbandmentAdjustment';
+export type PayoutRequestStatus = 'Pending' | 'PartiallyReleased' | 'Completed' | 'Failed' | 'Frozen' | 'Cancelled';
+export type PayoutReleaseScheduleStatus = 'Pending' | 'Released' | 'Frozen' | 'Cancelled';
+export type ReliabilityPublicStatus = 'New' | 'BuildingTrust' | 'Trusted' | 'Restricted' | 'Banned';
+export type UserRestrictionStatus = 'Active' | 'ClearedByAdmin' | 'ClearedByRecovery' | 'EscalatedToBan';
+
+export interface UserRecord {
   User_ID: string;
   Full_Name: string;
   Phone_Number: string;
   Password_Hash: string;
   Student_ID_Img: string;
-  KYC_Status: 'Unverified' | 'Verified' | 'Banned';
-  Role: 'Member' | 'Admin';
+  KYC_Status: KycStatus;
+  Role: UserRole;
   Created_At: string;
 }
 
@@ -17,7 +53,7 @@ export interface GroupRecord {
   Max_Members: number;
   Frequency: 'Weekly' | 'Bi-weekly' | 'Monthly';
   Virtual_Acc_Ref: string | null;
-  Status: 'Pending' | 'Active' | 'Frozen' | 'Completed';
+  Status: EqubGroupStatus;
   Start_Date: string | null;
 }
 
@@ -35,7 +71,7 @@ export interface RoundRecord {
   Round_Number: number;
   Winner_ID: string | null;
   Draw_Date: string | null;
-  Status: 'Open' | 'Locked' | 'Completed';
+  Status: RoundStatus;
 }
 
 export interface TransactionRecord {
@@ -43,10 +79,10 @@ export interface TransactionRecord {
   User_ID: string;
   Round_ID: string;
   Amount: number;
-  Type: 'Contribution' | 'Payout';
-  Payment_Method: 'Telebirr' | 'MockUSSD' | 'ChapaSandbox';
+  Type: TransactionType;
+  Payment_Method: PaymentMethod;
   Gateway_Ref: string;
-  Status: 'Pending' | 'Successful' | 'Failed';
+  Status: TransactionStatus;
   Date: string;
 }
 
@@ -66,4 +102,223 @@ export function toSessionUser(user: UserRecord): SessionUser {
     role: user.Role,
     kycStatus: user.KYC_Status,
   };
+}
+
+export interface AppConfigRecord {
+  key: string;
+  value: unknown;
+  value_type: AppConfigValueType;
+  description: string;
+  updated_by: string | null;
+  updated_at: string;
+}
+
+export interface AuditEventRecord {
+  id: string;
+  actor_user_id: string | null;
+  actor_role: AuditActorRole;
+  event_type: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  metadata: Record<string, unknown>;
+  ip_address: string | null;
+  created_at: string;
+}
+
+export interface DurableNotificationRecord {
+  id: string;
+  user_id: string;
+  type: string;
+  severity: NotificationSeverity;
+  title: string;
+  message: string;
+  action_route: string | null;
+  related_entity_type: string | null;
+  related_entity_id: string | null;
+  metadata: Record<string, unknown>;
+  read_at: string | null;
+  expires_at: string | null;
+  delivered_in_app_at: string | null;
+  created_at: string;
+}
+
+export interface GroupRequestRecord {
+  id: string;
+  creator_id: string;
+  submitted_by: string | null;
+  proposed_group_name: string;
+  description: string | null;
+  contribution_amount: number;
+  frequency: GroupRecord['Frequency'];
+  min_members: number;
+  max_members: number;
+  visibility: 'Public' | 'Private';
+  invite_mode: 'PublicRequest' | 'InviteCode' | 'DirectInvite' | 'InviteCodeAndDirect';
+  status: GroupRequestStatus;
+  risk_level: 'Low' | 'Medium' | 'High';
+  terms_version: string;
+  agreement_required: boolean;
+  vesting_enabled: boolean;
+  vesting_disabled_by_creator: boolean;
+  risk_warning_accepted_at: string | null;
+  expires_at: string | null;
+  submitted_at: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  approval_decision_note: string | null;
+  rejection_reason: string | null;
+  approved_group_id: string | null;
+  created_group_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GroupJoinRequestRecord {
+  id: string;
+  group_request_id: string;
+  user_id: string;
+  status: GroupJoinRequestStatus;
+  requested_at: string;
+  accepted_at: string | null;
+  rejected_at: string | null;
+  removed_at: string | null;
+  decision_by: string | null;
+  decision_reason: string | null;
+}
+
+export interface GroupInvitationRecord {
+  id: string;
+  group_request_id: string;
+  invited_user_id: string | null;
+  invited_phone_or_student_id: string | null;
+  invite_code: string | null;
+  status: GroupInvitationStatus;
+  expires_at: string | null;
+  created_by: string;
+  accepted_at: string | null;
+  declined_at: string | null;
+  created_at: string;
+}
+
+export interface ContributionObligationRecord {
+  id: string;
+  round_id: string;
+  group_id: string;
+  user_id: string;
+  amount_due: number;
+  currency: string;
+  due_at: string | null;
+  grace_ends_at: string | null;
+  status: ContributionObligationStatus;
+  paid_transaction_id: string | null;
+  paid_at: string | null;
+  late_at: string | null;
+  defaulted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaymentProviderAttemptRecord {
+  id: string;
+  provider_name: string;
+  provider_mode: 'Mock' | 'Sandbox';
+  event_type: 'ContributionPayment' | 'PayoutProcessing' | 'RefundTicket';
+  attempt_sequence: number;
+  user_id: string;
+  group_id: string | null;
+  round_id: string | null;
+  contribution_obligation_id: string | null;
+  payout_request_id: string | null;
+  amount: number | null;
+  currency: string;
+  normalized_phone: string | null;
+  gateway_reference: string | null;
+  idempotency_key: string;
+  request_payload: Record<string, unknown>;
+  callback_payload: Record<string, unknown>;
+  status: PaymentProviderAttemptStatus;
+  verification_result: string | null;
+  verified_at: string | null;
+  verified_by_system: boolean;
+  failure_code: string | null;
+  failure_message: string | null;
+  created_at: string;
+  callback_received_at: string | null;
+}
+
+export interface LedgerEntryRecord {
+  id: string;
+  user_id: string | null;
+  group_id: string | null;
+  round_id: string | null;
+  transaction_id: string | null;
+  payout_request_id: string | null;
+  entry_type: LedgerEntryType;
+  direction: LedgerDirection;
+  amount: number;
+  currency: string;
+  description: string | null;
+  reference_type: string | null;
+  reference_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface PayoutRequestRecord {
+  id: string;
+  group_id: string;
+  round_id: string;
+  winner_user_id: string;
+  total_payout_amount: number;
+  immediate_release_amount: number;
+  reserved_amount: number;
+  currency: string;
+  status: PayoutRequestStatus;
+  destination_type: string | null;
+  destination_reference: string | null;
+  provider_attempt_id: string | null;
+  requested_at: string;
+  processed_at: string | null;
+  failed_reason: string | null;
+  created_at: string;
+}
+
+export interface PayoutReleaseScheduleRecord {
+  id: string;
+  payout_request_id: string;
+  user_id: string;
+  group_id: string;
+  round_id: string;
+  trigger_obligation_id: string | null;
+  release_amount: number;
+  currency: string;
+  status: PayoutReleaseScheduleStatus;
+  released_at: string | null;
+  created_at: string;
+}
+
+export interface UserReliabilityProfileRecord {
+  user_id: string;
+  public_status: ReliabilityPublicStatus;
+  completed_groups_count: number;
+  perfect_completed_groups_count: number;
+  late_payment_count: number;
+  default_count: number;
+  restriction_count: number;
+  current_maturity_completed_count: number;
+  updated_at: string;
+}
+
+export interface UserRestrictionRecord {
+  id: string;
+  user_id: string;
+  restriction_type: string;
+  reason: string;
+  status: UserRestrictionStatus;
+  created_by: string | null;
+  created_at: string;
+  cleared_by: string | null;
+  cleared_at: string | null;
+  required_recovery_groups: number;
+  completed_recovery_groups: number;
 }

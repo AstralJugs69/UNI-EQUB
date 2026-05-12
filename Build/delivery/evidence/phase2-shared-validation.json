@@ -1,0 +1,23 @@
+{
+  "scenario": "phase2-shared-helper-static-validation",
+  "validatedFiles": {
+    "mobileDomain": "mobile/src/types/domain.ts",
+    "sharedTypes": "supabase/functions/_shared/types.ts",
+    "sharedContracts": "supabase/functions/_shared/contracts.ts",
+    "config": "supabase/functions/_shared/config.ts",
+    "audit": "supabase/functions/_shared/audit.ts",
+    "notifications": "supabase/functions/_shared/notifications.ts",
+    "reliability": "supabase/functions/_shared/reliability.ts",
+    "obligations": "supabase/functions/_shared/obligations.ts",
+    "mockBackend": "mobile/src/services/mock/mockBackend.ts"
+  },
+  "completedChecks": [
+    "EqubGroupStatus and GroupRequestStatus are split",
+    "Phase 2 companion record types exist in mobile and shared Edge Function types",
+    "Config, audit, notifications, reliability, and obligations helper scaffolds exist",
+    "Group formation backend command payload scaffold exists",
+    "Rejected is not modeled as canonical EqubGroup.Status"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-12T22:20:56.503Z"
+}
