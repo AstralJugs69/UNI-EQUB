@@ -1,5 +1,5 @@
 {
-  "scenario": "phase2-group-formation-submit-approval-validation",
+  "scenario": "phase2-group-formation-admin-approval-validation",
   "function": "supabase/functions/group-formation/index.ts",
   "contracts": "supabase/functions/_shared/contracts.ts",
   "config": "supabase/config.toml",
@@ -28,8 +28,9 @@
     "creator can accept requested participants and reject/remove participants with audit events",
     "creator can create invitations and invited members can accept them into accepted participation",
     "creator can submit forming request for admin approval after accepted participants meet configured minimum",
+    "admin can approve into canonical EqubGroup, GroupMembers, initial Round, obligations, notifications, and audit or reject in group_requests",
     "Supabase function config registers group-formation with internal token verification pattern"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-13T15:36:38.887Z"
+  "validatedAt": "2026-05-13T15:44:30.216Z"
 }

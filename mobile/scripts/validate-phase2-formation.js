@@ -79,6 +79,14 @@ function main() {
     'listAcceptedParticipantUserIds',
     'notifyAdminsOfSubmittedGroup',
     'createNotification',
+    'approveFormationRequest',
+    'rejectFormationRequest',
+    'ensureCanonicalGroupForRequest',
+    'ensureCanonicalMemberships',
+    'notifyFormationApproval',
+    'ensureOpenRoundForGroup',
+    'ensureContributionObligationsForRound',
+    'buildVirtualRef',
     'writeAuditEvent',
     'getReliabilityJoinGate',
     'loadFormationPolicySnapshot',
@@ -166,11 +174,28 @@ function main() {
     'accepted_participant_user_ids',
   ].forEach(token => assertIncludes(source, token, 'submit for approval implementation token'));
 
+  [
+    ".from('EqubGroup')",
+    ".from('GroupMembers')",
+    "status: 'Approved'",
+    "status: 'Rejected'",
+    'approved_group_id: group.Group_ID',
+    'created_group_at: now',
+    'ensureOpenRoundForGroup(group)',
+    'ensureContributionObligationsForRound(group, round)',
+    'GroupFormationApproved',
+    'GroupFormationRejected',
+    'group_formation_approved',
+    'group_formation_rejected',
+    'Only pending-approval group requests can be approved.',
+    'Only pending-approval group requests can be rejected.',
+  ].forEach(token => assertIncludes(source, token, 'admin approval implementation token'));
+
   assertIncludes(config, '[functions.group-formation]', 'Supabase function config');
   assertIncludes(config, 'verify_jwt = false', 'function JWT config style');
 
   const result = {
-    scenario: 'phase2-group-formation-submit-approval-validation',
+    scenario: 'phase2-group-formation-admin-approval-validation',
     function: 'supabase/functions/group-formation/index.ts',
     contracts: 'supabase/functions/_shared/contracts.ts',
     config: 'supabase/config.toml',
@@ -187,6 +212,7 @@ function main() {
       'creator can accept requested participants and reject/remove participants with audit events',
       'creator can create invitations and invited members can accept them into accepted participation',
       'creator can submit forming request for admin approval after accepted participants meet configured minimum',
+      'admin can approve into canonical EqubGroup, GroupMembers, initial Round, obligations, notifications, and audit or reject in group_requests',
       'Supabase function config registers group-formation with internal token verification pattern',
     ],
     requiresSupabaseCredentials: false,

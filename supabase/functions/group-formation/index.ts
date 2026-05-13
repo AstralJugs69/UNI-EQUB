@@ -4,9 +4,11 @@ import { fail, json } from '../_shared/contracts.ts';
 import type { CreateGroupFormationRequest, GroupFormationAction, GroupFormationPayload } from '../_shared/contracts.ts';
 import { loadConfigValue } from '../_shared/config.ts';
 import { createNotification } from '../_shared/notifications.ts';
+import { ensureContributionObligationsForRound } from '../_shared/obligations.ts';
 import { getReliabilityJoinGate } from '../_shared/reliability.ts';
+import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import type { GroupInvitationRecord, GroupJoinRequestRecord, GroupRequestRecord, UserRecord } from '../_shared/types.ts';
+import type { ContributionObligationRecord, GroupInvitationRecord, GroupJoinRequestRecord, GroupRecord, GroupRequestRecord, MembershipRecord, RoundRecord, UserRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -95,6 +97,10 @@ function normalizeInviteTarget(value: string | undefined | null) {
 
 function createInviteCode() {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 12).toUpperCase();
+}
+
+function buildVirtualRef(groupId: string) {
+  return `UEQ-${groupId.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
 }
 
 function validateCreateRequestInput(input: CreateGroupFormationRequest | undefined, policy: Awaited<ReturnType<typeof loadFormationPolicySnapshot>>) {
@@ -888,6 +894,248 @@ async function submitFormationForApproval(actor: UserRecord, body: GroupFormatio
   });
 }
 
+async function loadAdminReviewRequest(requestId: string | undefined) {
+  if (!requestId) {
+    throw new Error('Missing group request id.');
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('group_requests')
+    .select('*')
+    .eq('id', requestId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return data as GroupRequestRecord;
+}
+
+async function getGroupById(groupId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('EqubGroup')
+    .select('*')
+    .eq('Group_ID', groupId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  const { error: linkError } = await supabaseAdmin
+    .from('group_requests')
+    .update({ approved_group_id: groupId })
+    .eq('id', request.id);
+
+  if (linkError) {
+    throw linkError;
+  }
+  return data as GroupRecord;
+}
+
+async function ensureCanonicalGroupForRequest(request: GroupRequestRecord) {
+  if (request.approved_group_id) {
+    return getGroupById(request.approved_group_id);
+  }
+
+  const groupId = crypto.randomUUID();
+  const { data, error } = await supabaseAdmin
+    .from('EqubGroup')
+    .insert({
+      Group_ID: groupId,
+      Creator_ID: request.creator_id,
+      Group_Name: request.proposed_group_name.trim().slice(0, 50),
+      Amount: request.contribution_amount,
+      Max_Members: request.max_members,
+      Frequency: request.frequency,
+      Virtual_Acc_Ref: buildVirtualRef(groupId),
+      Status: 'Active',
+      Start_Date: new Date().toISOString().slice(0, 10),
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return data as GroupRecord;
+}
+
+async function ensureCanonicalMemberships(group: GroupRecord, userIds: string[]) {
+  const rows = [...new Set(userIds)].map(userId => ({
+    Group_ID: group.Group_ID,
+    User_ID: userId,
+    Joined_At: new Date().toISOString(),
+    Status: 'Active',
+  }));
+
+  if (!rows.length) {
+    return [] as MembershipRecord[];
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('GroupMembers')
+    .upsert(rows, { onConflict: 'Group_ID,User_ID' })
+    .select('*');
+
+  if (error) {
+    throw error;
+  }
+  return (data ?? []) as MembershipRecord[];
+}
+
+async function notifyFormationApproval(request: GroupRequestRecord, group: GroupRecord, participantUserIds: string[]) {
+  const notifications = [];
+  for (const userId of [...new Set(participantUserIds)]) {
+    notifications.push(await createNotification({
+      userId,
+      type: 'GroupFormationApproved',
+      severity: 'Success',
+      title: 'Group approved',
+      message: `${group.Group_Name} is now active.`,
+      actionRoute: 'member/group',
+      relatedEntityType: 'EqubGroup',
+      relatedEntityId: group.Group_ID,
+      metadata: {
+        group_request_id: request.id,
+        group_id: group.Group_ID,
+      },
+    }));
+  }
+  return notifications;
+}
+
+async function approveFormationRequest(actor: UserRecord, body: GroupFormationPayload) {
+  const request = await loadAdminReviewRequest(body.requestId);
+  if (request.status === 'Approved' && request.approved_group_id) {
+    const group = await getGroupById(request.approved_group_id);
+    return json({ groupRequest: request, group, alreadyApproved: true });
+  }
+  if (request.status !== 'PendingApproval') {
+    throw new Error('Only pending-approval group requests can be approved.');
+  }
+
+  const policy = await loadFormationPolicySnapshot();
+  const acceptedParticipantUserIds = await listAcceptedParticipantUserIds(request.id);
+  const requiredMinimum = Math.max(request.min_members, policy.minMembers);
+  if (acceptedParticipantUserIds.length < requiredMinimum) {
+    throw new Error(`At least ${requiredMinimum} accepted participants are required before approval.`);
+  }
+
+  const group = await ensureCanonicalGroupForRequest(request);
+  const memberships = await ensureCanonicalMemberships(group, acceptedParticipantUserIds);
+  const round = await ensureOpenRoundForGroup(group) as RoundRecord;
+  const obligations = await ensureContributionObligationsForRound(group, round);
+  const now = new Date().toISOString();
+  const { data: updatedRequest, error: updateError } = await supabaseAdmin
+    .from('group_requests')
+    .update({
+      status: 'Approved',
+      reviewed_by: actor.User_ID,
+      reviewed_at: now,
+      approval_decision_note: cleanText(body.decisionReason) || 'Approved by admin.',
+      approved_group_id: group.Group_ID,
+      created_group_at: now,
+    })
+    .eq('id', request.id)
+    .select('*')
+    .single();
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  const participantNotifications = await notifyFormationApproval(updatedRequest as GroupRequestRecord, group, acceptedParticipantUserIds);
+  await writeAuditEvent({
+    actor,
+    eventType: 'group_formation_approved',
+    entityType: 'group_requests',
+    entityId: request.id,
+    metadata: {
+      group_id: group.Group_ID,
+      round_id: round.Round_ID,
+      accepted_participant_count: acceptedParticipantUserIds.length,
+      membership_count: memberships.length,
+      obligation_count: obligations.length,
+    },
+  });
+
+  return json({
+    groupRequest: updatedRequest as GroupRequestRecord,
+    group,
+    memberships,
+    round,
+    obligations: obligations as ContributionObligationRecord[],
+    notifications: {
+      participants: participantNotifications.length,
+    },
+  });
+}
+
+async function rejectFormationRequest(actor: UserRecord, body: GroupFormationPayload) {
+  const request = await loadAdminReviewRequest(body.requestId);
+  if (request.status === 'Rejected') {
+    return json({ groupRequest: request, alreadyRejected: true });
+  }
+  if (request.status !== 'PendingApproval') {
+    throw new Error('Only pending-approval group requests can be rejected.');
+  }
+
+  const reason = cleanText(body.decisionReason) || 'Rejected by admin.';
+  const { data, error } = await supabaseAdmin
+    .from('group_requests')
+    .update({
+      status: 'Rejected',
+      reviewed_by: actor.User_ID,
+      reviewed_at: new Date().toISOString(),
+      rejection_reason: reason,
+      approval_decision_note: reason,
+    })
+    .eq('id', request.id)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const acceptedParticipantUserIds = await listAcceptedParticipantUserIds(request.id);
+  const notifications = [];
+  for (const userId of [...new Set(acceptedParticipantUserIds)]) {
+    notifications.push(await createNotification({
+      userId,
+      type: 'GroupFormationRejected',
+      severity: 'Warning',
+      title: 'Group request rejected',
+      message: `${request.proposed_group_name} was not approved.`,
+      actionRoute: 'member/group-formation',
+      relatedEntityType: 'group_requests',
+      relatedEntityId: request.id,
+      metadata: {
+        group_request_id: request.id,
+        reason,
+      },
+    }));
+  }
+
+  await writeAuditEvent({
+    actor,
+    eventType: 'group_formation_rejected',
+    entityType: 'group_requests',
+    entityId: request.id,
+    metadata: {
+      reason,
+      notified_participant_count: notifications.length,
+    },
+  });
+
+  return json({
+    groupRequest: data as GroupRequestRecord,
+    notifications: {
+      participants: notifications.length,
+    },
+  });
+}
+
 function pendingImplementation(action: GroupFormationAction, actor: UserRecord) {
   return new Response(JSON.stringify({
     ok: false,
@@ -964,9 +1212,12 @@ Deno.serve(async request => {
         return submitFormationForApproval(actor, body);
 
       case 'adminApprove':
+        assertAdmin(actor);
+        return approveFormationRequest(actor, body);
+
       case 'adminReject':
         assertAdmin(actor);
-        return pendingImplementation(body.action, actor);
+        return rejectFormationRequest(actor, body);
 
       default:
         return fail('Unsupported group formation action.', 400);

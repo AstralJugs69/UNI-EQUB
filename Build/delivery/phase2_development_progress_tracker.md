@@ -1,8 +1,8 @@
 # UniEqub Phase 2 Development Progress Tracker
 
-Version: 1.10
+Version: 1.11
 Last Updated: 2026-05-13
-Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through submit-for-approval started
+Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin approval/rejection started
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -120,7 +120,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-307 | User | Decide final wording for payout vesting risk warning and mandatory join agreement. | Not Started | P2-006 | Wording is approved for UI and defense. | `Build/delivery/evidence/vesting-warning-copy.md` |
 | P2-308 | Agent | Implement private vesting override with creator warning acceptance. | Not Started | P2-306, P2-307 | Creator can disable vesting only for private invite-based request and audit event is written. | Function test/evidence |
 | P2-309 | Agent | Implement submit-for-approval when accepted participants meet configured minimum. | Completed | P2-305/P2-306 | Request moves to `PendingApproval`; notifications/audit are written. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
-| P2-310 | Agent | Implement admin approve/reject group request. | Not Started | P2-309 | Approve creates canonical `EqubGroup`, `GroupMembers`, initial round, obligations, notifications, audit; reject stays in `group_requests.status = Rejected`. | Function test/evidence |
+| P2-310 | Agent | Implement admin approve/reject group request. | Completed | P2-309 | Approve creates canonical `EqubGroup`, `GroupMembers`, initial round, obligations, notifications, audit; reject stays in `group_requests.status = Rejected`. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
 | P2-311 | Agent | Keep legacy `group-lifecycle.createRequest` compatible during migration. | Not Started | P2-301-P2-310 | Existing mobile group creation does not break before UI migration is complete. | Regression tests |
 | P2-312 | Agent | Add mobile formation service contract and live implementation. | Not Started | P2-301-P2-310 | Mobile can call formation list/detail/create/join/invite/submit actions. | Typecheck/tests |
 | P2-313 | Agent | Add member UI for forming groups discovery and detail. | Not Started | P2-312 | Member can browse public forming requests and request to join. | Screenshot/evidence |
@@ -338,3 +338,11 @@ Seventh repo-local Phase 3 group-formation batch completed on 2026-05-13:
 3. updated eligible requests to `PendingApproval` with `submitted_by` and `submitted_at`
 4. created durable notifications for admins and the submitting creator
 5. wrote a `group_formation_submitted_for_approval` audit event and refreshed `Build/delivery/evidence/phase2-formation-validation.json`
+
+Eighth repo-local Phase 3 group-formation batch completed on 2026-05-13:
+
+1. implemented the `adminApprove` and `adminReject` branches in `supabase/functions/group-formation/index.ts`
+2. approval creates a canonical `EqubGroup`, canonical `GroupMembers`, an initial open `Round`, and first-round `contribution_obligations`
+3. approval updates `group_requests` to `Approved` with `approved_group_id`, `reviewed_by`, `reviewed_at`, and `created_group_at`
+4. rejection updates `group_requests` to `Rejected` with review metadata and reason, without creating canonical MVP group rows
+5. durable notifications and audit events are written for approval/rejection and `Build/delivery/evidence/phase2-formation-validation.json` was refreshed
