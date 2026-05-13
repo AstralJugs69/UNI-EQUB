@@ -58,6 +58,7 @@ function main() {
     'assertNormalFormationEligibility',
     'createFormationRequest',
     'validateCreateRequestInput',
+    'listPublicFormationRequests',
     'getReliabilityJoinGate',
     'loadFormationPolicySnapshot',
     'Deno.serve',
@@ -77,11 +78,20 @@ function main() {
     'Only private invite-based group requests can disable payout vesting.',
   ].forEach(token => assertIncludes(source, token, 'create request implementation token'));
 
+  [
+    ".eq('visibility', 'Public')",
+    ".eq('status', 'Forming')",
+    'expires_at.is.null,expires_at.gt.',
+    'accepted_participant_count',
+    'remaining_slots',
+    'expiredRequestsHidden',
+  ].forEach(token => assertIncludes(source, token, 'public discovery implementation token'));
+
   assertIncludes(config, '[functions.group-formation]', 'Supabase function config');
   assertIncludes(config, 'verify_jwt = false', 'function JWT config style');
 
   const result = {
-    scenario: 'phase2-group-formation-create-request-validation',
+    scenario: 'phase2-group-formation-public-discovery-validation',
     function: 'supabase/functions/group-formation/index.ts',
     config: 'supabase/config.toml',
     routedActions: requiredActions,
@@ -92,6 +102,7 @@ function main() {
       'all planned Phase 2 formation actions are routed',
       'createRequest inserts a Forming group_requests row with config-driven min/max/expiry validation',
       'createRequest inserts the creator as an Accepted formation participant',
+      'listPublic returns only Public Forming requests that are not expired with accepted participant counts',
       'Supabase function config registers group-formation with internal token verification pattern',
     ],
     requiresSupabaseCredentials: false,

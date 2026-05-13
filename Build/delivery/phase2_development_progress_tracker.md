@@ -1,8 +1,8 @@
 # UniEqub Phase 2 Development Progress Tracker
 
-Version: 1.5
+Version: 1.6
 Last Updated: 2026-05-13
-Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation create-request backend path started
+Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation create/list backend paths started
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -113,7 +113,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | --- | --- | --- | --- | --- | --- | --- |
 | P2-301 | Agent | Create `supabase/functions/group-formation/index.ts`. | Completed | P2-104-P2-106, P2-203-P2-206 | Function skeleton validates sessions and routes formation actions. | `supabase/functions/group-formation/index.ts`; `supabase/config.toml`; `Build/delivery/evidence/phase2-formation-validation.json` |
 | P2-302 | Agent | Implement create draft/forming request. | Completed | P2-301 | Verified, unrestricted member can create `group_requests` row with expiry and config-driven min/max rules. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
-| P2-303 | Agent | Implement public forming group discovery. | Not Started | P2-302 | Eligible users can list public forming requests without seeing private requests. | Function test/evidence |
+| P2-303 | Agent | Implement public forming group discovery. | Completed | P2-302 | Eligible users can list public forming requests without seeing private requests. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
 | P2-304 | Agent | Implement request-to-join forming group. | Not Started | P2-303 | Eligible users can request join after accepting group terms. | Function test/evidence |
 | P2-305 | Agent | Implement creator accept/reject/remove participant. | Not Started | P2-304 | Creator can manage pending/accepted formation participants with audit events. | Function test/evidence |
 | P2-306 | Agent | Implement invite code/direct invitation and accept invite. | Not Started | P2-301 | Private invite flow can add accepted participants without public discovery. | Function test/evidence |
@@ -298,3 +298,11 @@ Second repo-local Phase 3 group-formation batch completed on 2026-05-13:
 3. validated group name, amount, frequency, visibility, invite mode, min/max member bounds, and private-only vesting override warning acceptance
 4. inserted a `Forming` `group_requests` row with `expires_at` and added the creator as an `Accepted` `group_join_requests` participant
 5. refreshed `Build/delivery/evidence/phase2-formation-validation.json` with static evidence for the create-request path
+
+Third repo-local Phase 3 group-formation batch completed on 2026-05-13:
+
+1. implemented the `listPublic` branch in `supabase/functions/group-formation/index.ts`
+2. kept member verification and reliability eligibility checks before listing public forming requests
+3. filtered discovery to `visibility = 'Public'`, `status = 'Forming'`, and non-expired requests only
+4. added accepted participant counts and remaining slot values for read-friendly mobile consumption
+5. refreshed `Build/delivery/evidence/phase2-formation-validation.json` with static evidence for public discovery

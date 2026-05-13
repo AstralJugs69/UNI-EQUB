@@ -206,6 +206,57 @@ async function createFormationRequest(actor: UserRecord, createRequest: CreateGr
   }, 201);
 }
 
+async function listPublicFormationRequests(actor: UserRecord) {
+  await assertNormalFormationEligibility(actor);
+  const now = new Date().toISOString();
+  const { data, error } = await supabaseAdmin
+    .from('group_requests')
+    .select('id, creator_id, proposed_group_name, description, contribution_amount, frequency, min_members, max_members, visibility, invite_mode, status, risk_level, terms_version, agreement_required, vesting_enabled, expires_at, created_at, updated_at')
+    .eq('visibility', 'Public')
+    .eq('status', 'Forming')
+    .or(`expires_at.is.null,expires_at.gt.${now}`)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    throw error;
+  }
+
+  const requests = (data ?? []) as GroupRequestRecord[];
+  const requestIds = requests.map(request => request.id);
+  const participantCounts = new Map<string, number>();
+
+  if (requestIds.length > 0) {
+    const { data: participants, error: participantError } = await supabaseAdmin
+      .from('group_join_requests')
+      .select('group_request_id')
+      .in('group_request_id', requestIds)
+      .eq('status', 'Accepted');
+
+    if (participantError) {
+      throw participantError;
+    }
+
+    for (const participant of participants ?? []) {
+      const requestId = String(participant.group_request_id);
+      participantCounts.set(requestId, (participantCounts.get(requestId) ?? 0) + 1);
+    }
+  }
+
+  return json({
+    requests: requests.map(request => ({
+      ...request,
+      accepted_participant_count: participantCounts.get(request.id) ?? 0,
+      remaining_slots: Math.max(request.max_members - (participantCounts.get(request.id) ?? 0), 0),
+    })),
+    filter: {
+      visibility: 'Public',
+      status: 'Forming',
+      expiredRequestsHidden: true,
+    },
+  });
+}
+
 function pendingImplementation(action: GroupFormationAction, actor: UserRecord) {
   return new Response(JSON.stringify({
     ok: false,
@@ -247,6 +298,8 @@ Deno.serve(async request => {
 
     switch (body.action) {
       case 'listPublic':
+        return listPublicFormationRequests(actor);
+
       case 'getRequest':
       case 'acceptInvite':
         assertVerifiedMember(actor);

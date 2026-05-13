@@ -1,5 +1,5 @@
 {
-  "scenario": "phase2-group-formation-create-request-validation",
+  "scenario": "phase2-group-formation-public-discovery-validation",
   "function": "supabase/functions/group-formation/index.ts",
   "config": "supabase/config.toml",
   "routedActions": [
@@ -22,8 +22,9 @@
     "all planned Phase 2 formation actions are routed",
     "createRequest inserts a Forming group_requests row with config-driven min/max/expiry validation",
     "createRequest inserts the creator as an Accepted formation participant",
+    "listPublic returns only Public Forming requests that are not expired with accepted participant counts",
     "Supabase function config registers group-formation with internal token verification pattern"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-13T14:10:02.268Z"
+  "validatedAt": "2026-05-13T14:24:45.589Z"
 }
