@@ -1,8 +1,8 @@
 # UniEqub Phase 2 Development Progress Tracker
 
-Version: 1.7
+Version: 1.8
 Last Updated: 2026-05-13
-Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation create/list/join-request backend paths started
+Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation create/list/join/participant-management backend paths started
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -115,7 +115,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-302 | Agent | Implement create draft/forming request. | Completed | P2-301 | Verified, unrestricted member can create `group_requests` row with expiry and config-driven min/max rules. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
 | P2-303 | Agent | Implement public forming group discovery. | Completed | P2-302 | Eligible users can list public forming requests without seeing private requests. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
 | P2-304 | Agent | Implement request-to-join forming group. | Completed | P2-303 | Eligible users can request join after accepting group terms. | `supabase/functions/group-formation/index.ts`; `supabase/functions/_shared/contracts.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
-| P2-305 | Agent | Implement creator accept/reject/remove participant. | Not Started | P2-304 | Creator can manage pending/accepted formation participants with audit events. | Function test/evidence |
+| P2-305 | Agent | Implement creator accept/reject/remove participant. | Completed | P2-304 | Creator can manage pending/accepted formation participants with audit events. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
 | P2-306 | Agent | Implement invite code/direct invitation and accept invite. | Not Started | P2-301 | Private invite flow can add accepted participants without public discovery. | Function test/evidence |
 | P2-307 | User | Decide final wording for payout vesting risk warning and mandatory join agreement. | Not Started | P2-006 | Wording is approved for UI and defense. | `Build/delivery/evidence/vesting-warning-copy.md` |
 | P2-308 | Agent | Implement private vesting override with creator warning acceptance. | Not Started | P2-306, P2-307 | Creator can disable vesting only for private invite-based request and audit event is written. | Function test/evidence |
@@ -314,3 +314,11 @@ Fourth repo-local Phase 3 group-formation batch completed on 2026-05-13:
 3. required member eligibility, current terms acceptance, public visibility, `Forming` status, non-expired request state, and available capacity before join requests are created
 4. created or reused a `Requested` `group_join_requests` row so duplicate requests are handled idempotently
 5. refreshed `Build/delivery/evidence/phase2-formation-validation.json` with static evidence for request-to-join behavior
+
+Fifth repo-local Phase 3 group-formation batch completed on 2026-05-13:
+
+1. implemented the `acceptJoin` and `removeParticipant` branches in `supabase/functions/group-formation/index.ts`
+2. required creator ownership, `Forming` request status, non-expired request state, and protected the creator participant row from management changes
+3. allowed creators to accept `Requested` participants while enforcing remaining capacity
+4. mapped `removeParticipant` to `Rejected` for pending requests and `Removed` for accepted participants
+5. wrote audit events for accepted, rejected, and removed formation participants and refreshed `Build/delivery/evidence/phase2-formation-validation.json`

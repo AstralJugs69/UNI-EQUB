@@ -1,4 +1,5 @@
 import { verifySession } from '../_shared/auth.ts';
+import { writeAuditEvent } from '../_shared/audit.ts';
 import { fail, json } from '../_shared/contracts.ts';
 import type { CreateGroupFormationRequest, GroupFormationAction, GroupFormationPayload } from '../_shared/contracts.ts';
 import { loadConfigValue } from '../_shared/config.ts';
@@ -364,6 +365,150 @@ async function requestJoinFormationGroup(actor: UserRecord, body: GroupFormation
   }, 201);
 }
 
+async function loadCreatorManagedJoinRequest(actor: UserRecord, joinRequestId: string | undefined) {
+  if (!joinRequestId) {
+    throw new Error('Missing join request id.');
+  }
+
+  const { data: joinRequest, error: joinError } = await supabaseAdmin
+    .from('group_join_requests')
+    .select('*')
+    .eq('id', joinRequestId)
+    .single();
+
+  if (joinError) {
+    throw joinError;
+  }
+
+  const participant = joinRequest as GroupJoinRequestRecord;
+  const { data: groupRequest, error: groupError } = await supabaseAdmin
+    .from('group_requests')
+    .select('*')
+    .eq('id', participant.group_request_id)
+    .single();
+
+  if (groupError) {
+    throw groupError;
+  }
+
+  const request = groupRequest as GroupRequestRecord;
+  if (request.creator_id !== actor.User_ID) {
+    throw new Error('Only the group request creator can manage formation participants.');
+  }
+  if (request.status !== 'Forming') {
+    throw new Error('Participants can only be managed while a group request is forming.');
+  }
+  if (request.expires_at && new Date(request.expires_at).getTime() <= Date.now()) {
+    throw new Error('This group request has expired.');
+  }
+  if (participant.user_id === actor.User_ID) {
+    throw new Error('The creator participant row cannot be changed through participant management.');
+  }
+
+  return { request, participant };
+}
+
+async function acceptJoinRequest(actor: UserRecord, body: GroupFormationPayload) {
+  const { request, participant } = await loadCreatorManagedJoinRequest(actor, body.joinRequestId);
+  if (participant.status === 'Accepted') {
+    return json({ groupRequest: request, joinRequest: participant, alreadyAccepted: true });
+  }
+  if (participant.status !== 'Requested') {
+    throw new Error('Only requested participants can be accepted.');
+  }
+
+  const acceptedCount = await countAcceptedParticipants(request.id);
+  if (acceptedCount >= request.max_members) {
+    throw new Error('This group request has no remaining slots.');
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('group_join_requests')
+    .update({
+      status: 'Accepted',
+      accepted_at: new Date().toISOString(),
+      rejected_at: null,
+      removed_at: null,
+      decision_by: actor.User_ID,
+      decision_reason: cleanText(body.decisionReason) || 'Creator accepted participant into the forming group.',
+    })
+    .eq('id', participant.id)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  await writeAuditEvent({
+    actor,
+    eventType: 'group_formation_join_accepted',
+    entityType: 'group_join_requests',
+    entityId: participant.id,
+    metadata: {
+      group_request_id: request.id,
+      participant_user_id: participant.user_id,
+    },
+  });
+
+  return json({
+    groupRequest: request,
+    joinRequest: data,
+    accepted_participant_count: acceptedCount + 1,
+    remaining_slots: Math.max(request.max_members - acceptedCount - 1, 0),
+  });
+}
+
+async function removeFormationParticipant(actor: UserRecord, body: GroupFormationPayload) {
+  const { request, participant } = await loadCreatorManagedJoinRequest(actor, body.joinRequestId);
+  if (participant.status === 'Rejected' || participant.status === 'Removed') {
+    return json({ groupRequest: request, joinRequest: participant, alreadyFinal: true });
+  }
+  if (participant.status !== 'Requested' && participant.status !== 'Accepted') {
+    throw new Error('Only requested or accepted participants can be rejected or removed.');
+  }
+
+  const now = new Date().toISOString();
+  const nextStatus = participant.status === 'Requested' ? 'Rejected' : 'Removed';
+  const { data, error } = await supabaseAdmin
+    .from('group_join_requests')
+    .update({
+      status: nextStatus,
+      rejected_at: nextStatus === 'Rejected' ? now : participant.rejected_at,
+      removed_at: nextStatus === 'Removed' ? now : participant.removed_at,
+      decision_by: actor.User_ID,
+      decision_reason: cleanText(body.decisionReason) || (nextStatus === 'Rejected'
+        ? 'Creator rejected participant request.'
+        : 'Creator removed participant from the forming group.'),
+    })
+    .eq('id', participant.id)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  await writeAuditEvent({
+    actor,
+    eventType: nextStatus === 'Rejected' ? 'group_formation_join_rejected' : 'group_formation_participant_removed',
+    entityType: 'group_join_requests',
+    entityId: participant.id,
+    metadata: {
+      group_request_id: request.id,
+      participant_user_id: participant.user_id,
+      previous_status: participant.status,
+      next_status: nextStatus,
+    },
+  });
+
+  return json({
+    groupRequest: request,
+    joinRequest: data,
+    action: nextStatus,
+  });
+}
+
 function pendingImplementation(action: GroupFormationAction, actor: UserRecord) {
   return new Response(JSON.stringify({
     ok: false,
@@ -421,7 +566,13 @@ Deno.serve(async request => {
         return requestJoinFormationGroup(actor, body);
 
       case 'acceptJoin':
+        assertVerifiedMember(actor);
+        return acceptJoinRequest(actor, body);
+
       case 'removeParticipant':
+        assertVerifiedMember(actor);
+        return removeFormationParticipant(actor, body);
+
       case 'invite':
       case 'submitForApproval':
         assertVerifiedMember(actor);

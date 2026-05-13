@@ -64,6 +64,10 @@ function main() {
     'requestJoinFormationGroup',
     'assertRequestCanReceivePublicJoinRequest',
     'countAcceptedParticipants',
+    'loadCreatorManagedJoinRequest',
+    'acceptJoinRequest',
+    'removeFormationParticipant',
+    'writeAuditEvent',
     'getReliabilityJoinGate',
     'loadFormationPolicySnapshot',
     'Deno.serve',
@@ -109,11 +113,24 @@ function main() {
     'groupTermsAccepted?: boolean',
   ].forEach(token => assertIncludes(contracts, token, 'request join contract token'));
 
+  [
+    'Only the group request creator can manage formation participants.',
+    'The creator participant row cannot be changed through participant management.',
+    'group_formation_join_accepted',
+    'group_formation_join_rejected',
+    'group_formation_participant_removed',
+    "status: 'Accepted'",
+    "status: nextStatus",
+    "nextStatus === 'Rejected'",
+    "nextStatus === 'Removed'",
+    'accepted_participant_count: acceptedCount + 1',
+  ].forEach(token => assertIncludes(source, token, 'creator participant management token'));
+
   assertIncludes(config, '[functions.group-formation]', 'Supabase function config');
   assertIncludes(config, 'verify_jwt = false', 'function JWT config style');
 
   const result = {
-    scenario: 'phase2-group-formation-request-join-validation',
+    scenario: 'phase2-group-formation-participant-management-validation',
     function: 'supabase/functions/group-formation/index.ts',
     contracts: 'supabase/functions/_shared/contracts.ts',
     config: 'supabase/config.toml',
@@ -127,6 +144,7 @@ function main() {
       'createRequest inserts the creator as an Accepted formation participant',
       'listPublic returns only Public Forming requests that are not expired with accepted participant counts',
       'requestJoin requires current terms acceptance and creates or reuses a Requested join row',
+      'creator can accept requested participants and reject/remove participants with audit events',
       'Supabase function config registers group-formation with internal token verification pattern',
     ],
     requiresSupabaseCredentials: false,
