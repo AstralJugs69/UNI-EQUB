@@ -67,6 +67,13 @@ function main() {
     'loadCreatorManagedJoinRequest',
     'acceptJoinRequest',
     'removeFormationParticipant',
+    'loadCreatorManagedGroupRequest',
+    'createFormationInvitation',
+    'acceptFormationInvitation',
+    'loadPendingInvitation',
+    'assertInvitationMatchesActor',
+    'createInviteCode',
+    'normalizeInviteTarget',
     'writeAuditEvent',
     'getReliabilityJoinGate',
     'loadFormationPolicySnapshot',
@@ -126,11 +133,26 @@ function main() {
     'accepted_participant_count: acceptedCount + 1',
   ].forEach(token => assertIncludes(source, token, 'creator participant management token'));
 
+  [
+    ".from('group_invitations')",
+    'group_formation_invitation_created',
+    'group_formation_invitation_accepted',
+    "invite_mode === 'PublicRequest'",
+    'Invitation requires a target user, phone/student id, or invite code.',
+    'This invitation belongs to another user.',
+    'This invitation does not match the signed-in member.',
+    'The current group terms must be accepted before accepting an invite.',
+    "status: 'Pending'",
+    "status: 'Accepted'",
+    'invite_code: inviteCode',
+    'accepted_at: now',
+  ].forEach(token => assertIncludes(source, token, 'invite implementation token'));
+
   assertIncludes(config, '[functions.group-formation]', 'Supabase function config');
   assertIncludes(config, 'verify_jwt = false', 'function JWT config style');
 
   const result = {
-    scenario: 'phase2-group-formation-participant-management-validation',
+    scenario: 'phase2-group-formation-invitation-validation',
     function: 'supabase/functions/group-formation/index.ts',
     contracts: 'supabase/functions/_shared/contracts.ts',
     config: 'supabase/config.toml',
@@ -145,6 +167,7 @@ function main() {
       'listPublic returns only Public Forming requests that are not expired with accepted participant counts',
       'requestJoin requires current terms acceptance and creates or reuses a Requested join row',
       'creator can accept requested participants and reject/remove participants with audit events',
+      'creator can create invitations and invited members can accept them into accepted participation',
       'Supabase function config registers group-formation with internal token verification pattern',
     ],
     requiresSupabaseCredentials: false,

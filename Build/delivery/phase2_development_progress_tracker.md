@@ -1,8 +1,8 @@
 # UniEqub Phase 2 Development Progress Tracker
 
-Version: 1.8
+Version: 1.9
 Last Updated: 2026-05-13
-Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation create/list/join/participant-management backend paths started
+Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation create/list/join/participant/invite backend paths started
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -116,7 +116,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-303 | Agent | Implement public forming group discovery. | Completed | P2-302 | Eligible users can list public forming requests without seeing private requests. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
 | P2-304 | Agent | Implement request-to-join forming group. | Completed | P2-303 | Eligible users can request join after accepting group terms. | `supabase/functions/group-formation/index.ts`; `supabase/functions/_shared/contracts.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
 | P2-305 | Agent | Implement creator accept/reject/remove participant. | Completed | P2-304 | Creator can manage pending/accepted formation participants with audit events. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
-| P2-306 | Agent | Implement invite code/direct invitation and accept invite. | Not Started | P2-301 | Private invite flow can add accepted participants without public discovery. | Function test/evidence |
+| P2-306 | Agent | Implement invite code/direct invitation and accept invite. | Completed | P2-301 | Private invite flow can add accepted participants without public discovery. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
 | P2-307 | User | Decide final wording for payout vesting risk warning and mandatory join agreement. | Not Started | P2-006 | Wording is approved for UI and defense. | `Build/delivery/evidence/vesting-warning-copy.md` |
 | P2-308 | Agent | Implement private vesting override with creator warning acceptance. | Not Started | P2-306, P2-307 | Creator can disable vesting only for private invite-based request and audit event is written. | Function test/evidence |
 | P2-309 | Agent | Implement submit-for-approval when accepted participants meet configured minimum. | Not Started | P2-305/P2-306 | Request moves to `PendingApproval`; notifications/audit are written. | Function test/evidence |
@@ -322,3 +322,11 @@ Fifth repo-local Phase 3 group-formation batch completed on 2026-05-13:
 3. allowed creators to accept `Requested` participants while enforcing remaining capacity
 4. mapped `removeParticipant` to `Rejected` for pending requests and `Removed` for accepted participants
 5. wrote audit events for accepted, rejected, and removed formation participants and refreshed `Build/delivery/evidence/phase2-formation-validation.json`
+
+Sixth repo-local Phase 3 group-formation batch completed on 2026-05-13:
+
+1. implemented the `invite` and `acceptInvite` branches in `supabase/functions/group-formation/index.ts`
+2. allowed creators to create invite-code and direct invitations for invite-enabled forming requests
+3. required pending, non-expired invitation state and actor/user or phone target matching before invite acceptance
+4. required current group terms acceptance before an invited member is added as an `Accepted` formation participant
+5. wrote audit events for invitation creation and acceptance and refreshed `Build/delivery/evidence/phase2-formation-validation.json`

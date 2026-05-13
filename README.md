@@ -25,7 +25,7 @@ This repository is organized as an implementation workspace around the original 
 - The original five core MVP tables remain canonical: `User`, `EqubGroup`, `GroupMembers`, `Round`, and `Transaction`.
 - The initial Phase 2 foundation migration adds group formation, contribution obligation, mock provider attempt, wallet/simulated ledger, payout request/schedule, reliability restriction, durable notification, audit event, and app configuration tables.
 - The shared Phase 2 backend helper batch adds config, audit, notification, reliability, obligation, payment attempt, ledger, and payout vesting scaffolding while leaving sensitive writes behind Edge Functions.
-- The `group-formation` Edge Function currently provides the Phase 2 command boundary, initial create-request branch, public forming-group discovery, request-to-join branch, and creator participant management; invite/submit/admin workflows are being added incrementally.
+- The `group-formation` Edge Function currently provides the Phase 2 command boundary, initial create-request branch, public forming-group discovery, request-to-join branch, creator participant management, and invite acceptance; submit/admin workflows are being added incrementally.
 - Payment behavior remains sandbox/mock for the capstone; real payment provider integration is future work only.
 
 ## Commands

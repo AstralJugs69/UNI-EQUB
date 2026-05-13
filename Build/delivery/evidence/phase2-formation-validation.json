@@ -1,5 +1,5 @@
 {
-  "scenario": "phase2-group-formation-participant-management-validation",
+  "scenario": "phase2-group-formation-invitation-validation",
   "function": "supabase/functions/group-formation/index.ts",
   "contracts": "supabase/functions/_shared/contracts.ts",
   "config": "supabase/config.toml",
@@ -26,8 +26,9 @@
     "listPublic returns only Public Forming requests that are not expired with accepted participant counts",
     "requestJoin requires current terms acceptance and creates or reuses a Requested join row",
     "creator can accept requested participants and reject/remove participants with audit events",
+    "creator can create invitations and invited members can accept them into accepted participation",
     "Supabase function config registers group-formation with internal token verification pattern"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-13T15:14:12.669Z"
+  "validatedAt": "2026-05-13T15:23:25.426Z"
 }

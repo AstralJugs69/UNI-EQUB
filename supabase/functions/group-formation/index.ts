@@ -5,7 +5,7 @@ import type { CreateGroupFormationRequest, GroupFormationAction, GroupFormationP
 import { loadConfigValue } from '../_shared/config.ts';
 import { getReliabilityJoinGate } from '../_shared/reliability.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import type { GroupJoinRequestRecord, GroupRequestRecord, UserRecord } from '../_shared/types.ts';
+import type { GroupInvitationRecord, GroupJoinRequestRecord, GroupRequestRecord, UserRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -86,6 +86,14 @@ function assertAllowedValue<T extends string>(value: string, allowed: T[], label
 
 function addDays(date: Date, days: number) {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+function normalizeInviteTarget(value: string | undefined | null) {
+  return cleanText(value).replace(/\s+/g, '').toLowerCase();
+}
+
+function createInviteCode() {
+  return crypto.randomUUID().replace(/-/g, '').slice(0, 12).toUpperCase();
 }
 
 function validateCreateRequestInput(input: CreateGroupFormationRequest | undefined, policy: Awaited<ReturnType<typeof loadFormationPolicySnapshot>>) {
@@ -509,6 +517,232 @@ async function removeFormationParticipant(actor: UserRecord, body: GroupFormatio
   });
 }
 
+async function loadCreatorManagedGroupRequest(actor: UserRecord, requestId: string | undefined) {
+  if (!requestId) {
+    throw new Error('Missing group request id.');
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('group_requests')
+    .select('*')
+    .eq('id', requestId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const request = data as GroupRequestRecord;
+  if (request.creator_id !== actor.User_ID) {
+    throw new Error('Only the group request creator can invite participants.');
+  }
+  if (request.status !== 'Forming') {
+    throw new Error('Invitations can only be created while a group request is forming.');
+  }
+  if (request.expires_at && new Date(request.expires_at).getTime() <= Date.now()) {
+    throw new Error('This group request has expired.');
+  }
+  if (request.invite_mode === 'PublicRequest') {
+    throw new Error('This group request does not allow invite-based joining.');
+  }
+
+  return request;
+}
+
+async function createFormationInvitation(actor: UserRecord, body: GroupFormationPayload) {
+  const request = await loadCreatorManagedGroupRequest(actor, body.requestId);
+  const invitedTarget = cleanText(body.invitedPhoneOrStudentId) || null;
+  const shouldCreateInviteCode = request.invite_mode === 'InviteCode' || request.invite_mode === 'InviteCodeAndDirect' || (!body.targetUserId && !invitedTarget);
+  const inviteCode = body.inviteCode ? cleanText(body.inviteCode).toUpperCase() : (shouldCreateInviteCode ? createInviteCode() : null);
+
+  if (!body.targetUserId && !invitedTarget && !inviteCode) {
+    throw new Error('Invitation requires a target user, phone/student id, or invite code.');
+  }
+  if (body.targetUserId === actor.User_ID) {
+    throw new Error('The creator is already a participant in this forming group.');
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('group_invitations')
+    .insert({
+      group_request_id: request.id,
+      invited_user_id: body.targetUserId ?? null,
+      invited_phone_or_student_id: invitedTarget,
+      invite_code: inviteCode,
+      status: 'Pending',
+      expires_at: request.expires_at,
+      created_by: actor.User_ID,
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  await writeAuditEvent({
+    actor,
+    eventType: 'group_formation_invitation_created',
+    entityType: 'group_invitations',
+    entityId: (data as GroupInvitationRecord).id,
+    metadata: {
+      group_request_id: request.id,
+      invited_user_id: body.targetUserId ?? null,
+      invited_phone_or_student_id: invitedTarget,
+      has_invite_code: Boolean(inviteCode),
+    },
+  });
+
+  return json({
+    groupRequest: request,
+    invitation: data,
+  }, 201);
+}
+
+async function loadPendingInvitation(body: GroupFormationPayload) {
+  if (!body.invitationId && !body.inviteCode) {
+    throw new Error('Missing invitation id or invite code.');
+  }
+
+  let query = supabaseAdmin.from('group_invitations').select('*');
+  if (body.invitationId) {
+    query = query.eq('id', body.invitationId);
+  } else {
+    query = query.eq('invite_code', cleanText(body.inviteCode).toUpperCase());
+  }
+
+  const { data, error } = await query.single();
+  if (error) {
+    throw error;
+  }
+
+  const invitation = data as GroupInvitationRecord;
+  if (invitation.status !== 'Pending') {
+    throw new Error('This invitation is no longer pending.');
+  }
+  if (invitation.expires_at && new Date(invitation.expires_at).getTime() <= Date.now()) {
+    throw new Error('This invitation has expired.');
+  }
+  return invitation;
+}
+
+function assertInvitationMatchesActor(invitation: GroupInvitationRecord, actor: UserRecord, body: GroupFormationPayload) {
+  if (invitation.invited_user_id && invitation.invited_user_id !== actor.User_ID) {
+    throw new Error('This invitation belongs to another user.');
+  }
+  if (invitation.invited_phone_or_student_id) {
+    const actorPhone = normalizeInviteTarget(actor.Phone_Number);
+    const target = normalizeInviteTarget(invitation.invited_phone_or_student_id);
+    if (actorPhone !== target) {
+      throw new Error('This invitation does not match the signed-in member.');
+    }
+  }
+  if (!body.groupTermsAccepted) {
+    throw new Error('The current group terms must be accepted before accepting an invite.');
+  }
+}
+
+async function acceptFormationInvitation(actor: UserRecord, body: GroupFormationPayload) {
+  const invitation = await loadPendingInvitation(body);
+  const { data: groupRequest, error: requestError } = await supabaseAdmin
+    .from('group_requests')
+    .select('*')
+    .eq('id', invitation.group_request_id)
+    .single();
+
+  if (requestError) {
+    throw requestError;
+  }
+
+  const request = groupRequest as GroupRequestRecord;
+  assertInvitationMatchesActor(invitation, actor, body);
+  if (body.acceptedTermsVersion !== request.terms_version) {
+    throw new Error('The current group terms must be accepted before accepting an invite.');
+  }
+  if (request.status !== 'Forming') {
+    throw new Error('This group request is not accepting invitations.');
+  }
+  if (request.expires_at && new Date(request.expires_at).getTime() <= Date.now()) {
+    throw new Error('This group request has expired.');
+  }
+
+  const { data: existingRows, error: existingError } = await supabaseAdmin
+    .from('group_join_requests')
+    .select('*')
+    .eq('group_request_id', request.id)
+    .eq('user_id', actor.User_ID)
+    .limit(1);
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  const existing = (existingRows?.[0] ?? null) as GroupJoinRequestRecord | null;
+  const acceptedCount = await countAcceptedParticipants(request.id);
+  if (existing?.status !== 'Accepted' && acceptedCount >= request.max_members) {
+    throw new Error('This group request has no remaining slots.');
+  }
+
+  const now = new Date().toISOString();
+  const participantPayload = {
+    status: 'Accepted',
+    requested_at: existing?.requested_at ?? now,
+    accepted_at: now,
+    rejected_at: null,
+    removed_at: null,
+    decision_by: invitation.created_by,
+    decision_reason: `Accepted invite ${invitation.id} with group terms ${request.terms_version}`,
+  };
+
+  const participantMutation = existing
+    ? supabaseAdmin.from('group_join_requests').update(participantPayload).eq('id', existing.id)
+    : supabaseAdmin.from('group_join_requests').insert({
+      group_request_id: request.id,
+      user_id: actor.User_ID,
+      ...participantPayload,
+    });
+
+  const { data: joinRequest, error: joinError } = await participantMutation.select('*').single();
+  if (joinError) {
+    throw joinError;
+  }
+
+  const { data: updatedInvitation, error: invitationError } = await supabaseAdmin
+    .from('group_invitations')
+    .update({
+      status: 'Accepted',
+      accepted_at: now,
+    })
+    .eq('id', invitation.id)
+    .select('*')
+    .single();
+
+  if (invitationError) {
+    throw invitationError;
+  }
+
+  await writeAuditEvent({
+    actor,
+    eventType: 'group_formation_invitation_accepted',
+    entityType: 'group_invitations',
+    entityId: invitation.id,
+    metadata: {
+      group_request_id: request.id,
+      join_request_id: (joinRequest as GroupJoinRequestRecord).id,
+      previous_join_status: existing?.status ?? null,
+    },
+  });
+
+  const finalAcceptedCount = existing?.status === 'Accepted' ? acceptedCount : acceptedCount + 1;
+  return json({
+    groupRequest: request,
+    invitation: updatedInvitation,
+    joinRequest,
+    accepted_participant_count: finalAcceptedCount,
+    remaining_slots: Math.max(request.max_members - finalAcceptedCount, 0),
+  });
+}
+
 function pendingImplementation(action: GroupFormationAction, actor: UserRecord) {
   return new Response(JSON.stringify({
     ok: false,
@@ -553,9 +787,12 @@ Deno.serve(async request => {
         return listPublicFormationRequests(actor);
 
       case 'getRequest':
-      case 'acceptInvite':
         assertVerifiedMember(actor);
         return pendingImplementation(body.action, actor);
+
+      case 'acceptInvite':
+        await assertNormalFormationEligibility(actor);
+        return acceptFormationInvitation(actor, body);
 
       case 'createRequest':
         await assertNormalFormationEligibility(actor);
@@ -574,6 +811,9 @@ Deno.serve(async request => {
         return removeFormationParticipant(actor, body);
 
       case 'invite':
+        assertVerifiedMember(actor);
+        return createFormationInvitation(actor, body);
+
       case 'submitForApproval':
         assertVerifiedMember(actor);
         return pendingImplementation(body.action, actor);
