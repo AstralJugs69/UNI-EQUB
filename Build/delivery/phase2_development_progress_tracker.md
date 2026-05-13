@@ -1,8 +1,8 @@
 # UniEqub Phase 2 Development Progress Tracker
 
-Version: 1.6
+Version: 1.7
 Last Updated: 2026-05-13
-Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation create/list backend paths started
+Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation create/list/join-request backend paths started
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -114,7 +114,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-301 | Agent | Create `supabase/functions/group-formation/index.ts`. | Completed | P2-104-P2-106, P2-203-P2-206 | Function skeleton validates sessions and routes formation actions. | `supabase/functions/group-formation/index.ts`; `supabase/config.toml`; `Build/delivery/evidence/phase2-formation-validation.json` |
 | P2-302 | Agent | Implement create draft/forming request. | Completed | P2-301 | Verified, unrestricted member can create `group_requests` row with expiry and config-driven min/max rules. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
 | P2-303 | Agent | Implement public forming group discovery. | Completed | P2-302 | Eligible users can list public forming requests without seeing private requests. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
-| P2-304 | Agent | Implement request-to-join forming group. | Not Started | P2-303 | Eligible users can request join after accepting group terms. | Function test/evidence |
+| P2-304 | Agent | Implement request-to-join forming group. | Completed | P2-303 | Eligible users can request join after accepting group terms. | `supabase/functions/group-formation/index.ts`; `supabase/functions/_shared/contracts.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
 | P2-305 | Agent | Implement creator accept/reject/remove participant. | Not Started | P2-304 | Creator can manage pending/accepted formation participants with audit events. | Function test/evidence |
 | P2-306 | Agent | Implement invite code/direct invitation and accept invite. | Not Started | P2-301 | Private invite flow can add accepted participants without public discovery. | Function test/evidence |
 | P2-307 | User | Decide final wording for payout vesting risk warning and mandatory join agreement. | Not Started | P2-006 | Wording is approved for UI and defense. | `Build/delivery/evidence/vesting-warning-copy.md` |
@@ -306,3 +306,11 @@ Third repo-local Phase 3 group-formation batch completed on 2026-05-13:
 3. filtered discovery to `visibility = 'Public'`, `status = 'Forming'`, and non-expired requests only
 4. added accepted participant counts and remaining slot values for read-friendly mobile consumption
 5. refreshed `Build/delivery/evidence/phase2-formation-validation.json` with static evidence for public discovery
+
+Fourth repo-local Phase 3 group-formation batch completed on 2026-05-13:
+
+1. implemented the `requestJoin` branch in `supabase/functions/group-formation/index.ts`
+2. added `groupTermsAccepted` and `acceptedTermsVersion` to the group-formation command payload contract
+3. required member eligibility, current terms acceptance, public visibility, `Forming` status, non-expired request state, and available capacity before join requests are created
+4. created or reused a `Requested` `group_join_requests` row so duplicate requests are handled idempotently
+5. refreshed `Build/delivery/evidence/phase2-formation-validation.json` with static evidence for request-to-join behavior

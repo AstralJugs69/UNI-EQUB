@@ -4,7 +4,7 @@ import type { CreateGroupFormationRequest, GroupFormationAction, GroupFormationP
 import { loadConfigValue } from '../_shared/config.ts';
 import { getReliabilityJoinGate } from '../_shared/reliability.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import type { GroupRequestRecord, UserRecord } from '../_shared/types.ts';
+import type { GroupJoinRequestRecord, GroupRequestRecord, UserRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -257,6 +257,113 @@ async function listPublicFormationRequests(actor: UserRecord) {
   });
 }
 
+async function countAcceptedParticipants(groupRequestId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('group_join_requests')
+    .select('id')
+    .eq('group_request_id', groupRequestId)
+    .eq('status', 'Accepted');
+
+  if (error) {
+    throw error;
+  }
+  return (data ?? []).length;
+}
+
+function assertRequestCanReceivePublicJoinRequest(request: GroupRequestRecord, actor: UserRecord) {
+  if (request.creator_id === actor.User_ID) {
+    throw new Error('Group creators are already participants in their own formation request.');
+  }
+  if (request.visibility !== 'Public') {
+    throw new Error('This group request is private and requires an invitation.');
+  }
+  if (request.status !== 'Forming') {
+    throw new Error('This group request is not accepting join requests.');
+  }
+  if (request.expires_at && new Date(request.expires_at).getTime() <= Date.now()) {
+    throw new Error('This group request has expired.');
+  }
+}
+
+async function requestJoinFormationGroup(actor: UserRecord, body: GroupFormationPayload) {
+  if (!body.requestId) {
+    throw new Error('Missing group request id.');
+  }
+
+  const { data: groupRequest, error } = await supabaseAdmin
+    .from('group_requests')
+    .select('*')
+    .eq('id', body.requestId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const request = groupRequest as GroupRequestRecord;
+  assertRequestCanReceivePublicJoinRequest(request, actor);
+  if (!body.groupTermsAccepted || body.acceptedTermsVersion !== request.terms_version) {
+    throw new Error('The current group terms must be accepted before requesting to join.');
+  }
+
+  const { data: existingRows, error: existingError } = await supabaseAdmin
+    .from('group_join_requests')
+    .select('*')
+    .eq('group_request_id', request.id)
+    .eq('user_id', actor.User_ID)
+    .limit(1);
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  const existing = (existingRows?.[0] ?? null) as GroupJoinRequestRecord | null;
+  const acceptedCount = await countAcceptedParticipants(request.id);
+  if (existing?.status === 'Requested' || existing?.status === 'Accepted') {
+    return json({
+      groupRequest: request,
+      joinRequest: existing,
+      alreadyExisted: true,
+      accepted_participant_count: acceptedCount,
+      remaining_slots: Math.max(request.max_members - acceptedCount, 0),
+    });
+  }
+  if (acceptedCount >= request.max_members) {
+    throw new Error('This group request has no remaining slots.');
+  }
+
+  const payload = {
+    status: 'Requested',
+    requested_at: new Date().toISOString(),
+    accepted_at: null,
+    rejected_at: null,
+    removed_at: null,
+    decision_by: null,
+    decision_reason: `Accepted group terms ${request.terms_version}`,
+  };
+
+  const joinMutation = existing
+    ? supabaseAdmin.from('group_join_requests').update(payload).eq('id', existing.id)
+    : supabaseAdmin.from('group_join_requests').insert({
+      group_request_id: request.id,
+      user_id: actor.User_ID,
+      ...payload,
+    });
+
+  const { data: joinRequest, error: joinError } = await joinMutation.select('*').single();
+  if (joinError) {
+    throw joinError;
+  }
+
+  return json({
+    groupRequest: request,
+    joinRequest,
+    alreadyExisted: false,
+    accepted_participant_count: acceptedCount,
+    remaining_slots: Math.max(request.max_members - acceptedCount, 0),
+  }, 201);
+}
+
 function pendingImplementation(action: GroupFormationAction, actor: UserRecord) {
   return new Response(JSON.stringify({
     ok: false,
@@ -311,7 +418,7 @@ Deno.serve(async request => {
 
       case 'requestJoin':
         await assertNormalFormationEligibility(actor);
-        return pendingImplementation(body.action, actor);
+        return requestJoinFormationGroup(actor, body);
 
       case 'acceptJoin':
       case 'removeParticipant':

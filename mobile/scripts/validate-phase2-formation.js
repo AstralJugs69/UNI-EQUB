@@ -3,6 +3,7 @@ const path = require('node:path');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
 const functionPath = path.join(repoRoot, 'supabase/functions/group-formation/index.ts');
+const contractsPath = path.join(repoRoot, 'supabase/functions/_shared/contracts.ts');
 const configPath = path.join(repoRoot, 'supabase/config.toml');
 
 const requiredActions = [
@@ -48,6 +49,7 @@ function assertIncludes(content, token, label) {
 function main() {
   const args = parseArgs();
   const source = read(functionPath);
+  const contracts = read(contractsPath);
   const config = read(configPath);
 
   [
@@ -59,6 +61,9 @@ function main() {
     'createFormationRequest',
     'validateCreateRequestInput',
     'listPublicFormationRequests',
+    'requestJoinFormationGroup',
+    'assertRequestCanReceivePublicJoinRequest',
+    'countAcceptedParticipants',
     'getReliabilityJoinGate',
     'loadFormationPolicySnapshot',
     'Deno.serve',
@@ -87,12 +92,30 @@ function main() {
     'expiredRequestsHidden',
   ].forEach(token => assertIncludes(source, token, 'public discovery implementation token'));
 
+  [
+    'groupTermsAccepted',
+    'acceptedTermsVersion',
+    'The current group terms must be accepted before requesting to join.',
+    'This group request has no remaining slots.',
+    "status: 'Requested'",
+    'alreadyExisted',
+    "Accepted group terms",
+    "request.visibility !== 'Public'",
+    "request.status !== 'Forming'",
+  ].forEach(token => assertIncludes(source, token, 'request join implementation token'));
+
+  [
+    'acceptedTermsVersion?: string',
+    'groupTermsAccepted?: boolean',
+  ].forEach(token => assertIncludes(contracts, token, 'request join contract token'));
+
   assertIncludes(config, '[functions.group-formation]', 'Supabase function config');
   assertIncludes(config, 'verify_jwt = false', 'function JWT config style');
 
   const result = {
-    scenario: 'phase2-group-formation-public-discovery-validation',
+    scenario: 'phase2-group-formation-request-join-validation',
     function: 'supabase/functions/group-formation/index.ts',
+    contracts: 'supabase/functions/_shared/contracts.ts',
     config: 'supabase/config.toml',
     routedActions: requiredActions,
     completedChecks: [
@@ -103,6 +126,7 @@ function main() {
       'createRequest inserts a Forming group_requests row with config-driven min/max/expiry validation',
       'createRequest inserts the creator as an Accepted formation participant',
       'listPublic returns only Public Forming requests that are not expired with accepted participant counts',
+      'requestJoin requires current terms acceptance and creates or reuses a Requested join row',
       'Supabase function config registers group-formation with internal token verification pattern',
     ],
     requiresSupabaseCredentials: false,

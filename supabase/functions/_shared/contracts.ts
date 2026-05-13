@@ -99,6 +99,8 @@ export interface GroupFormationPayload {
   targetUserId?: string;
   invitedPhoneOrStudentId?: string;
   decisionReason?: string;
+  acceptedTermsVersion?: string;
+  groupTermsAccepted?: boolean;
   createRequest?: CreateGroupFormationRequest;
 }
 
