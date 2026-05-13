@@ -1,0 +1,27 @@
+{
+  "scenario": "phase2-group-formation-skeleton-validation",
+  "function": "supabase/functions/group-formation/index.ts",
+  "config": "supabase/config.toml",
+  "routedActions": [
+    "listPublic",
+    "getRequest",
+    "createRequest",
+    "requestJoin",
+    "acceptJoin",
+    "removeParticipant",
+    "invite",
+    "acceptInvite",
+    "submitForApproval",
+    "adminApprove",
+    "adminReject"
+  ],
+  "completedChecks": [
+    "group-formation Edge Function source exists",
+    "session validation boundary exists",
+    "member/admin role gates exist",
+    "all planned Phase 2 formation actions are routed",
+    "Supabase function config registers group-formation with internal token verification pattern"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-13T13:54:20.267Z"
+}

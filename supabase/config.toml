@@ -25,6 +25,9 @@ verify_jwt = false
 [functions.group-lifecycle]
 verify_jwt = false
 
+[functions.group-formation]
+verify_jwt = false
+
 [functions.contribution-reconcile]
 verify_jwt = false
 

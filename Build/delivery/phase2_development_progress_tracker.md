@@ -1,8 +1,8 @@
 # UniEqub Phase 2 Development Progress Tracker
 
-Version: 1.3
+Version: 1.4
 Last Updated: 2026-05-13
-Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete with local validation evidence
+Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation command boundary skeleton started
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -111,7 +111,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 
 | ID | Owner | Task | Status | Depends On | Acceptance Condition | Required Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| P2-301 | Agent | Create `supabase/functions/group-formation/index.ts`. | Not Started | P2-104-P2-106, P2-203-P2-206 | Function skeleton validates sessions and routes formation actions. | Edge Function source |
+| P2-301 | Agent | Create `supabase/functions/group-formation/index.ts`. | Completed | P2-104-P2-106, P2-203-P2-206 | Function skeleton validates sessions and routes formation actions. | `supabase/functions/group-formation/index.ts`; `supabase/config.toml`; `Build/delivery/evidence/phase2-formation-validation.json` |
 | P2-302 | Agent | Implement create draft/forming request. | Not Started | P2-301 | Verified, unrestricted member can create `group_requests` row with expiry and config-driven min/max rules. | Function test/evidence |
 | P2-303 | Agent | Implement public forming group discovery. | Not Started | P2-302 | Eligible users can list public forming requests without seeing private requests. | Function test/evidence |
 | P2-304 | Agent | Implement request-to-join forming group. | Not Started | P2-303 | Eligible users can request join after accepting group terms. | Function test/evidence |
@@ -282,3 +282,11 @@ Third repo-local Phase 2 helper batch completed on 2026-05-13:
 5. extended `mobile/scripts/validate-phase2-shared.js` and refreshed `Build/delivery/evidence/phase2-shared-validation.json`
 
 Remaining first-wave work is deeper helper behavior tests, target Supabase migration application, and user-only policy approval tasks.
+
+First repo-local Phase 3 group-formation batch completed on 2026-05-13:
+
+1. added `supabase/functions/group-formation/index.ts`
+2. registered `[functions.group-formation]` in `supabase/config.toml`
+3. added token validation, banned-user rejection, member/admin role gates, reliability eligibility gate for create/join routes, and explicit routing for the planned formation actions
+4. returned honest `501` placeholders for workflow branches that are intentionally deferred to P2-302 and later
+5. added `mobile/scripts/validate-phase2-formation.js` and evidence at `Build/delivery/evidence/phase2-formation-validation.json`

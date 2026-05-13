@@ -19,6 +19,7 @@
     "qa:wallet-clearance": "node .\\mobile\\scripts\\validate-wallet-clearance.js --output C:\\dev\\projects\\UNI-EQUB\\Build\\delivery\\evidence\\wallet-clearance-validation.json",
     "qa:ussd-simulator": "node .\\mobile\\scripts\\validate-ussd-simulator.js --output C:\\dev\\projects\\UNI-EQUB\\Build\\delivery\\evidence\\ussd-simulator-validation.json",
     "qa:phase2-foundation": "node .\\mobile\\scripts\\validate-phase2-foundation.js --output .\\Build\\delivery\\evidence\\phase2-foundation-validation.json",
-    "qa:phase2-shared": "node .\\mobile\\scripts\\validate-phase2-shared.js --output .\\Build\\delivery\\evidence\\phase2-shared-validation.json"
+    "qa:phase2-shared": "node .\\mobile\\scripts\\validate-phase2-shared.js --output .\\Build\\delivery\\evidence\\phase2-shared-validation.json",
+    "qa:phase2-formation": "node .\\mobile\\scripts\\validate-phase2-formation.js --output .\\Build\\delivery\\evidence\\phase2-formation-validation.json"
   }
 }
