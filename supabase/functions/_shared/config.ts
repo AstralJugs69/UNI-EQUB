@@ -3,11 +3,16 @@ import type { AppConfigRecord } from './types.ts';
 
 export const PHASE2_DEFAULT_APP_CONFIG = {
   min_group_members: 5,
+  max_group_members: 12,
   group_formation_expiry_days: 3,
   frozen_group_poll_hours: 24,
   required_perfect_groups_for_trusted_status: 3,
   new_user_active_group_limit: 1,
+  low_risk_recovery_group_max_payout: null,
+  default_grace_period_hours: 24,
   mock_payment_timeout_minutes: 15,
+  first_cycle_payout_release_ratio: 0.8,
+  minimum_immediate_payout_amount: 0,
   payout_rounding_strategy: 'floor',
   enable_private_vesting_override: true,
 } as const;

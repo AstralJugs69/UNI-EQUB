@@ -9,15 +9,18 @@
     "notifications": "supabase/functions/_shared/notifications.ts",
     "reliability": "supabase/functions/_shared/reliability.ts",
     "obligations": "supabase/functions/_shared/obligations.ts",
+    "paymentAttempts": "supabase/functions/_shared/paymentAttempts.ts",
+    "ledger": "supabase/functions/_shared/ledger.ts",
+    "payoutVesting": "supabase/functions/_shared/payoutVesting.ts",
     "mockBackend": "mobile/src/services/mock/mockBackend.ts"
   },
   "completedChecks": [
     "EqubGroupStatus and GroupRequestStatus are split",
     "Phase 2 companion record types exist in mobile and shared Edge Function types",
-    "Config, audit, notifications, reliability, and obligations helper scaffolds exist",
-    "Group formation backend command payload scaffold exists",
+    "Config, audit, notifications, reliability, obligations, payment attempts, ledger, and payout vesting helper scaffolds exist",
+    "Group formation, payment attempt, and payout backend command payload scaffolds exist",
     "Rejected is not modeled as canonical EqubGroup.Status"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-12T22:20:56.503Z"
+  "validatedAt": "2026-05-13T13:40:02.670Z"
 }

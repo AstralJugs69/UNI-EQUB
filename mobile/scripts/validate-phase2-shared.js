@@ -12,6 +12,9 @@ const files = {
   notifications: 'supabase/functions/_shared/notifications.ts',
   reliability: 'supabase/functions/_shared/reliability.ts',
   obligations: 'supabase/functions/_shared/obligations.ts',
+  paymentAttempts: 'supabase/functions/_shared/paymentAttempts.ts',
+  ledger: 'supabase/functions/_shared/ledger.ts',
+  payoutVesting: 'supabase/functions/_shared/payoutVesting.ts',
   mockBackend: 'mobile/src/services/mock/mockBackend.ts',
 };
 
@@ -44,12 +47,15 @@ const requiredExports = {
     'UserReliabilityProfileRecord',
     'UserRestrictionRecord',
   ],
-  sharedContracts: ['GroupFormationAction', 'CreateGroupFormationRequest', 'GroupFormationPayload'],
+  sharedContracts: ['GroupFormationAction', 'CreateGroupFormationRequest', 'GroupFormationPayload', 'PaymentAttemptAction', 'PaymentAttemptPayload', 'PayoutAction', 'PayoutPayload'],
   config: ['PHASE2_DEFAULT_APP_CONFIG', 'loadAppConfig', 'loadConfigValue', 'readPositiveIntegerConfig'],
   audit: ['AuditEventInput', 'writeAuditEvent', 'auditMetadata'],
   notifications: ['CreateNotificationInput', 'createNotification', 'markUserNotificationsRead'],
   reliability: ['getReliabilityProfile', 'ensureReliabilityProfile', 'listActiveRestrictions', 'getReliabilityJoinGate'],
   obligations: ['ensureContributionObligationsForRound', 'getRoundObligationReadiness', 'isContributionObligationSettled'],
+  paymentAttempts: ['CreatePaymentAttemptInput', 'buildPaymentAttemptIdempotencyKey', 'ensurePaymentProviderAttempt', 'recordPaymentAttemptCallback'],
+  ledger: ['LedgerEntryInput', 'recordLedgerEntry', 'listLedgerEntriesForReference', 'ledgerMemo'],
+  payoutVesting: ['PayoutVestingInput', 'calculatePayoutVesting', 'calculatePayoutVestingFromConfig', 'buildPayoutReleaseScheduleAmounts'],
 };
 
 function parseArgs() {
@@ -109,8 +115,8 @@ function main() {
     completedChecks: [
       'EqubGroupStatus and GroupRequestStatus are split',
       'Phase 2 companion record types exist in mobile and shared Edge Function types',
-      'Config, audit, notifications, reliability, and obligations helper scaffolds exist',
-      'Group formation backend command payload scaffold exists',
+      'Config, audit, notifications, reliability, obligations, payment attempts, ledger, and payout vesting helper scaffolds exist',
+      'Group formation, payment attempt, and payout backend command payload scaffolds exist',
       'Rejected is not modeled as canonical EqubGroup.Status',
     ],
     requiresSupabaseCredentials: false,

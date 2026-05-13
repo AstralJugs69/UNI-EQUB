@@ -8,6 +8,8 @@ export type RegisterLoginAction = 'register' | 'requestOtp' | 'verifyOtp' | 'beg
 export type GroupLifecycleAction = 'listBrowseable' | 'getGroup' | 'getGroupStatus' | 'createRequest' | 'listPending' | 'approve' | 'reject' | 'freeze' | 'join' | 'getDashboard';
 export type GroupFormationAction = 'listPublic' | 'getRequest' | 'createRequest' | 'requestJoin' | 'acceptJoin' | 'removeParticipant' | 'invite' | 'acceptInvite' | 'submitForApproval' | 'adminApprove' | 'adminReject';
 export type ContributionAction = 'payContribution' | 'startContributionUssd' | 'submitContributionUssd' | 'listTransactions' | 'getWallet' | 'reconcileProviderCallback';
+export type PaymentAttemptAction = 'initiateContributionAttempt' | 'recordProviderCallback' | 'markAttemptTimeout' | 'markAttemptCancelled';
+export type PayoutAction = 'createPayoutRequest' | 'processImmediateRelease' | 'releaseReservedPayout' | 'freezePayoutRequest' | 'cancelPayoutRequest';
 export type ReportAction = 'getAdminOverview' | 'listReports' | 'exportReport';
 
 export interface LoginRequest {
@@ -110,6 +112,36 @@ export interface ContributionPayload {
   senderPhone?: string;
   gatewayRef?: string;
   amount?: number;
+}
+
+export interface PaymentAttemptPayload {
+  action: PaymentAttemptAction;
+  token: string;
+  groupId?: string;
+  roundId?: string;
+  obligationId?: string;
+  attemptId?: string;
+  idempotencyKey?: string;
+  gatewayReference?: string;
+  providerName?: 'Telebirr' | 'MockUSSD' | 'ChapaSandbox';
+  providerMode?: 'Mock' | 'Sandbox';
+  amount?: number;
+  senderPhone?: string;
+  callbackPayload?: Record<string, unknown>;
+}
+
+export interface PayoutPayload {
+  action: PayoutAction;
+  token: string;
+  payoutRequestId?: string;
+  groupId?: string;
+  roundId?: string;
+  winnerUserId?: string;
+  totalPayoutAmount?: number;
+  immediateReleaseAmount?: number;
+  reservedAmount?: number;
+  triggerObligationId?: string;
+  decisionReason?: string;
 }
 
 export interface PayoutWithdrawPayload {

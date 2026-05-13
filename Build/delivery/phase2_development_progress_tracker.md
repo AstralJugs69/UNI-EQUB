@@ -1,8 +1,8 @@
 # UniEqub Phase 2 Development Progress Tracker
 
-Version: 1.2
+Version: 1.3
 Last Updated: 2026-05-13
-Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding started with local validation evidence
+Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete with local validation evidence
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -100,12 +100,12 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-205 | Agent | Add `_shared/notifications.ts` helper for durable notification creation. | Completed | P2-103 | Functions can create consistent notification rows. | `supabase/functions/_shared/notifications.ts`; `npm run qa:phase2-shared` |
 | P2-206 | Agent | Add `_shared/reliability.ts` helper for public status, active restrictions, and active group limits. | Completed | P2-112, P2-113 | Join/pay/payout checks can query a single helper. | `supabase/functions/_shared/reliability.ts`; `npm run qa:phase2-shared` |
 | P2-207 | Agent | Add `_shared/obligations.ts` helper for round obligation generation and readiness. | Completed | P2-107 | Round open and payment flows can generate/read obligations idempotently. | `supabase/functions/_shared/obligations.ts`; `npm run qa:phase2-shared` |
-| P2-208 | Agent | Add `_shared/paymentAttempts.ts` helper for idempotent provider attempt lifecycle. | Not Started | P2-108 | Mock provider callbacks cannot duplicate successful transactions. | Helper tests |
-| P2-209 | Agent | Add `_shared/ledger.ts` helper for append-oriented simulated ledger entries. | Not Started | P2-109 | Contribution, payout, reserve, default, refund flows write ledger entries consistently. | Helper tests |
-| P2-210 | Agent | Add `_shared/payoutVesting.ts` helper for maturity, immediate release, reserve, and release schedule calculation. | Not Started | P2-101, P2-110, P2-111, P2-112 | Payout flow can compute trusted vs probationary payouts deterministically. | Helper tests |
-| P2-211 | Agent | Update `_shared/contracts.ts` with Phase 2 command payloads without breaking existing MVP actions. | In Progress | P2-201-P2-210 | Old actions still compile; new action payloads are typed. | Group formation command payload scaffold added in `supabase/functions/_shared/contracts.ts`; payment/payout command payloads remain pending |
+| P2-208 | Agent | Add `_shared/paymentAttempts.ts` helper for idempotent provider attempt lifecycle. | Completed | P2-108 | Mock provider callbacks cannot duplicate successful transactions. | `supabase/functions/_shared/paymentAttempts.ts`; `npm run qa:phase2-shared`; typecheck passing |
+| P2-209 | Agent | Add `_shared/ledger.ts` helper for append-oriented simulated ledger entries. | Completed | P2-109 | Contribution, payout, reserve, default, refund flows write ledger entries consistently. | `supabase/functions/_shared/ledger.ts`; `npm run qa:phase2-shared`; typecheck passing |
+| P2-210 | Agent | Add `_shared/payoutVesting.ts` helper for maturity, immediate release, reserve, and release schedule calculation. | Completed | P2-101, P2-110, P2-111, P2-112 | Payout flow can compute trusted vs probationary payouts deterministically. | `supabase/functions/_shared/payoutVesting.ts`; `npm run qa:phase2-shared`; typecheck passing |
+| P2-211 | Agent | Update `_shared/contracts.ts` with Phase 2 command payloads without breaking existing MVP actions. | Completed | P2-201-P2-210 | Old actions still compile; new action payloads are typed. | `supabase/functions/_shared/contracts.ts`; group formation, payment attempt, and payout payload scaffolds added; typecheck passing |
 | P2-212 | Agent | Add service-contract placeholders for frontend-facing Phase 2 services only where screens need them. | Not Started | P2-202 | `AppServices` grows intentionally and does not expose sensitive direct-write helpers. | Typecheck passing |
-| P2-213 | Agent | Add tests for helper-level status transitions and idempotency. | Not Started | P2-203-P2-210 | Tests cover config, audit write, obligation generation, duplicate attempt, payout vesting formula. | Jest or script output |
+| P2-213 | Agent | Add tests for helper-level status transitions and idempotency. | In Progress | P2-203-P2-210 | Tests cover config, audit write, obligation generation, duplicate attempt, payout vesting formula. | Static helper validation exists in `Build/delivery/evidence/phase2-shared-validation.json`; deeper behavior tests still pending |
 
 ### Phase 3 — Group Formation Lobby
 
@@ -273,4 +273,12 @@ Second repo-local Phase 2 helper/type batch completed on 2026-05-13:
 4. added group-formation command payload scaffolding without changing existing MVP action names
 5. added `mobile/scripts/validate-phase2-shared.js` and evidence at `Build/delivery/evidence/phase2-shared-validation.json`
 
-Remaining first-wave work is payment-attempt, ledger, payout-vesting helpers, deeper helper tests, target Supabase migration application, and user-only policy approval tasks.
+Third repo-local Phase 2 helper batch completed on 2026-05-13:
+
+1. added `_shared/paymentAttempts.ts` for idempotency keys, attempt creation, callback updates, and success status helpers
+2. added `_shared/ledger.ts` for append-oriented simulated ledger entry creation and reference lookups
+3. added `_shared/payoutVesting.ts` for probationary payout split calculation and release schedule amount distribution
+4. completed `_shared/contracts.ts` Phase 2 command payload scaffolding for group formation, payment attempts, and payouts
+5. extended `mobile/scripts/validate-phase2-shared.js` and refreshed `Build/delivery/evidence/phase2-shared-validation.json`
+
+Remaining first-wave work is deeper helper behavior tests, target Supabase migration application, and user-only policy approval tasks.
