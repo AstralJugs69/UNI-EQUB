@@ -74,6 +74,11 @@ function main() {
     'assertInvitationMatchesActor',
     'createInviteCode',
     'normalizeInviteTarget',
+    'submitFormationForApproval',
+    'loadCreatorOwnedFormingRequest',
+    'listAcceptedParticipantUserIds',
+    'notifyAdminsOfSubmittedGroup',
+    'createNotification',
     'writeAuditEvent',
     'getReliabilityJoinGate',
     'loadFormationPolicySnapshot',
@@ -148,11 +153,24 @@ function main() {
     'accepted_at: now',
   ].forEach(token => assertIncludes(source, token, 'invite implementation token'));
 
+  [
+    "status: 'PendingApproval'",
+    'submitted_by: actor.User_ID',
+    'submitted_at: now',
+    'At least ${requiredMinimum} accepted participants are required before admin approval submission.',
+    'GroupFormationSubmitted',
+    'Group request ready for review',
+    'Group request submitted',
+    'group_formation_submitted_for_approval',
+    'admin_notification_count',
+    'accepted_participant_user_ids',
+  ].forEach(token => assertIncludes(source, token, 'submit for approval implementation token'));
+
   assertIncludes(config, '[functions.group-formation]', 'Supabase function config');
   assertIncludes(config, 'verify_jwt = false', 'function JWT config style');
 
   const result = {
-    scenario: 'phase2-group-formation-invitation-validation',
+    scenario: 'phase2-group-formation-submit-approval-validation',
     function: 'supabase/functions/group-formation/index.ts',
     contracts: 'supabase/functions/_shared/contracts.ts',
     config: 'supabase/config.toml',
@@ -168,6 +186,7 @@ function main() {
       'requestJoin requires current terms acceptance and creates or reuses a Requested join row',
       'creator can accept requested participants and reject/remove participants with audit events',
       'creator can create invitations and invited members can accept them into accepted participation',
+      'creator can submit forming request for admin approval after accepted participants meet configured minimum',
       'Supabase function config registers group-formation with internal token verification pattern',
     ],
     requiresSupabaseCredentials: false,

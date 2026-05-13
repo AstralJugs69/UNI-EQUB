@@ -3,6 +3,7 @@ import { writeAuditEvent } from '../_shared/audit.ts';
 import { fail, json } from '../_shared/contracts.ts';
 import type { CreateGroupFormationRequest, GroupFormationAction, GroupFormationPayload } from '../_shared/contracts.ts';
 import { loadConfigValue } from '../_shared/config.ts';
+import { createNotification } from '../_shared/notifications.ts';
 import { getReliabilityJoinGate } from '../_shared/reliability.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import type { GroupInvitationRecord, GroupJoinRequestRecord, GroupRequestRecord, UserRecord } from '../_shared/types.ts';
@@ -277,6 +278,19 @@ async function countAcceptedParticipants(groupRequestId: string) {
     throw error;
   }
   return (data ?? []).length;
+}
+
+async function listAcceptedParticipantUserIds(groupRequestId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('group_join_requests')
+    .select('user_id')
+    .eq('group_request_id', groupRequestId)
+    .eq('status', 'Accepted');
+
+  if (error) {
+    throw error;
+  }
+  return (data ?? []).map(row => String(row.user_id));
 }
 
 function assertRequestCanReceivePublicJoinRequest(request: GroupRequestRecord, actor: UserRecord) {
@@ -743,6 +757,137 @@ async function acceptFormationInvitation(actor: UserRecord, body: GroupFormation
   });
 }
 
+async function loadCreatorOwnedFormingRequest(actor: UserRecord, requestId: string | undefined) {
+  if (!requestId) {
+    throw new Error('Missing group request id.');
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('group_requests')
+    .select('*')
+    .eq('id', requestId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const request = data as GroupRequestRecord;
+  if (request.creator_id !== actor.User_ID) {
+    throw new Error('Only the group request creator can submit for approval.');
+  }
+  if (request.status !== 'Forming') {
+    throw new Error('Only forming group requests can be submitted for approval.');
+  }
+  if (request.expires_at && new Date(request.expires_at).getTime() <= Date.now()) {
+    throw new Error('This group request has expired.');
+  }
+  return request;
+}
+
+async function listAdminUsers() {
+  const { data, error } = await supabaseAdmin
+    .from('User')
+    .select('*')
+    .eq('Role', 'Admin');
+
+  if (error) {
+    throw error;
+  }
+  return (data ?? []) as UserRecord[];
+}
+
+async function notifyAdminsOfSubmittedGroup(request: GroupRequestRecord, acceptedParticipantCount: number) {
+  const admins = await listAdminUsers();
+  const notifications = [];
+  for (const admin of admins) {
+    notifications.push(await createNotification({
+      userId: admin.User_ID,
+      type: 'GroupFormationSubmitted',
+      severity: 'Info',
+      title: 'Group request ready for review',
+      message: `${request.proposed_group_name} has ${acceptedParticipantCount} accepted participants and is awaiting admin approval.`,
+      actionRoute: 'admin/group-formation',
+      relatedEntityType: 'group_requests',
+      relatedEntityId: request.id,
+      metadata: {
+        group_request_id: request.id,
+        accepted_participant_count: acceptedParticipantCount,
+        min_members: request.min_members,
+      },
+    }));
+  }
+  return notifications;
+}
+
+async function submitFormationForApproval(actor: UserRecord, body: GroupFormationPayload) {
+  const request = await loadCreatorOwnedFormingRequest(actor, body.requestId);
+  const policy = await loadFormationPolicySnapshot();
+  const acceptedParticipantUserIds = await listAcceptedParticipantUserIds(request.id);
+  const requiredMinimum = Math.max(request.min_members, policy.minMembers);
+
+  if (acceptedParticipantUserIds.length < requiredMinimum) {
+    throw new Error(`At least ${requiredMinimum} accepted participants are required before admin approval submission.`);
+  }
+
+  const now = new Date().toISOString();
+  const { data, error } = await supabaseAdmin
+    .from('group_requests')
+    .update({
+      status: 'PendingApproval',
+      submitted_by: actor.User_ID,
+      submitted_at: now,
+    })
+    .eq('id', request.id)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const submittedRequest = data as GroupRequestRecord;
+  const adminNotifications = await notifyAdminsOfSubmittedGroup(submittedRequest, acceptedParticipantUserIds.length);
+  const creatorNotification = await createNotification({
+    userId: actor.User_ID,
+    type: 'GroupFormationSubmitted',
+    severity: 'Success',
+    title: 'Group request submitted',
+    message: `${submittedRequest.proposed_group_name} is now waiting for admin approval.`,
+    actionRoute: 'member/group-formation',
+    relatedEntityType: 'group_requests',
+    relatedEntityId: submittedRequest.id,
+    metadata: {
+      group_request_id: submittedRequest.id,
+      accepted_participant_count: acceptedParticipantUserIds.length,
+      min_members: submittedRequest.min_members,
+    },
+  });
+
+  await writeAuditEvent({
+    actor,
+    eventType: 'group_formation_submitted_for_approval',
+    entityType: 'group_requests',
+    entityId: submittedRequest.id,
+    metadata: {
+      accepted_participant_count: acceptedParticipantUserIds.length,
+      accepted_participant_user_ids: acceptedParticipantUserIds,
+      required_minimum: requiredMinimum,
+      admin_notification_count: adminNotifications.length,
+    },
+  });
+
+  return json({
+    groupRequest: submittedRequest,
+    accepted_participant_count: acceptedParticipantUserIds.length,
+    required_minimum: requiredMinimum,
+    notifications: {
+      admins: adminNotifications.length,
+      creator: creatorNotification.id,
+    },
+  });
+}
+
 function pendingImplementation(action: GroupFormationAction, actor: UserRecord) {
   return new Response(JSON.stringify({
     ok: false,
@@ -816,7 +961,7 @@ Deno.serve(async request => {
 
       case 'submitForApproval':
         assertVerifiedMember(actor);
-        return pendingImplementation(body.action, actor);
+        return submitFormationForApproval(actor, body);
 
       case 'adminApprove':
       case 'adminReject':
