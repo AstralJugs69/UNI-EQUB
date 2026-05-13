@@ -1,10 +1,10 @@
 import { verifySession } from '../_shared/auth.ts';
-import { fail } from '../_shared/contracts.ts';
-import type { GroupFormationAction, GroupFormationPayload } from '../_shared/contracts.ts';
+import { fail, json } from '../_shared/contracts.ts';
+import type { CreateGroupFormationRequest, GroupFormationAction, GroupFormationPayload } from '../_shared/contracts.ts';
 import { loadConfigValue } from '../_shared/config.ts';
 import { getReliabilityJoinGate } from '../_shared/reliability.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import type { UserRecord } from '../_shared/types.ts';
+import type { GroupRequestRecord, UserRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -72,6 +72,140 @@ function ensureRoutedAction(action: string): action is GroupFormationAction {
   return routedActions.includes(action as GroupFormationAction);
 }
 
+function cleanText(value: string | undefined | null) {
+  return value?.trim() ?? '';
+}
+
+function assertAllowedValue<T extends string>(value: string, allowed: T[], label: string): T {
+  if (!allowed.includes(value as T)) {
+    throw new Error(`Invalid ${label}.`);
+  }
+  return value as T;
+}
+
+function addDays(date: Date, days: number) {
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+function validateCreateRequestInput(input: CreateGroupFormationRequest | undefined, policy: Awaited<ReturnType<typeof loadFormationPolicySnapshot>>) {
+  if (!input) {
+    throw new Error('Missing group formation request details.');
+  }
+
+  const groupName = cleanText(input.groupName);
+  if (groupName.length < 3 || groupName.length > 80) {
+    throw new Error('Group name must be between 3 and 80 characters.');
+  }
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    throw new Error('Contribution amount must be greater than zero.');
+  }
+
+  const minMembers = input.minMembers ?? policy.minMembers;
+  if (!Number.isInteger(minMembers) || minMembers < policy.minMembers) {
+    throw new Error(`Minimum members must be at least ${policy.minMembers}.`);
+  }
+  if (!Number.isInteger(input.maxMembers) || input.maxMembers < minMembers) {
+    throw new Error('Maximum members must be greater than or equal to minimum members.');
+  }
+  if (input.maxMembers > policy.maxMembers) {
+    throw new Error(`Maximum members cannot exceed the configured limit of ${policy.maxMembers}.`);
+  }
+
+  const visibility = assertAllowedValue(input.visibility, ['Public', 'Private'], 'visibility');
+  const inviteMode = assertAllowedValue(input.inviteMode ?? (visibility === 'Public' ? 'PublicRequest' : 'InviteCode'), [
+    'PublicRequest',
+    'InviteCode',
+    'DirectInvite',
+    'InviteCodeAndDirect',
+  ], 'invite mode');
+  const frequency = assertAllowedValue(input.frequency, ['Weekly', 'Bi-weekly', 'Monthly'], 'frequency');
+
+  const vestingEnabled = input.vestingEnabled ?? true;
+  if (!vestingEnabled && visibility !== 'Private') {
+    throw new Error('Only private invite-based group requests can disable payout vesting.');
+  }
+  if (!vestingEnabled && !input.riskWarningAccepted) {
+    throw new Error('Risk warning acceptance is required before disabling payout vesting.');
+  }
+  if (visibility === 'Public' && inviteMode !== 'PublicRequest') {
+    throw new Error('Public group formation requests must use public request mode.');
+  }
+  if (visibility === 'Private' && inviteMode === 'PublicRequest') {
+    throw new Error('Private group formation requests must use an invite-based mode.');
+  }
+
+  return {
+    groupName,
+    description: cleanText(input.description) || null,
+    contributionAmount: Number(input.amount.toFixed(2)),
+    frequency,
+    minMembers,
+    maxMembers: input.maxMembers,
+    visibility,
+    inviteMode,
+    vestingEnabled,
+    termsVersion: cleanText(input.termsVersion) || 'phase2-v1',
+  };
+}
+
+async function createFormationRequest(actor: UserRecord, createRequest: CreateGroupFormationRequest | undefined) {
+  const policy = await loadFormationPolicySnapshot();
+  const input = validateCreateRequestInput(createRequest, policy);
+  const now = new Date();
+  const expiresAt = addDays(now, policy.expiryDays).toISOString();
+  const riskWarningAcceptedAt = input.vestingEnabled ? null : now.toISOString();
+
+  const { data: groupRequest, error } = await supabaseAdmin
+    .from('group_requests')
+    .insert({
+      creator_id: actor.User_ID,
+      proposed_group_name: input.groupName,
+      description: input.description,
+      contribution_amount: input.contributionAmount,
+      frequency: input.frequency,
+      min_members: input.minMembers,
+      max_members: input.maxMembers,
+      visibility: input.visibility,
+      invite_mode: input.inviteMode,
+      status: 'Forming',
+      terms_version: input.termsVersion,
+      vesting_enabled: input.vestingEnabled,
+      vesting_disabled_by_creator: !input.vestingEnabled,
+      risk_warning_accepted_at: riskWarningAcceptedAt,
+      expires_at: expiresAt,
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const request = groupRequest as GroupRequestRecord;
+  const { data: creatorParticipant, error: participantError } = await supabaseAdmin
+    .from('group_join_requests')
+    .insert({
+      group_request_id: request.id,
+      user_id: actor.User_ID,
+      status: 'Accepted',
+      accepted_at: now.toISOString(),
+      decision_by: actor.User_ID,
+      decision_reason: 'Creator automatically added to the forming group.',
+    })
+    .select('*')
+    .single();
+
+  if (participantError) {
+    throw participantError;
+  }
+
+  return json({
+    groupRequest: request,
+    creatorParticipant,
+    policy,
+  }, 201);
+}
+
 function pendingImplementation(action: GroupFormationAction, actor: UserRecord) {
   return new Response(JSON.stringify({
     ok: false,
@@ -119,6 +253,9 @@ Deno.serve(async request => {
         return pendingImplementation(body.action, actor);
 
       case 'createRequest':
+        await assertNormalFormationEligibility(actor);
+        return createFormationRequest(actor, body.createRequest);
+
       case 'requestJoin':
         await assertNormalFormationEligibility(actor);
         return pendingImplementation(body.action, actor);
