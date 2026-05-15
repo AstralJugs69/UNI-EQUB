@@ -10,6 +10,7 @@ import {
   CreateGroupRulesScreen,
   DashboardScreen,
   ExploreScreen,
+  FormationCreatorScreen,
   FormationDetailScreen,
   GroupDetailScreen,
   GroupStatusScreen,
@@ -50,6 +51,7 @@ function MemberStack() {
       <Stack.Screen name={routes.explore} component={ExploreScreen} />
       <Stack.Screen name={routes.groupDetail} component={GroupDetailScreen} />
       <Stack.Screen name={routes.formationDetail} component={FormationDetailScreen} />
+      <Stack.Screen name={routes.formationCreator} component={FormationCreatorScreen} />
       <Stack.Screen name={routes.createBasics} component={CreateGroupBasicsScreen} />
       <Stack.Screen name={routes.createRules} component={CreateGroupRulesScreen} />
       <Stack.Screen name={routes.groupStatus} component={GroupStatusScreen} />

@@ -1,8 +1,8 @@
 # UniEqub Phase 2 Development Progress Tracker
 
-Version: 1.14
+Version: 1.15
 Last Updated: 2026-05-15
-Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through member discovery/detail UI started; legacy group creation compatibility preserved
+Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through creator/member UI started; legacy group creation compatibility preserved
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -124,7 +124,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-311 | Agent | Keep legacy `group-lifecycle.createRequest` compatible during migration. | Completed | P2-301-P2-310 | Existing mobile group creation does not break before UI migration is complete. | `mobile/scripts/validate-phase2-legacy-group-compat.js`; `Build/delivery/evidence/phase2-legacy-group-compatibility.json`; Jest regression in `mobile/src/services/mock/mockBackend.test.ts`; `npm test` |
 | P2-312 | Agent | Add mobile formation service contract and live implementation. | Completed | P2-301-P2-310 | Mobile can call formation list/detail/create/join/invite/submit actions. | `mobile/src/services/contracts/index.ts`; `mobile/src/services/live/liveGroupFormationService.ts`; `mobile/src/providers/ServicesProvider.tsx`; `Build/delivery/evidence/phase2-mobile-formation-validation.json`; Jest regression in `mobile/src/services/mock/mockBackend.test.ts`; typecheck passing |
 | P2-313 | Agent | Add member UI for forming groups discovery and detail. | Completed | P2-312 | Member can browse public forming requests and request to join. | `mobile/src/screens/member/ExploreScreen.tsx`; `mobile/src/screens/member/FormationDetailScreen.tsx`; `Build/delivery/evidence/phase2-member-formation-ui-validation.json`; typecheck/lint passing |
-| P2-314 | Agent | Add creator UI for draft request setup and participant management. | Not Started | P2-312 | Creator can create request, invite, accept/remove, and submit for approval. | Screenshot/evidence |
+| P2-314 | Agent | Add creator UI for draft request setup and participant management. | Completed | P2-312 | Creator can create request, invite, accept/remove, and submit for approval. | `mobile/src/screens/member/CreateGroupRulesScreen.tsx`; `mobile/src/screens/member/FormationCreatorScreen.tsx`; `Build/delivery/evidence/phase2-creator-formation-ui-validation.json`; Jest invitation regression; typecheck/lint passing |
 | P2-315 | Agent | Add admin UI for Phase 2 group request review. | Not Started | P2-310 | Admin sees proposed terms, participants, risk, vesting setting, and can approve/reject. | Screenshot/evidence |
 | P2-316 | User | Validate group formation flows on emulator/physical device with at least two test accounts. | Blocked | P2-313-P2-315, device access | UAT evidence proves public/private formation and admin approval work. | `Build/delivery/evidence/group-formation-uat.*` |
 
@@ -370,3 +370,11 @@ Eleventh repo-local Phase 3 member UI batch completed on 2026-05-15:
 3. added `FormationDetailScreen` with participant progress, terms version, remaining slots, and request-to-join action
 4. added React Query hooks and mutation invalidation for formation list/detail/request-join paths
 5. added `mobile/scripts/validate-phase2-member-formation-ui.js` and `Build/delivery/evidence/phase2-member-formation-ui-validation.json`; on-device screenshot/UAT evidence remains under P2-316
+
+Twelfth repo-local Phase 3 creator UI batch completed on 2026-05-15:
+
+1. migrated the member create request screen flow to create Phase 2 `group_requests` through `GroupFormationService`
+2. added `routes.formationCreator` and `FormationCreatorScreen` for creator-side participant management
+3. added creator actions for invitation creation, accept/remove participant, and submit-for-approval through service mutations
+4. added a Jest regression for private creator invitations in the mock formation service
+5. added `mobile/scripts/validate-phase2-creator-formation-ui.js` and `Build/delivery/evidence/phase2-creator-formation-ui-validation.json`; on-device screenshot/UAT evidence remains under P2-316

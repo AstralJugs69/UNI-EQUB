@@ -9,6 +9,7 @@
   explore: 'Explore',
   groupDetail: 'GroupDetail',
   formationDetail: 'FormationDetail',
+  formationCreator: 'FormationCreator',
   createBasics: 'CreateGroupBasics',
   createRules: 'CreateGroupRules',
   groupStatus: 'GroupStatus',

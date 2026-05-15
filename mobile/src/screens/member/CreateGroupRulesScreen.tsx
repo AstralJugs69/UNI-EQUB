@@ -1,50 +1,69 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { InlineError, InputField, Pill, PrimaryCTA, ScreenScroll, SectionCard, TopAppBar, TitleBlock } from '../../components/ui';
+import { InlineError, InputField, Pill, PrimaryCTA, ScreenScroll, SectionCard, SegmentedTabs, TopAppBar, TitleBlock } from '../../components/ui';
 import { routes } from '../../navigation/routes';
 import { useMemberActions } from '../../hooks/useAppQueries';
 import { memberStyles } from './styles';
 
 export function CreateGroupRulesScreen({ route }: any) {
   const navigation = useNavigation<any>();
-  const { createGroup } = useMemberActions();
+  const { createFormation } = useMemberActions();
   const [description, setDescription] = useState('Weekly savings circle for verified AAU students with automatic draw and payout tracking.');
+  const [visibility, setVisibility] = useState<'Public' | 'Private'>('Public');
+  const [minMembers, setMinMembers] = useState('2');
   const [error, setError] = useState('');
 
   async function handleSubmit() {
     try {
       setError('');
-      await createGroup.mutateAsync({
+      const detail = await createFormation.mutateAsync({
         groupName: route.params.groupName,
+        description,
         amount: route.params.amount,
         frequency: route.params.frequency,
+        minMembers: Number(minMembers || 0),
         maxMembers: route.params.maxMembers,
-        description,
+        visibility,
+        inviteMode: visibility === 'Public' ? 'PublicRequest' : 'InviteCodeAndDirect',
+        vestingEnabled: true,
+        termsVersion: 'phase2-v1',
       });
-      navigation.navigate(routes.dashboard);
+      navigation.navigate(routes.formationCreator, { requestId: detail.groupRequest.id });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to submit the group request.');
+      setError(err instanceof Error ? err.message : 'Unable to create the group request.');
     }
   }
 
   return (
     <ScreenScroll>
       <TopAppBar title="Create New Equb" subtitle="Step 2 of 2" onBack={() => navigation.goBack()} />
-      <TitleBlock title="Finalize the request" subtitle="Add a short member-facing summary and review the automation rules before you submit for approval." />
+      <TitleBlock title="Finalize the request" subtitle="Add member-facing terms, gathering mode, and the minimum group size before inviting participants." />
       <SectionCard>
         <InputField label="Short Description" value={description} onChangeText={setDescription} multiline helper="This appears in the browse and detail views once the group is approved." />
+        <InputField label="Minimum Members" value={minMembers} onChangeText={setMinMembers} keyboardType="number-pad" leadingIcon="group" />
       </SectionCard>
       <SectionCard variant="soft">
-        <TitleBlock title="Built-in automation" subtitle="These behaviors are fixed for the MVP and apply automatically after approval." />
+        <TitleBlock title="Gathering mode" subtitle="Choose how members can find or join this forming group." />
+        <SegmentedTabs
+          options={[
+            { key: 'Public', label: 'Public' },
+            { key: 'Private', label: 'Private' },
+          ]}
+          selectedKey={visibility}
+          onSelect={key => setVisibility(key as 'Public' | 'Private')}
+        />
+      </SectionCard>
+      <SectionCard variant="soft">
+        <TitleBlock title="Built-in automation" subtitle="These behaviors apply automatically after approval." />
         <View style={memberStyles.rowWrap}>
-          <Pill label="Auto draw" tone="active" />
-          <Pill label="Reminder queue" tone="active" />
-          <Pill label="Immutable ledger" tone="neutral" />
+          <Pill label="Creator review" tone="active" />
+          <Pill label="Admin approval" tone="active" />
+          <Pill label="Canonical group on approval" tone="neutral" />
         </View>
       </SectionCard>
       <InlineError message={error} />
-      <PrimaryCTA label="Submit For Approval" onPress={handleSubmit} loading={createGroup.isPending} disabled={!description || createGroup.isPending} />
+      <PrimaryCTA label="Create Formation Request" onPress={handleSubmit} loading={createFormation.isPending} disabled={!description || Number(minMembers || 0) < 2 || createFormation.isPending} />
     </ScreenScroll>
   );
 }

@@ -71,6 +71,28 @@ describe('MockBackend automatic draw flow', () => {
     expect(submitted.groupRequest.status).toBe('PendingApproval');
   });
 
+  it('supports private creator invitations through the Phase 2 formation service', async () => {
+    const backend = new MockBackend();
+    const created = await backend.formation.createRequest('user-dawit', {
+      groupName: 'Private Formation Circle',
+      amount: 600,
+      frequency: 'Monthly',
+      minMembers: 2,
+      maxMembers: 4,
+      visibility: 'Private',
+      inviteMode: 'InviteCodeAndDirect',
+      termsVersion: 'phase2-v1',
+    });
+
+    const response = await backend.formation.invite('user-dawit', {
+      requestId: created.groupRequest.id,
+      invitedPhoneOrStudentId: '0911000002',
+    });
+
+    expect(response.invitation.status).toBe('Pending');
+    expect(response.detail.invitations.some(item => item.id === response.invitation.id)).toBe(true);
+  });
+
   it('keeps the legacy group creation request path pending during Phase 2 migration', async () => {
     const backend = new MockBackend();
     const group = await backend.groups.createRequest('user-dawit', {

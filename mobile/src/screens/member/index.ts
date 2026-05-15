@@ -1,6 +1,7 @@
 ﻿export { DashboardScreen } from './DashboardScreen';
 export { ExploreScreen } from './ExploreScreen';
 export { FormationDetailScreen } from './FormationDetailScreen';
+export { FormationCreatorScreen } from './FormationCreatorScreen';
 export { GroupDetailScreen } from './GroupDetailScreen';
 export { CreateGroupBasicsScreen } from './CreateGroupBasicsScreen';
 export { CreateGroupRulesScreen } from './CreateGroupRulesScreen';

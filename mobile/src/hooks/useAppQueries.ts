@@ -183,6 +183,16 @@ export function useMemberActions() {
         await queryClient.invalidateQueries({ queryKey: queryKeys.pendingGroups });
       },
     }),
+    createFormation: useMutation({
+      mutationFn: (input: Parameters<typeof services.formation.createRequest>[1]) =>
+        services.formation.createRequest(session!.user.userId, input),
+      onSuccess: async detail => {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.formationGroup(detail.groupRequest.id) }),
+        ]);
+      },
+    }),
     requestJoinFormation: useMutation({
       mutationFn: ({ requestId, acceptedTermsVersion }: { requestId: string; acceptedTermsVersion: string }) =>
         services.formation.requestJoin(session!.user.userId, requestId, {
@@ -193,6 +203,44 @@ export function useMemberActions() {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
           queryClient.invalidateQueries({ queryKey: queryKeys.formationGroup(variables.requestId) }),
+        ]);
+      },
+    }),
+    inviteFormation: useMutation({
+      mutationFn: (input: Parameters<typeof services.formation.invite>[1]) =>
+        services.formation.invite(session!.user.userId, input),
+      onSuccess: async response => {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.formationGroup(response.detail.groupRequest.id) });
+      },
+    }),
+    acceptFormationJoin: useMutation({
+      mutationFn: ({ joinRequestId, decisionReason }: { joinRequestId: string; decisionReason?: string }) =>
+        services.formation.acceptJoin(session!.user.userId, joinRequestId, decisionReason),
+      onSuccess: async detail => {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.formationGroup(detail.groupRequest.id) }),
+        ]);
+      },
+    }),
+    removeFormationParticipant: useMutation({
+      mutationFn: ({ joinRequestId, decisionReason }: { joinRequestId: string; decisionReason?: string }) =>
+        services.formation.removeParticipant(session!.user.userId, joinRequestId, decisionReason),
+      onSuccess: async detail => {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.formationGroup(detail.groupRequest.id) }),
+        ]);
+      },
+    }),
+    submitFormationForApproval: useMutation({
+      mutationFn: (requestId: string) =>
+        services.formation.submitForApproval(session!.user.userId, requestId),
+      onSuccess: async detail => {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.formationGroup(detail.groupRequest.id) }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.pendingGroups }),
         ]);
       },
     }),
