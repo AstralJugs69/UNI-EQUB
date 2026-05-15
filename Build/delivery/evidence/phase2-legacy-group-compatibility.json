@@ -1,0 +1,16 @@
+{
+  "scenario": "phase2-legacy-group-create-compatibility-validation",
+  "validatedFiles": {
+    "groupLifecycle": "supabase/functions/group-lifecycle/index.ts",
+    "liveGroupsService": "mobile/src/services/live/liveGroupsService.ts",
+    "mockBackendTest": "mobile/src/services/mock/mockBackend.test.ts"
+  },
+  "completedChecks": [
+    "legacy group-lifecycle.createRequest still inserts canonical EqubGroup rows",
+    "legacy createRequest rows remain Pending and use the existing null Virtual_Acc_Ref approval flow",
+    "mobile live GroupService.createRequest still calls group-lifecycle createRequest",
+    "mock backend regression covers pending legacy group creation during Phase 2 migration"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-15T13:11:41.167Z"
+}

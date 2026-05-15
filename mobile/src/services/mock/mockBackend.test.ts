@@ -38,6 +38,23 @@ describe('MockBackend auth flow', () => {
 });
 
 describe('MockBackend automatic draw flow', () => {
+  it('keeps the legacy group creation request path pending during Phase 2 migration', async () => {
+    const backend = new MockBackend();
+    const group = await backend.groups.createRequest('user-dawit', {
+      groupName: 'Legacy Dorm Equb',
+      description: 'Compatibility path while Phase 2 formation UI is adopted.',
+      amount: 750,
+      frequency: 'Monthly',
+      maxMembers: 6,
+    });
+
+    expect(group.Status).toBe('Pending');
+    expect(group.Virtual_Acc_Ref).toBe('');
+
+    const pending = await backend.groups.listPendingApprovals();
+    expect(pending.some(item => item.group.Group_ID === group.Group_ID)).toBe(true);
+  });
+
   it('creates a pending payout automatically when the last payment completes a round', async () => {
     const backend = new MockBackend();
     const result = await backend.payments.payContribution('user-dawit', 'group-dorm', 'Telebirr');
