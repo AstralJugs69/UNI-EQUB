@@ -1,8 +1,8 @@
-﻿import React from 'react';
+import React from 'react';
 import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { AppScreen, EmptyState, MetricTile, Pill, PrimaryCTA, SectionCard, TopAppBar } from '../../components/ui';
-import { useGroupsQuery } from '../../hooks/useAppQueries';
+import { AppScreen, EmptyState, InlineError, MetricTile, Pill, PrimaryCTA, SectionCard, TopAppBar } from '../../components/ui';
+import { useFormationGroupsQuery, useGroupsQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { MemberNav, formatCurrency } from './shared';
 import { memberStyles } from './styles';
@@ -10,13 +10,41 @@ import { memberStyles } from './styles';
 export function ExploreScreen() {
   const navigation = useNavigation<any>();
   const { data = [] } = useGroupsQuery();
+  const { data: formingGroups = [], error: formingError } = useFormationGroupsQuery();
 
   return (
     <AppScreen footer={<MemberNav active={routes.explore} />} footerFlush>
       <TopAppBar title="Available Equbs" subtitle="Explore" />
       <SectionCard variant="soft">
-        <Text style={memberStyles.mutedText}>Browse approved groups by cadence, contribution amount, and open slots.</Text>
+        <Text style={memberStyles.mutedText}>Browse approved groups or review public Phase 2 groups that are still gathering members before admin approval.</Text>
       </SectionCard>
+      <SectionCard>
+        <View style={memberStyles.rowBetween}>
+          <Text style={memberStyles.sectionTitle}>Forming groups</Text>
+          <Pill label="Phase 2" tone="active" />
+        </View>
+        <InlineError message={formingError instanceof Error ? formingError.message : ''} />
+        {formingGroups.map(request => (
+          <View key={request.id} style={memberStyles.itemBlock}>
+            <View style={memberStyles.rowWrap}>
+              <Pill label={request.status} tone={request.status === 'Forming' ? 'good' : 'warn'} />
+              <Pill label={request.frequency} tone="active" />
+              <Pill label={request.visibility} tone="neutral" />
+            </View>
+            <Text style={memberStyles.sectionTitle}>{request.proposed_group_name}</Text>
+            <Text style={memberStyles.mutedText}>{request.description ?? 'Public forming group request.'}</Text>
+            <View style={memberStyles.metricsGrid}>
+              <MetricTile label="Contribution" value={formatCurrency(request.contribution_amount)} />
+              <MetricTile label="Accepted" value={`${request.accepted_participant_count}/${request.max_members}`} helper={`${request.remaining_slots} slots left`} />
+            </View>
+            <PrimaryCTA label="Review Request" onPress={() => navigation.navigate(routes.formationDetail, { requestId: request.id })} />
+          </View>
+        ))}
+      </SectionCard>
+      {!formingGroups.length ? (
+        <EmptyState icon="group-add" title="No forming groups yet" subtitle="Public group requests will appear here while creators gather enough accepted members." />
+      ) : null}
+      <Text style={memberStyles.sectionTitle}>Approved groups</Text>
       {!data.length ? (
         <EmptyState icon="travel-explore" title="No open groups right now" subtitle="When admins approve new Equbs, they will appear here for members to review and join." />
       ) : data.map(group => (

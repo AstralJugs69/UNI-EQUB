@@ -7,6 +7,8 @@ export const queryKeys = {
   dashboard: ['dashboard'] as const,
   groups: ['groups'] as const,
   group: (groupId: string) => ['group', groupId] as const,
+  formationGroups: ['formation-groups'] as const,
+  formationGroup: (requestId: string) => ['formation-group', requestId] as const,
   groupStatus: (groupId: string) => ['group-status', groupId] as const,
   history: ['history'] as const,
   wallet: ['wallet'] as const,
@@ -43,6 +45,26 @@ export function useGroupQuery(groupId: string) {
     queryKey: queryKeys.group(groupId),
     enabled: !!groupId,
     queryFn: () => services.groups.getGroup(groupId),
+  });
+}
+
+export function useFormationGroupsQuery() {
+  const services = useServices();
+  const { session } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.formationGroups,
+    enabled: !!session,
+    queryFn: () => services.formation.listPublic(session!.user.userId),
+  });
+}
+
+export function useFormationGroupQuery(requestId: string) {
+  const services = useServices();
+  const { session } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.formationGroup(requestId),
+    enabled: !!session && !!requestId,
+    queryFn: () => services.formation.getRequest(session!.user.userId, requestId),
   });
 }
 
@@ -127,6 +149,7 @@ export function useMemberActions() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard }),
       queryClient.invalidateQueries({ queryKey: queryKeys.groups }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
       queryClient.invalidateQueries({ queryKey: queryKeys.history }),
       queryClient.invalidateQueries({ queryKey: queryKeys.wallet }),
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications }),
@@ -158,6 +181,19 @@ export function useMemberActions() {
       onSuccess: async () => {
         await refreshMemberData();
         await queryClient.invalidateQueries({ queryKey: queryKeys.pendingGroups });
+      },
+    }),
+    requestJoinFormation: useMutation({
+      mutationFn: ({ requestId, acceptedTermsVersion }: { requestId: string; acceptedTermsVersion: string }) =>
+        services.formation.requestJoin(session!.user.userId, requestId, {
+          groupTermsAccepted: true,
+          acceptedTermsVersion,
+        }),
+      onSuccess: async (_detail, variables) => {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.formationGroup(variables.requestId) }),
+        ]);
       },
     }),
   };

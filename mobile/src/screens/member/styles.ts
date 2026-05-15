@@ -10,6 +10,18 @@ export const memberStyles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
+  rowBetween: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  itemBlock: {
+    gap: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: palette.border,
+  },
   twoCol: {
     flexDirection: 'row',
     flexWrap: 'wrap',

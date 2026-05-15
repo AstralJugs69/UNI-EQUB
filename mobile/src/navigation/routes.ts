@@ -8,6 +8,7 @@
   dashboard: 'Dashboard',
   explore: 'Explore',
   groupDetail: 'GroupDetail',
+  formationDetail: 'FormationDetail',
   createBasics: 'CreateGroupBasics',
   createRules: 'CreateGroupRules',
   groupStatus: 'GroupStatus',
