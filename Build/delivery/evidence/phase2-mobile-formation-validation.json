@@ -1,0 +1,21 @@
+{
+  "scenario": "phase2-mobile-formation-service-validation",
+  "validatedFiles": {
+    "contracts": "mobile/src/services/contracts/index.ts",
+    "domain": "mobile/src/types/domain.ts",
+    "liveService": "mobile/src/services/live/liveGroupFormationService.ts",
+    "provider": "mobile/src/providers/ServicesProvider.tsx",
+    "mockBackend": "mobile/src/services/mock/mockBackend.ts",
+    "mockBackendTest": "mobile/src/services/mock/mockBackend.test.ts",
+    "edgeFunction": "supabase/functions/group-formation/index.ts"
+  },
+  "completedChecks": [
+    "mobile contract exposes Phase 2 formation list/detail/create/join/invite/submit actions",
+    "live service invokes the group-formation Edge Function for formation actions",
+    "service provider wires the live formation implementation",
+    "mock backend supports the contract for repo-local tests before UI migration",
+    "Edge Function getRequest route returns usable formation detail instead of the pending stub"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-15T13:29:53.654Z"
+}

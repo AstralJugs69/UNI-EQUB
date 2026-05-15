@@ -273,6 +273,65 @@ async function listPublicFormationRequests(actor: UserRecord) {
   });
 }
 
+async function getFormationRequestDetail(actor: UserRecord, body: GroupFormationPayload) {
+  if (!body.requestId) {
+    throw new Error('Missing group request id.');
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('group_requests')
+    .select('*')
+    .eq('id', body.requestId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const groupRequest = data as GroupRequestRecord;
+  const { data: joinRows, error: joinError } = await supabaseAdmin
+    .from('group_join_requests')
+    .select('*')
+    .eq('group_request_id', groupRequest.id)
+    .order('requested_at', { ascending: true });
+
+  if (joinError) {
+    throw joinError;
+  }
+
+  const joinRequests = (joinRows ?? []) as GroupJoinRequestRecord[];
+  const canSeePrivateDetail = actor.Role === 'Admin'
+    || actor.User_ID === groupRequest.creator_id
+    || joinRequests.some(item => item.user_id === actor.User_ID);
+
+  if (groupRequest.visibility === 'Private' && !canSeePrivateDetail) {
+    throw new Error('This private group request is not visible to the signed-in user.');
+  }
+
+  let invitations = [] as GroupInvitationRecord[];
+  if (actor.Role === 'Admin' || actor.User_ID === groupRequest.creator_id) {
+    const { data: invitationRows, error: invitationError } = await supabaseAdmin
+      .from('group_invitations')
+      .select('*')
+      .eq('group_request_id', groupRequest.id)
+      .order('created_at', { ascending: false });
+
+    if (invitationError) {
+      throw invitationError;
+    }
+    invitations = (invitationRows ?? []) as GroupInvitationRecord[];
+  }
+
+  const acceptedCount = joinRequests.filter(item => item.status === 'Accepted').length;
+  return json({
+    groupRequest,
+    joinRequests,
+    invitations,
+    accepted_participant_count: acceptedCount,
+    remaining_slots: Math.max(groupRequest.max_members - acceptedCount, 0),
+  });
+}
+
 async function countAcceptedParticipants(groupRequestId: string) {
   const { data, error } = await supabaseAdmin
     .from('group_join_requests')
@@ -1180,8 +1239,10 @@ Deno.serve(async request => {
         return listPublicFormationRequests(actor);
 
       case 'getRequest':
-        assertVerifiedMember(actor);
-        return pendingImplementation(body.action, actor);
+        if (actor.Role !== 'Admin') {
+          assertVerifiedMember(actor);
+        }
+        return getFormationRequestDetail(actor, body);
 
       case 'acceptInvite':
         await assertNormalFormationEligibility(actor);

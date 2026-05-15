@@ -6,7 +6,12 @@ import type {
   DashboardSnapshot,
   ExportedReport,
   GroupApprovalItem,
+  GroupFormationDetail,
+  GroupFormationRequestSummary,
+  GroupInvitationRecord,
+  GroupJoinRequestRecord,
   GroupRecord,
+  GroupRequestRecord,
   GroupStatusSnapshot,
   KycReviewItem,
   MembershipRecord,
@@ -21,7 +26,7 @@ import type {
   UserRecord,
   WalletSnapshot,
 } from '../../types/domain';
-import type { AppServices, CreateGroupInput, KycSubmissionInput, LoginInput, RegisterInput } from '../contracts';
+import type { AppServices, CreateGroupFormationInput, CreateGroupInput, FormationInvitationInput, FormationTermsAcceptance, KycSubmissionInput, LoginInput, RegisterInput } from '../contracts';
 
 interface SessionRecord {
   userId: string;
@@ -67,6 +72,9 @@ interface DatabaseState {
   reminderQueue: string[];
   providerLogs: ProviderLog[];
   rejectedGroupIds: string[];
+  groupRequests: GroupRequestRecord[];
+  groupJoinRequests: GroupJoinRequestRecord[];
+  groupInvitations: GroupInvitationRecord[];
 }
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -93,6 +101,9 @@ export class MockBackend implements AppServices {
       reminderQueue: ['Dorm A Savings Group • 1 unpaid member • automatic reminder queued', 'AAU Coders Circle • 2 unpaid members • automatic reminder queued'],
       providerLogs: [],
       rejectedGroupIds: [],
+      groupRequests: [],
+      groupJoinRequests: [],
+      groupInvitations: [],
     };
   }
 
@@ -488,6 +499,221 @@ export class MockBackend implements AppServices {
     },
   };
 
+  formation = {
+    listPublic: async (_userId: string): Promise<GroupFormationRequestSummary[]> => {
+      return this.db.groupRequests
+        .filter(request => request.visibility === 'Public' && request.status === 'Forming')
+        .map(request => this.toFormationSummary(request));
+    },
+
+    getRequest: async (_userId: string, requestId: string): Promise<GroupFormationDetail> => {
+      return this.toFormationDetail(this.requireFormationRequest(requestId));
+    },
+
+    createRequest: async (userId: string, input: CreateGroupFormationInput): Promise<GroupFormationDetail> => {
+      const user = this.requireUser(userId);
+      this.assertVerifiedMember(user);
+      const request: GroupRequestRecord = {
+        id: makeId('formation'),
+        creator_id: user.User_ID,
+        submitted_by: null,
+        proposed_group_name: input.groupName,
+        description: input.description ?? null,
+        contribution_amount: input.amount,
+        frequency: input.frequency,
+        min_members: input.minMembers ?? 5,
+        max_members: input.maxMembers,
+        visibility: input.visibility,
+        invite_mode: input.inviteMode ?? (input.visibility === 'Public' ? 'PublicRequest' : 'InviteCodeAndDirect'),
+        status: 'Forming',
+        risk_level: 'Low',
+        terms_version: input.termsVersion ?? 'phase2-v1',
+        agreement_required: true,
+        vesting_enabled: input.vestingEnabled ?? true,
+        vesting_disabled_by_creator: input.vestingEnabled === false,
+        risk_warning_accepted_at: input.vestingEnabled === false ? nowIso() : null,
+        expires_at: plusMinutes(60 * 24 * 3),
+        submitted_at: null,
+        reviewed_by: null,
+        reviewed_at: null,
+        approval_decision_note: null,
+        rejection_reason: null,
+        approved_group_id: null,
+        created_group_at: null,
+        created_at: nowIso(),
+        updated_at: nowIso(),
+      };
+      const creatorParticipant: GroupJoinRequestRecord = {
+        id: makeId('join'),
+        group_request_id: request.id,
+        user_id: user.User_ID,
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: user.User_ID,
+        decision_reason: 'Creator automatically added to the forming group.',
+      };
+      this.db.groupRequests.unshift(request);
+      this.db.groupJoinRequests.unshift(creatorParticipant);
+      this.db.auditLogs.unshift(`Formation request created: ${request.proposed_group_name} • ${user.Full_Name}`);
+      return this.toFormationDetail(request);
+    },
+
+    requestJoin: async (userId: string, requestId: string, terms: FormationTermsAcceptance): Promise<GroupFormationDetail> => {
+      const user = this.requireUser(userId);
+      this.assertVerifiedMember(user);
+      const request = this.requireFormationRequest(requestId);
+      if (request.status !== 'Forming' || request.visibility !== 'Public') {
+        throw new Error('This group request is not accepting public join requests.');
+      }
+      if (!terms.groupTermsAccepted || terms.acceptedTermsVersion !== request.terms_version) {
+        throw new Error('The current group terms must be accepted before requesting to join.');
+      }
+      let joinRequest = this.db.groupJoinRequests.find(item => item.group_request_id === requestId && item.user_id === userId);
+      if (!joinRequest) {
+        joinRequest = {
+          id: makeId('join'),
+          group_request_id: requestId,
+          user_id: userId,
+          status: 'Requested',
+          requested_at: nowIso(),
+          accepted_at: null,
+          rejected_at: null,
+          removed_at: null,
+          decision_by: null,
+          decision_reason: `Accepted group terms ${request.terms_version}`,
+        };
+        this.db.groupJoinRequests.unshift(joinRequest);
+      }
+      return this.toFormationDetail(request);
+    },
+
+    acceptJoin: async (userId: string, joinRequestId: string, decisionReason?: string): Promise<GroupFormationDetail> => {
+      const joinRequest = this.requireJoinRequest(joinRequestId);
+      const request = this.requireFormationRequest(joinRequest.group_request_id);
+      if (request.creator_id !== userId) {
+        throw new Error('Only the group request creator can manage formation participants.');
+      }
+      joinRequest.status = 'Accepted';
+      joinRequest.accepted_at = nowIso();
+      joinRequest.decision_by = userId;
+      joinRequest.decision_reason = decisionReason ?? 'Creator accepted participant into the forming group.';
+      return this.toFormationDetail(request);
+    },
+
+    removeParticipant: async (userId: string, joinRequestId: string, decisionReason?: string): Promise<GroupFormationDetail> => {
+      const joinRequest = this.requireJoinRequest(joinRequestId);
+      const request = this.requireFormationRequest(joinRequest.group_request_id);
+      if (request.creator_id !== userId) {
+        throw new Error('Only the group request creator can manage formation participants.');
+      }
+      joinRequest.status = joinRequest.status === 'Requested' ? 'Rejected' : 'Removed';
+      joinRequest.decision_by = userId;
+      joinRequest.decision_reason = decisionReason ?? 'Creator removed participant from the forming group.';
+      joinRequest.removed_at = joinRequest.status === 'Removed' ? nowIso() : joinRequest.removed_at;
+      joinRequest.rejected_at = joinRequest.status === 'Rejected' ? nowIso() : joinRequest.rejected_at;
+      return this.toFormationDetail(request);
+    },
+
+    invite: async (userId: string, input: FormationInvitationInput): Promise<{ detail: GroupFormationDetail; invitation: GroupInvitationRecord }> => {
+      const request = this.requireFormationRequest(input.requestId);
+      if (request.creator_id !== userId) {
+        throw new Error('Only the group request creator can create invitations.');
+      }
+      const invitation: GroupInvitationRecord = {
+        id: makeId('invite'),
+        group_request_id: request.id,
+        invited_user_id: input.targetUserId ?? null,
+        invited_phone_or_student_id: input.invitedPhoneOrStudentId ?? null,
+        invite_code: input.inviteCode ?? makeId('code').toUpperCase(),
+        status: 'Pending',
+        expires_at: request.expires_at,
+        created_by: userId,
+        accepted_at: null,
+        declined_at: null,
+        created_at: nowIso(),
+      };
+      this.db.groupInvitations.unshift(invitation);
+      return { detail: this.toFormationDetail(request), invitation: clone(invitation) };
+    },
+
+    acceptInvite: async (userId: string, input: FormationTermsAcceptance & { invitationId?: string; inviteCode?: string }): Promise<GroupFormationDetail> => {
+      const invitation = this.db.groupInvitations.find(item => (input.invitationId && item.id === input.invitationId) || (input.inviteCode && item.invite_code === input.inviteCode));
+      if (!invitation) {
+        throw new Error('Invitation was not found.');
+      }
+      const request = this.requireFormationRequest(invitation.group_request_id);
+      if (!input.groupTermsAccepted || input.acceptedTermsVersion !== request.terms_version) {
+        throw new Error('The current group terms must be accepted before accepting an invite.');
+      }
+      invitation.status = 'Accepted';
+      invitation.accepted_at = nowIso();
+      this.db.groupJoinRequests.unshift({
+        id: makeId('join'),
+        group_request_id: request.id,
+        user_id: userId,
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: invitation.created_by,
+        decision_reason: `Accepted invite ${invitation.id} with group terms ${request.terms_version}`,
+      });
+      return this.toFormationDetail(request);
+    },
+
+    submitForApproval: async (userId: string, requestId: string): Promise<GroupFormationDetail> => {
+      const request = this.requireFormationRequest(requestId);
+      if (request.creator_id !== userId) {
+        throw new Error('Only the group request creator can submit for approval.');
+      }
+      if (this.acceptedFormationCount(requestId) < request.min_members) {
+        throw new Error(`At least ${request.min_members} accepted participants are required before admin approval submission.`);
+      }
+      request.status = 'PendingApproval';
+      request.submitted_by = userId;
+      request.submitted_at = nowIso();
+      request.updated_at = nowIso();
+      return this.toFormationDetail(request);
+    },
+
+    adminApprove: async (requestId: string, decisionReason?: string): Promise<GroupRecord> => {
+      const request = this.requireFormationRequest(requestId);
+      request.status = 'Approved';
+      request.approval_decision_note = decisionReason ?? 'Approved by admin.';
+      request.reviewed_at = nowIso();
+      const group: GroupRecord = {
+        Group_ID: makeId('group'),
+        Creator_ID: request.creator_id,
+        Group_Name: request.proposed_group_name,
+        Amount: request.contribution_amount,
+        Max_Members: request.max_members,
+        Frequency: request.frequency,
+        Virtual_Acc_Ref: `UEQ-${Math.floor(1000 + Math.random() * 9000)}`,
+        Status: 'Active',
+        Start_Date: new Date().toISOString().slice(0, 10),
+        Description: request.description ?? '',
+      };
+      request.approved_group_id = group.Group_ID;
+      request.created_group_at = nowIso();
+      this.db.groups.unshift(group);
+      return clone(group);
+    },
+
+    adminReject: async (requestId: string, decisionReason?: string): Promise<GroupFormationDetail> => {
+      const request = this.requireFormationRequest(requestId);
+      request.status = 'Rejected';
+      request.rejection_reason = decisionReason ?? 'Rejected by admin.';
+      request.approval_decision_note = request.rejection_reason;
+      request.reviewed_at = nowIso();
+      request.updated_at = nowIso();
+      return this.toFormationDetail(request);
+    },
+  };
+
   payments = {
     payContribution: async (userId: string, groupId: string, method: PaymentMethod): Promise<PaymentResult> => {
       return this.recordContribution(userId, groupId, method);
@@ -655,6 +881,45 @@ export class MockBackend implements AppServices {
       };
     },
   };
+
+  private requireFormationRequest(requestId: string): GroupRequestRecord {
+    const request = this.db.groupRequests.find(item => item.id === requestId);
+    if (!request) {
+      throw new Error('Group formation request was not found.');
+    }
+    return request;
+  }
+
+  private requireJoinRequest(joinRequestId: string): GroupJoinRequestRecord {
+    const joinRequest = this.db.groupJoinRequests.find(item => item.id === joinRequestId);
+    if (!joinRequest) {
+      throw new Error('Group formation participant request was not found.');
+    }
+    return joinRequest;
+  }
+
+  private acceptedFormationCount(requestId: string) {
+    return this.db.groupJoinRequests.filter(item => item.group_request_id === requestId && item.status === 'Accepted').length;
+  }
+
+  private toFormationSummary(request: GroupRequestRecord): GroupFormationRequestSummary {
+    const acceptedCount = this.acceptedFormationCount(request.id);
+    return {
+      ...clone(request),
+      accepted_participant_count: acceptedCount,
+      remaining_slots: Math.max(request.max_members - acceptedCount, 0),
+    };
+  }
+
+  private toFormationDetail(request: GroupRequestRecord): GroupFormationDetail {
+    return {
+      groupRequest: clone(request),
+      joinRequests: this.db.groupJoinRequests.filter(item => item.group_request_id === request.id).map(clone),
+      invitations: this.db.groupInvitations.filter(item => item.group_request_id === request.id).map(clone),
+      accepted_participant_count: this.acceptedFormationCount(request.id),
+      remaining_slots: Math.max(request.max_members - this.acceptedFormationCount(request.id), 0),
+    };
+  }
 
   private normalizePhone(phone: string) {
     return phone.replace(/\s+/g, '').replace(/^\+251/, '0');

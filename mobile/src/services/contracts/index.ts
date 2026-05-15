@@ -5,6 +5,9 @@
   DashboardSnapshot,
   ExportedReport,
   GroupApprovalItem,
+  GroupFormationDetail,
+  GroupFormationRequestSummary,
+  GroupInvitationRecord,
   GroupRecord,
   GroupStatusSnapshot,
   KycReviewItem,
@@ -48,6 +51,32 @@ export interface CreateGroupInput {
   description: string;
 }
 
+export interface CreateGroupFormationInput {
+  groupName: string;
+  description?: string;
+  amount: number;
+  frequency: GroupRecord['Frequency'];
+  minMembers?: number;
+  maxMembers: number;
+  visibility: 'Public' | 'Private';
+  inviteMode?: 'PublicRequest' | 'InviteCode' | 'DirectInvite' | 'InviteCodeAndDirect';
+  vestingEnabled?: boolean;
+  riskWarningAccepted?: boolean;
+  termsVersion?: string;
+}
+
+export interface FormationTermsAcceptance {
+  groupTermsAccepted: boolean;
+  acceptedTermsVersion: string;
+}
+
+export interface FormationInvitationInput {
+  requestId: string;
+  targetUserId?: string;
+  invitedPhoneOrStudentId?: string;
+  inviteCode?: string;
+}
+
 export interface LoginChallenge {
   challengeToken: string;
   phoneNumber: string;
@@ -84,6 +113,20 @@ export interface GroupService {
   getDashboard(userId: string): Promise<DashboardSnapshot>;
 }
 
+export interface GroupFormationService {
+  listPublic(userId: string): Promise<GroupFormationRequestSummary[]>;
+  getRequest(userId: string, requestId: string): Promise<GroupFormationDetail>;
+  createRequest(userId: string, input: CreateGroupFormationInput): Promise<GroupFormationDetail>;
+  requestJoin(userId: string, requestId: string, terms: FormationTermsAcceptance): Promise<GroupFormationDetail>;
+  acceptJoin(userId: string, joinRequestId: string, decisionReason?: string): Promise<GroupFormationDetail>;
+  removeParticipant(userId: string, joinRequestId: string, decisionReason?: string): Promise<GroupFormationDetail>;
+  invite(userId: string, input: FormationInvitationInput): Promise<{ detail: GroupFormationDetail; invitation: GroupInvitationRecord }>;
+  acceptInvite(userId: string, input: FormationTermsAcceptance & { invitationId?: string; inviteCode?: string }): Promise<GroupFormationDetail>;
+  submitForApproval(userId: string, requestId: string): Promise<GroupFormationDetail>;
+  adminApprove(requestId: string, decisionReason?: string): Promise<GroupRecord>;
+  adminReject(requestId: string, decisionReason?: string): Promise<GroupFormationDetail>;
+}
+
 export interface PaymentService {
   payContribution(userId: string, groupId: string, method: PaymentMethod): Promise<PaymentResult>;
   startContributionUssd(userId: string, groupId: string): Promise<UssdSessionState>;
@@ -109,6 +152,7 @@ export interface AppServices {
   auth: AuthService;
   kyc: KycService;
   groups: GroupService;
+  formation: GroupFormationService;
   payments: PaymentService;
   notifications: NotificationService;
   reports: ReportService;

@@ -293,6 +293,19 @@ export interface GroupInvitationRecord {
   created_at: string;
 }
 
+export interface GroupFormationRequestSummary extends GroupRequestRecord {
+  accepted_participant_count: number;
+  remaining_slots: number;
+}
+
+export interface GroupFormationDetail {
+  groupRequest: GroupRequestRecord;
+  joinRequests: GroupJoinRequestRecord[];
+  invitations: GroupInvitationRecord[];
+  accepted_participant_count: number;
+  remaining_slots: number;
+}
+
 export interface ContributionObligationRecord {
   id: string;
   round_id: string;

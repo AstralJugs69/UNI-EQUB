@@ -1,8 +1,8 @@
 # UniEqub Phase 2 Development Progress Tracker
 
-Version: 1.12
+Version: 1.13
 Last Updated: 2026-05-15
-Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin approval/rejection started; legacy group creation compatibility preserved
+Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through mobile service contract started; legacy group creation compatibility preserved
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -104,7 +104,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-209 | Agent | Add `_shared/ledger.ts` helper for append-oriented simulated ledger entries. | Completed | P2-109 | Contribution, payout, reserve, default, refund flows write ledger entries consistently. | `supabase/functions/_shared/ledger.ts`; `npm run qa:phase2-shared`; typecheck passing |
 | P2-210 | Agent | Add `_shared/payoutVesting.ts` helper for maturity, immediate release, reserve, and release schedule calculation. | Completed | P2-101, P2-110, P2-111, P2-112 | Payout flow can compute trusted vs probationary payouts deterministically. | `supabase/functions/_shared/payoutVesting.ts`; `npm run qa:phase2-shared`; typecheck passing |
 | P2-211 | Agent | Update `_shared/contracts.ts` with Phase 2 command payloads without breaking existing MVP actions. | Completed | P2-201-P2-210 | Old actions still compile; new action payloads are typed. | `supabase/functions/_shared/contracts.ts`; group formation, payment attempt, and payout payload scaffolds added; typecheck passing |
-| P2-212 | Agent | Add service-contract placeholders for frontend-facing Phase 2 services only where screens need them. | Not Started | P2-202 | `AppServices` grows intentionally and does not expose sensitive direct-write helpers. | Typecheck passing |
+| P2-212 | Agent | Add service-contract placeholders for frontend-facing Phase 2 services only where screens need them. | Completed | P2-202 | `AppServices` grows intentionally and does not expose sensitive direct-write helpers. | `mobile/src/services/contracts/index.ts`; `mobile/src/services/live/liveGroupFormationService.ts`; `npm run mobile:typecheck` |
 | P2-213 | Agent | Add tests for helper-level status transitions and idempotency. | In Progress | P2-203-P2-210 | Tests cover config, audit write, obligation generation, duplicate attempt, payout vesting formula. | Static helper validation exists in `Build/delivery/evidence/phase2-shared-validation.json`; deeper behavior tests still pending |
 
 ### Phase 3 — Group Formation Lobby
@@ -122,7 +122,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-309 | Agent | Implement submit-for-approval when accepted participants meet configured minimum. | Completed | P2-305/P2-306 | Request moves to `PendingApproval`; notifications/audit are written. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
 | P2-310 | Agent | Implement admin approve/reject group request. | Completed | P2-309 | Approve creates canonical `EqubGroup`, `GroupMembers`, initial round, obligations, notifications, audit; reject stays in `group_requests.status = Rejected`. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
 | P2-311 | Agent | Keep legacy `group-lifecycle.createRequest` compatible during migration. | Completed | P2-301-P2-310 | Existing mobile group creation does not break before UI migration is complete. | `mobile/scripts/validate-phase2-legacy-group-compat.js`; `Build/delivery/evidence/phase2-legacy-group-compatibility.json`; Jest regression in `mobile/src/services/mock/mockBackend.test.ts`; `npm test` |
-| P2-312 | Agent | Add mobile formation service contract and live implementation. | Not Started | P2-301-P2-310 | Mobile can call formation list/detail/create/join/invite/submit actions. | Typecheck/tests |
+| P2-312 | Agent | Add mobile formation service contract and live implementation. | Completed | P2-301-P2-310 | Mobile can call formation list/detail/create/join/invite/submit actions. | `mobile/src/services/contracts/index.ts`; `mobile/src/services/live/liveGroupFormationService.ts`; `mobile/src/providers/ServicesProvider.tsx`; `Build/delivery/evidence/phase2-mobile-formation-validation.json`; Jest regression in `mobile/src/services/mock/mockBackend.test.ts`; typecheck passing |
 | P2-313 | Agent | Add member UI for forming groups discovery and detail. | Not Started | P2-312 | Member can browse public forming requests and request to join. | Screenshot/evidence |
 | P2-314 | Agent | Add creator UI for draft request setup and participant management. | Not Started | P2-312 | Creator can create request, invite, accept/remove, and submit for approval. | Screenshot/evidence |
 | P2-315 | Agent | Add admin UI for Phase 2 group request review. | Not Started | P2-310 | Admin sees proposed terms, participants, risk, vesting setting, and can approve/reject. | Screenshot/evidence |
@@ -354,3 +354,11 @@ Ninth repo-local Phase 3 compatibility batch completed on 2026-05-15:
 3. added `mobile/scripts/validate-phase2-legacy-group-compat.js`
 4. added `Build/delivery/evidence/phase2-legacy-group-compatibility.json`
 5. added a Jest regression proving mock legacy group creation remains pending and visible in admin pending approvals
+
+Tenth repo-local Phase 3 mobile service batch completed on 2026-05-15:
+
+1. added mobile `GroupFormationService` contract methods for list, detail, create, join, invite, submit, and admin review actions
+2. added `mobile/src/services/live/liveGroupFormationService.ts` to call the `group-formation` Edge Function instead of exposing sensitive writes in the app
+3. wired the service provider with the live formation service and mirrored the contract in the mock backend for local tests
+4. replaced the `getRequest` pending Edge Function stub with a detail response containing participants, creator/admin invitations, accepted count, and remaining slots
+5. added `mobile/scripts/validate-phase2-mobile-formation.js`, `Build/delivery/evidence/phase2-mobile-formation-validation.json`, and a Jest regression for the pre-UI formation service flow

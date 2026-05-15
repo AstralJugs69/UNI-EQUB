@@ -21,6 +21,7 @@
     "qa:phase2-foundation": "node .\\mobile\\scripts\\validate-phase2-foundation.js --output .\\Build\\delivery\\evidence\\phase2-foundation-validation.json",
     "qa:phase2-shared": "node .\\mobile\\scripts\\validate-phase2-shared.js --output .\\Build\\delivery\\evidence\\phase2-shared-validation.json",
     "qa:phase2-formation": "node .\\mobile\\scripts\\validate-phase2-formation.js --output .\\Build\\delivery\\evidence\\phase2-formation-validation.json",
-    "qa:phase2-legacy-group": "node .\\mobile\\scripts\\validate-phase2-legacy-group-compat.js --output .\\Build\\delivery\\evidence\\phase2-legacy-group-compatibility.json"
+    "qa:phase2-legacy-group": "node .\\mobile\\scripts\\validate-phase2-legacy-group-compat.js --output .\\Build\\delivery\\evidence\\phase2-legacy-group-compatibility.json",
+    "qa:phase2-mobile-formation": "node .\\mobile\\scripts\\validate-phase2-mobile-formation.js --output .\\Build\\delivery\\evidence\\phase2-mobile-formation-validation.json"
   }
 }

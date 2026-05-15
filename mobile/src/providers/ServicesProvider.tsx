@@ -2,6 +2,7 @@
 import type { AppServices } from '../services/contracts';
 import { mockBackend } from '../services/mock/mockBackend';
 import { liveAuthService } from '../services/live/liveAuthService';
+import { liveGroupFormationService } from '../services/live/liveGroupFormationService';
 import { liveGroupsService } from '../services/live/liveGroupsService';
 import { liveKycService } from '../services/live/liveKycService';
 import { liveNotificationsService } from '../services/live/liveNotificationsService';
@@ -17,6 +18,7 @@ export function ServicesProvider({ children }: PropsWithChildren) {
       auth: liveAuthService,
       kyc: liveKycService,
       groups: liveGroupsService,
+      formation: liveGroupFormationService,
       payments: livePaymentsService,
       notifications: liveNotificationsService,
       reports: liveReportsService,

@@ -12,5 +12,5 @@
     "mock backend regression covers pending legacy group creation during Phase 2 migration"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-15T13:11:41.167Z"
+  "validatedAt": "2026-05-15T13:27:46.419Z"
 }

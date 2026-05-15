@@ -43,6 +43,7 @@ This repository is organized as an implementation workspace around the original 
 - `npm run qa:phase2-shared`
 - `npm run qa:phase2-formation`
 - `npm run qa:phase2-legacy-group`
+- `npm run qa:phase2-mobile-formation`
 - `node .\mobile\scripts\seed-final-draw.js --phone 09XXXXXXXX --name "Your Name"`
 
 ## Hosted USSD simulator

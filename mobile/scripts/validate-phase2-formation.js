@@ -61,6 +61,7 @@ function main() {
     'createFormationRequest',
     'validateCreateRequestInput',
     'listPublicFormationRequests',
+    'getFormationRequestDetail',
     'requestJoinFormationGroup',
     'assertRequestCanReceivePublicJoinRequest',
     'countAcceptedParticipants',
@@ -106,6 +107,14 @@ function main() {
     'risk_warning_accepted_at',
     'Only private invite-based group requests can disable payout vesting.',
   ].forEach(token => assertIncludes(source, token, 'create request implementation token'));
+
+  [
+    ".from('group_join_requests')",
+    ".from('group_invitations')",
+    'This private group request is not visible to the signed-in user.',
+    'accepted_participant_count: acceptedCount',
+    'remaining_slots: Math.max(groupRequest.max_members - acceptedCount, 0)',
+  ].forEach(token => assertIncludes(source, token, 'formation detail implementation token'));
 
   [
     ".eq('visibility', 'Public')",
@@ -208,6 +217,7 @@ function main() {
       'createRequest inserts a Forming group_requests row with config-driven min/max/expiry validation',
       'createRequest inserts the creator as an Accepted formation participant',
       'listPublic returns only Public Forming requests that are not expired with accepted participant counts',
+      'getRequest returns formation detail with participants, creator/admin invitations, accepted count, and remaining slots',
       'requestJoin requires current terms acceptance and creates or reuses a Requested join row',
       'creator can accept requested participants and reject/remove participants with audit events',
       'creator can create invitations and invited members can accept them into accepted participation',
