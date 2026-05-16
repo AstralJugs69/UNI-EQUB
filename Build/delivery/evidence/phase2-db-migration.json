@@ -1,0 +1,24 @@
+{
+  "scenario": "phase2-db-migration-remote-apply",
+  "projectRef": "yxgfvkxdiicvckcwpdmc",
+  "command": "supabase db push",
+  "appliedMigrations": [
+    "20260513090000_phase2_foundation_companion_tables.sql"
+  ],
+  "terminalEvidence": [
+    "Connecting to remote database...",
+    "Do you want to push these migrations to the remote database?",
+    "Applying migration 20260513090000_phase2_foundation_companion_tables.sql...",
+    "NOTICE (42710): extension \"pgcrypto\" already exists, skipping",
+    "NOTICE (00000): trigger \"app_config_set_updated_at\" for relation \"public.app_config\" does not exist, skipping",
+    "NOTICE (00000): trigger \"audit_events_prevent_update_delete\" for relation \"public.audit_events\" does not exist, skipping",
+    "NOTICE (00000): trigger \"group_requests_set_updated_at\" for relation \"public.group_requests\" does not exist, skipping",
+    "NOTICE (00000): trigger \"contribution_obligations_set_updated_at\" for relation \"public.contribution_obligations\" does not exist, skipping",
+    "NOTICE (00000): trigger \"ledger_entries_prevent_update_delete\" for relation \"public.ledger_entries\" does not exist, skipping",
+    "NOTICE (00000): trigger \"user_reliability_profiles_set_updated_at\" for relation \"public.user_reliability_profiles\" does not exist, skipping",
+    "Finished supabase db push."
+  ],
+  "result": "completed",
+  "evidenceProvidedBy": "user terminal output",
+  "recordedAt": "2026-05-16T11:20:00.000Z"
+}

@@ -1,0 +1,14 @@
+{
+  "scenario": "phase2-existing-state-backfill-static-validation",
+  "migration": "supabase/migrations/20260516112000_phase2_backfill_existing_state.sql",
+  "completedChecks": [
+    "migration is additive and does not destructively modify MVP core tables",
+    "missing reliability profiles are inserted for existing users",
+    "banned users receive a Banned reliability status while other existing users start as New",
+    "missing open-round obligations are inserted for active members only",
+    "existing successful contribution transactions are reflected as Paid obligations",
+    "the migration is idempotent through missing-row checks and round/user conflict handling"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-16T12:31:17.435Z"
+}

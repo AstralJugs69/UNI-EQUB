@@ -2,7 +2,7 @@
 
 Version: 1.22
 Last Updated: 2026-05-16
-Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation/status/payment-attempt idempotency/outcome/reminder work started; legacy group creation compatibility preserved
+Status: Phase 1 database foundation complete in repo and applied remotely; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation/status/payment-attempt idempotency/outcome/reminder work started; Phase 1 existing-state backfill migration added; legacy group creation compatibility preserved
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -55,7 +55,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-000 | Agent | Maintain this tracker as the execution source for Phase 2 implementation batches. | Completed | Existing Phase 2 specs | Tracker exists and distinguishes Agent/User/Both tasks. | `Build/delivery/phase2_development_progress_tracker.md` |
 | P2-001 | User | Confirm Phase 2 scope is accepted for the capstone defense and that additive companion tables are allowed. | Not Started | Phase 2 specs | Written confirmation or meeting note is added to delivery evidence. | `Build/delivery/evidence/phase2-scope-approval.*` |
 | P2-002 | User | Decide whether wallet terminology remains acceptable for defense-stage UI and documentation. | Not Started | Phase 2 spec | Decision recorded with final wording constraints. | `Build/delivery/evidence/wallet-terminology-decision.md` |
-| P2-003 | User | Provide target Supabase project reference, local/remote database access method, and deployment preference. | Not Started | None | Agent knows whether to generate SQL only, run local migrations, or prepare remote deployment commands. | `Build/delivery/evidence/supabase-access-notes.md` |
+| P2-003 | User | Provide target Supabase project reference, local/remote database access method, and deployment preference. | Completed | None | Agent knows whether to generate SQL only, run local migrations, or prepare remote deployment commands. | Linked project `yxgfvkxdiicvckcwpdmc`; `Build/delivery/evidence/phase2-db-migration.json` |
 | P2-004 | User | Provide or confirm secrets strategy for Supabase service role, anon key, Twilio Verify, and any mock provider keys. | Not Started | P2-003 | Secrets are available outside git and documented as environment requirements. | Updated `.env` notes / Supabase secret checklist |
 | P2-005 | User | Provide at least one real phone number for OTP/device validation and final-draw seeded scenario. | Not Started | P2-004 | Test phone can receive OTP and be used in UAT. | `Build/delivery/evidence/test-phone-validation.md` |
 | P2-006 | User | Decide Phase 2 policy values: min members, max members, formation expiry, grace period, payout release ratio, active group limit, poll hours. | Not Started | Phase 2 spec | Values are approved and ready for `app_config` seed migration. | `Build/delivery/evidence/app-config-decisions.md` |
@@ -85,9 +85,9 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-115 | Agent | Add indexes for Phase 2 query paths and admin dashboards. | Completed | P2-101-P2-113 | Indexes cover formation, obligations, attempts, ledger references, payout requests, restrictions, audit, and notifications. | Migration adds lookup, active/pending workflow, idempotency, and dashboard indexes |
 | P2-116 | Agent | Add table comments or migration notes explaining Phase 2 companion-table relationship to core MVP tables. | Completed | P2-101-P2-113 | Future readers understand that core tables are preserved. | Migration header and `comment on table` statements for each companion table |
 | P2-117 | Agent | Create local SQL validation script or checklist for Phase 2 migrations. | Completed | P2-101-P2-116 | SQL can be validated locally or through documented Supabase command. | `mobile/scripts/validate-phase2-foundation.js`; `npm run qa:phase2-foundation` evidence |
-| P2-118 | User | Apply or approve Phase 2 migrations in the target Supabase environment. | Blocked | P2-101-P2-117, P2-003 | Target database contains Phase 2 foundation tables. | `Build/delivery/evidence/phase2-db-migration.json` |
-| P2-119 | Agent | Backfill default `user_reliability_profiles` for existing users. | Not Started | P2-112 | Existing members/admins have profile rows with correct initial status. | SQL/backfill script + evidence |
-| P2-120 | Agent | Backfill contribution obligations for existing open rounds in demo data. | Not Started | P2-107 | Existing open rounds have obligations or documented exclusion. | SQL/backfill script + evidence |
+| P2-118 | User | Apply or approve Phase 2 migrations in the target Supabase environment. | Completed | P2-101-P2-117, P2-003 | Target database contains Phase 2 foundation tables. | User-provided `supabase db push` log recorded in `Build/delivery/evidence/phase2-db-migration.json` |
+| P2-119 | Agent | Backfill default `user_reliability_profiles` for existing users. | Completed | P2-112 | Existing members/admins have profile rows with correct initial status. | `supabase/migrations/20260516112000_phase2_backfill_existing_state.sql`; `mobile/scripts/validate-phase2-backfill.js`; `Build/delivery/evidence/phase2-backfill-validation.json` |
+| P2-120 | Agent | Backfill contribution obligations for existing open rounds in demo data. | Completed | P2-107 | Existing open rounds have obligations or documented exclusion. | `supabase/migrations/20260516112000_phase2_backfill_existing_state.sql`; `mobile/scripts/validate-phase2-backfill.js`; `Build/delivery/evidence/phase2-backfill-validation.json` |
 
 ### Phase 2 — Shared Backend Helpers and Contract Types
 
@@ -264,6 +264,22 @@ Initial repo-local Phase 1 foundation batch completed on 2026-05-13:
 3. added duplicate/idempotency guardrails for successful contributions, active payout transactions, provider idempotency keys, gateway references, obligations, payout requests, and active restrictions
 4. added table comments and RLS enablement for Phase 2 companion tables
 5. added `mobile/scripts/validate-phase2-foundation.js` and evidence at `Build/delivery/evidence/phase2-foundation-validation.json`
+
+Remote Phase 1 foundation apply evidence recorded on 2026-05-16:
+
+1. user ran `supabase db push` against linked project `yxgfvkxdiicvckcwpdmc`
+2. migration `20260513090000_phase2_foundation_companion_tables.sql` was applied successfully
+3. Supabase notices were expected first-apply notices for pre-existing extension state and trigger drops
+4. evidence is recorded in `Build/delivery/evidence/phase2-db-migration.json`
+
+Phase 1 existing-state backfill batch completed on 2026-05-16:
+
+1. added `supabase/migrations/20260516112000_phase2_backfill_existing_state.sql`
+2. backfill inserts missing `user_reliability_profiles` rows for existing users while preserving any existing profile rows
+3. backfill maps existing banned accounts to reliability `Banned` and other users to initial `New`
+4. backfill inserts missing `contribution_obligations` for active members in existing open rounds
+5. backfill marks obligations `Paid` when an existing successful contribution transaction already proves payment
+6. added `mobile/scripts/validate-phase2-backfill.js` and evidence at `Build/delivery/evidence/phase2-backfill-validation.json`
 
 Second repo-local Phase 2 helper/type batch completed on 2026-05-13:
 
