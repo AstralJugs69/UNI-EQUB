@@ -1,0 +1,18 @@
+{
+  "scenario": "phase2-payout-maturity-validation",
+  "validatedFiles": {
+    "payoutVesting": "supabase/functions/_shared/payoutVesting.ts",
+    "config": "supabase/functions/_shared/config.ts",
+    "types": "supabase/functions/_shared/types.ts"
+  },
+  "completedChecks": [
+    "New and BuildingTrust are treated as probationary payout statuses",
+    "Trusted winners and final-round winners receive full payout when vesting is enabled",
+    "probationary early-winner immediate release is capped below personal contributed amount",
+    "restricted and banned users are blocked from normal payout release calculation",
+    "release ratio, minimum immediate amount, and rounding strategy are read from app_config defaults",
+    "helper can calculate vesting directly from a user reliability profile"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-16T13:40:43.476Z"
+}

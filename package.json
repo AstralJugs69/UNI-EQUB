@@ -36,6 +36,7 @@
     "qa:phase2-reminder-obligations": "node .\\mobile\\scripts\\validate-phase2-reminder-obligations.js --output .\\Build\\delivery\\evidence\\phase2-reminder-obligation-validation.json",
     "qa:phase2-backfill": "node .\\mobile\\scripts\\validate-phase2-backfill.js --output .\\Build\\delivery\\evidence\\phase2-backfill-validation.json",
     "qa:phase2-round-readiness": "node .\\mobile\\scripts\\validate-phase2-round-readiness.js --output .\\Build\\delivery\\evidence\\phase2-round-readiness-validation.json",
-    "qa:phase2-attempt-ledger": "node .\\mobile\\scripts\\validate-phase2-attempt-ledger.js --output .\\Build\\delivery\\evidence\\phase2-attempt-ledger-validation.json"
+    "qa:phase2-attempt-ledger": "node .\\mobile\\scripts\\validate-phase2-attempt-ledger.js --output .\\Build\\delivery\\evidence\\phase2-attempt-ledger-validation.json",
+    "qa:phase2-payout-maturity": "node .\\mobile\\scripts\\validate-phase2-payout-maturity.js --output .\\Build\\delivery\\evidence\\phase2-payout-maturity-validation.json"
   }
 }

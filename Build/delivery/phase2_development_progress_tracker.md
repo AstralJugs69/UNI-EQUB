@@ -2,7 +2,7 @@
 
 Version: 1.22
 Last Updated: 2026-05-16
-Status: Phase 1 database foundation complete in repo and applied remotely; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation/status/payment-attempt idempotency/outcome/reminder/readiness work started; Phase 5 payment-attempt ledger memo work started; Phase 1 existing-state backfill migration added; legacy group creation compatibility preserved
+Status: Phase 1 database foundation complete in repo and applied remotely; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation/status/payment-attempt idempotency/outcome/reminder/readiness work started; Phase 5 payment-attempt ledger memo and payout maturity helper work started; Phase 1 existing-state backfill migration added; legacy group creation compatibility preserved
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -150,7 +150,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | ID | Owner | Task | Status | Depends On | Acceptance Condition | Required Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | P2-501 | Agent | Add ledger writes for successful contribution and failed/pending payment attempt memos. | Completed | P2-109, P2-404-P2-407 | Ledger reflects contribution/payment attempt events. | `supabase/functions/contribution-reconcile/index.ts`; `supabase/functions/payment-attempt/index.ts`; `mobile/scripts/validate-phase2-attempt-ledger.js`; `Build/delivery/evidence/phase2-attempt-ledger-validation.json` |
-| P2-502 | Agent | Add payout maturity calculation for `New`, `BuildingTrust`, and `Trusted` users. | Not Started | P2-210, P2-112 | Immediate/reserved amount follows app config and strict first-cycle rule. | Helper tests |
+| P2-502 | Agent | Add payout maturity calculation for `New`, `BuildingTrust`, and `Trusted` users. | Completed | P2-210, P2-112 | Immediate/reserved amount follows app config and strict first-cycle rule. | `supabase/functions/_shared/payoutVesting.ts`; `mobile/scripts/validate-phase2-payout-maturity.js`; `Build/delivery/evidence/phase2-payout-maturity-validation.json` |
 | P2-503 | Agent | Modify draw completion to create `payout_requests`. | Not Started | P2-410, P2-502 | Draw creates payout request instead of only one pending full payout transaction. | Round lifecycle tests |
 | P2-504 | Agent | Create immediate payout `Transaction` only for immediate release amount. | Not Started | P2-503 | Probationary early winner does not receive full early payout transaction. | Tests/evidence |
 | P2-505 | Agent | Create reserve ledger entries and `payout_release_schedules` for withheld amount. | Not Started | P2-503 | Reserved payout appears in ledger/schedule and is not immediately withdrawable. | Tests/evidence |
@@ -482,3 +482,12 @@ First repo-local Phase 5 ledger memo batch completed on 2026-05-16:
 4. recorded failed attempt memo on USSD cancellation before returning the obligation to `Unpaid`
 5. de-duplicated attempt memo writes by attempt reference and entry type
 6. added `mobile/scripts/validate-phase2-attempt-ledger.js` and `Build/delivery/evidence/phase2-attempt-ledger-validation.json`
+
+Second repo-local Phase 5 payout maturity helper batch completed on 2026-05-16:
+
+1. tightened `_shared/payoutVesting.ts` so `New` and `BuildingTrust` early winners use the strict first-cycle immediate payout cap
+2. preserved full payout calculation for trusted winners and final-round winners when vesting is enabled
+3. blocked restricted and banned users from the normal payout maturity calculation path
+4. added profile-based payout maturity calculation from `user_reliability_profiles.public_status`
+5. left payout request creation, reserve ledger entries, and release schedules for the next Phase 5 flow batch
+6. added `mobile/scripts/validate-phase2-payout-maturity.js` and `Build/delivery/evidence/phase2-payout-maturity-validation.json`

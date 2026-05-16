@@ -1,5 +1,5 @@
 import { loadAppConfig } from './config.ts';
-import type { ReliabilityPublicStatus } from './types.ts';
+import type { ReliabilityPublicStatus, UserReliabilityProfileRecord } from './types.ts';
 
 export interface PayoutVestingInput {
   winnerStatus: ReliabilityPublicStatus;
@@ -37,6 +37,18 @@ function clampMoney(value: number, max: number) {
   return Math.max(0, Math.min(value, max));
 }
 
+export function isProbationaryPayoutStatus(status: ReliabilityPublicStatus) {
+  return status === 'New' || status === 'BuildingTrust';
+}
+
+function strictFirstCycleImmediateCap(personalContributedSoFar: number) {
+  const contributed = Math.max(0, personalContributedSoFar);
+  if (contributed <= 0) {
+    return 0;
+  }
+  return Math.max(0, Math.floor(contributed) - 1);
+}
+
 export function calculatePayoutVesting(input: PayoutVestingInput): PayoutVestingResult {
   if (input.totalPayoutAmount <= 0) {
     throw new Error('Total payout amount must be positive.');
@@ -58,6 +70,10 @@ export function calculatePayoutVesting(input: PayoutVestingInput): PayoutVesting
     };
   }
 
+  if (input.winnerStatus === 'Restricted' || input.winnerStatus === 'Banned') {
+    throw new Error('Restricted or banned users cannot receive normal payout maturity release.');
+  }
+
   if (input.roundNumber === input.totalRounds || input.winnerStatus === 'Trusted') {
     return {
       totalPayoutAmount: input.totalPayoutAmount,
@@ -77,15 +93,31 @@ export function calculatePayoutVesting(input: PayoutVestingInput): PayoutVesting
   const minimumImmediate = input.minimumImmediatePayoutAmount ?? 0;
   const personalContributionCap = Math.max(0, input.personalContributedSoFar);
   const releaseFromContribution = roundAmount(personalContributionCap * releaseRatio, strategy);
-  const immediateReleaseAmount = clampMoney(Math.max(minimumImmediate, releaseFromContribution), input.totalPayoutAmount);
+  const strictImmediateCap = isProbationaryPayoutStatus(input.winnerStatus)
+    ? strictFirstCycleImmediateCap(personalContributionCap)
+    : personalContributionCap;
+  const immediateReleaseAmount = clampMoney(
+    Math.max(minimumImmediate, releaseFromContribution),
+    Math.min(input.totalPayoutAmount, strictImmediateCap),
+  );
 
   return {
     totalPayoutAmount: input.totalPayoutAmount,
     immediateReleaseAmount,
     reservedAmount: input.totalPayoutAmount - immediateReleaseAmount,
     vestingApplied: immediateReleaseAmount < input.totalPayoutAmount,
-    reason: 'Probationary early winner payout is split into immediate release plus reserve.',
+    reason: `${input.winnerStatus} early winner payout is split into immediate release plus reserve.`,
   };
+}
+
+export function calculatePayoutVestingForProfile(
+  profile: UserReliabilityProfileRecord,
+  input: Omit<PayoutVestingInput, 'winnerStatus'>,
+) {
+  return calculatePayoutVesting({
+    ...input,
+    winnerStatus: profile.public_status,
+  });
 }
 
 export async function calculatePayoutVestingFromConfig(input: Omit<PayoutVestingInput, 'firstCycleReleaseRatio' | 'minimumImmediatePayoutAmount' | 'roundingStrategy'>) {
