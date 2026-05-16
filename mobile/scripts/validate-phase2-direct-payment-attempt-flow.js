@@ -66,14 +66,16 @@ function main() {
     'await ensurePaymentProviderAttempt',
     "initialStatus: 'Pending'",
     'await markContributionObligationPendingPayment(obligation.id)',
+    'async function completeSuccessfulContributionAttempt',
     'await recordPaymentAttemptCallback',
     "status: 'Successful'",
     'await createContributionTransactionForAttempt',
-    'await markContributionObligationPaid(obligation.id, transaction.Trans_ID)',
+    'await markContributionObligationPaid(input.obligationId, transaction.Trans_ID)',
     'await recordLedgerEntry',
     "entryType: 'ContributionReceived'",
     "referenceType: 'payment_provider_attempts'",
-    'await finalizeRoundIfReady(group, round)',
+    'await finalizeRoundIfReady(input.group, input.round)',
+    "event: 'direct_mock_success'",
     'return json(await payContributionThroughProviderAttempt(actor, body.groupId, body.method))',
   ].forEach(token => assertIncludes(contribution, token, 'direct contribution provider-attempt token'));
 
@@ -81,7 +83,7 @@ function main() {
     'case \'submitContributionUssd\'',
     'case \'reconcileProviderCallback\'',
     'reconcileContributionByPhone',
-  ].forEach(token => assertIncludes(contribution, token, 'deferred flow preserved token'));
+  ].forEach(token => assertIncludes(contribution, token, 'adjacent payment flow preserved token'));
 
   const result = {
     scenario: 'phase2-direct-payment-attempt-flow-validation',
@@ -97,7 +99,7 @@ function main() {
       'direct payContribution records a Successful provider callback before transaction creation',
       'direct payContribution marks the obligation Paid with the created transaction id',
       'direct payContribution writes a ContributionReceived ledger entry linked to the attempt',
-      'USSD and external provider callback paths remain deferred for later tracker tasks',
+      'USSD and external provider callback branches remain present while direct payContribution uses provider attempts',
     ],
     requiresSupabaseCredentials: false,
     validatedAt: new Date().toISOString(),

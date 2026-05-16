@@ -1,8 +1,8 @@
 # UniEqub Phase 2 Development Progress Tracker
 
-Version: 1.20
+Version: 1.21
 Last Updated: 2026-05-16
-Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation/status/direct payment-attempt routing work started; legacy group creation compatibility preserved
+Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation/status/direct and USSD payment-attempt routing work started; legacy group creation compatibility preserved
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -136,7 +136,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-402 | Agent | Update dashboard/status queries to use obligations for paid/unpaid counts. | Completed | P2-401 | Dashboard and group status show obligation-derived progress. | `supabase/functions/_shared/obligations.ts`; `supabase/functions/group-lifecycle/index.ts`; `mobile/scripts/validate-phase2-dashboard-obligations.js`; `Build/delivery/evidence/phase2-dashboard-obligation-status-validation.json`; typecheck/lint passing |
 | P2-403 | Agent | Add payment initiation path that creates `payment_provider_attempts` and marks obligation `PendingPayment`. | Completed | P2-208 | Payment start records attempt and pending obligation without creating successful transaction. | `supabase/functions/payment-attempt/index.ts`; `supabase/functions/_shared/paymentAttempts.ts`; `supabase/functions/_shared/obligations.ts`; `mobile/scripts/validate-phase2-payment-attempt-initiation.js`; `Build/delivery/evidence/phase2-payment-attempt-initiation-validation.json`; typecheck/lint passing |
 | P2-404 | Agent | Route direct `payContribution` mock flow through provider attempts. | Completed | P2-403 | Direct mock contribution creates attempt, verifies event, marks obligation paid, writes transaction/ledger. | `supabase/functions/contribution-reconcile/index.ts`; `supabase/functions/_shared/obligations.ts`; `mobile/scripts/validate-phase2-direct-payment-attempt-flow.js`; `Build/delivery/evidence/phase2-direct-payment-attempt-flow-validation.json`; typecheck/lint passing |
-| P2-405 | Agent | Route USSD session flow through provider attempts. | Not Started | P2-403 | USSD success/failure/cancel paths update attempts/obligations consistently. | Function test |
+| P2-405 | Agent | Route USSD session flow through provider attempts. | Completed | P2-403 | USSD success/failure/cancel paths update attempts/obligations consistently. | `supabase/functions/contribution-reconcile/index.ts`; `supabase/functions/_shared/auth.ts`; `supabase/functions/_shared/obligations.ts`; `mobile/scripts/validate-phase2-ussd-payment-attempt-flow.js`; `Build/delivery/evidence/phase2-ussd-payment-attempt-flow-validation.json`; typecheck/lint passing |
 | P2-406 | Agent | Route `reconcileProviderCallback` through idempotency and attempt verification. | Not Started | P2-403 | Duplicate callback writes audit/attempt metadata but no duplicate successful transaction. | Function test |
 | P2-407 | Agent | Implement wrong amount, timeout, failure, cancelled, and pending mock outcomes. | Not Started | P2-403 | All supported mock events are representable and leave obligation in correct status. | Function tests |
 | P2-408 | Agent | Update `notification-center` or helper writes for payment confirmation/failure/timeout and contribution reminder. | Not Started | P2-205, P2-407 | Payment events create durable notifications. | Function test/evidence |
@@ -421,3 +421,12 @@ Fourth repo-local Phase 4 direct payment batch completed on 2026-05-16:
 4. wrote a `ContributionReceived` ledger entry linked to the provider attempt
 5. preserved USSD and external callback flows for their later tracker rows
 6. added `mobile/scripts/validate-phase2-direct-payment-attempt-flow.js` and `Build/delivery/evidence/phase2-direct-payment-attempt-flow-validation.json`
+
+Fifth repo-local Phase 4 USSD payment batch completed on 2026-05-16:
+
+1. routed `startContributionUssd` through a pending `MockUSSD` provider attempt
+2. carried provider attempt and obligation ids through signed USSD session tokens
+3. marked the matching contribution obligation `PendingPayment` when the USSD session starts
+4. recorded cancelled USSD sessions as `Cancelled` provider callbacks and returned obligations to `Unpaid`
+5. recorded successful PIN completion as a verified provider callback before transaction creation, paid obligation update, ledger write, and round finalization
+6. added `mobile/scripts/validate-phase2-ussd-payment-attempt-flow.js` and `Build/delivery/evidence/phase2-ussd-payment-attempt-flow-validation.json`

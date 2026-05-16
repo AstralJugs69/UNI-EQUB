@@ -72,6 +72,8 @@ interface ContributionSessionInput {
   stage: string;
   amount: number;
   merchantRef: string;
+  attemptId?: string;
+  obligationId?: string;
 }
 
 export async function signContributionSession(input: ContributionSessionInput) {
@@ -82,6 +84,8 @@ export async function signContributionSession(input: ContributionSessionInput) {
     stage: input.stage,
     amount: input.amount,
     merchantRef: input.merchantRef,
+    attemptId: input.attemptId,
+    obligationId: input.obligationId,
     purpose: 'contribution_ussd',
   })
     .setProtectedHeader({ alg: 'HS256' })

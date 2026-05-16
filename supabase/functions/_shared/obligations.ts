@@ -50,6 +50,23 @@ export async function markContributionObligationPendingPayment(obligationId: str
   return data as ContributionObligationRecord;
 }
 
+export async function markContributionObligationUnpaid(obligationId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('contribution_obligations')
+    .update({
+      status: 'Unpaid',
+    })
+    .eq('id', obligationId)
+    .in('status', ['PendingPayment', 'Late', 'Unpaid'])
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return data as ContributionObligationRecord;
+}
+
 export async function markContributionObligationPaid(obligationId: string, transactionId: string, paidAt = new Date().toISOString()) {
   const { data, error } = await supabaseAdmin
     .from('contribution_obligations')

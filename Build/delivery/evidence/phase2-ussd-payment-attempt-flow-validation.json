@@ -1,0 +1,19 @@
+{
+  "scenario": "phase2-ussd-payment-attempt-flow-validation",
+  "validatedFiles": {
+    "contributionReconcile": "supabase/functions/contribution-reconcile/index.ts",
+    "auth": "supabase/functions/_shared/auth.ts",
+    "obligations": "supabase/functions/_shared/obligations.ts",
+    "paymentAttempts": "supabase/functions/_shared/paymentAttempts.ts"
+  },
+  "completedChecks": [
+    "USSD start creates a pending MockUSSD payment_provider_attempts row",
+    "USSD start marks the matching contribution obligation PendingPayment",
+    "signed USSD session tokens carry attempt and obligation ids between stages",
+    "USSD cancellation records a Cancelled attempt callback and returns the obligation to Unpaid",
+    "USSD PIN success records a Successful attempt callback before transaction creation",
+    "USSD PIN success marks the obligation Paid and writes ledger/transaction through the shared completion helper"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-16T05:31:08.663Z"
+}

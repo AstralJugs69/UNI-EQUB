@@ -29,6 +29,7 @@
     "qa:phase2-round-obligations": "node .\\mobile\\scripts\\validate-phase2-round-obligations.js --output .\\Build\\delivery\\evidence\\phase2-round-obligation-generation-validation.json",
     "qa:phase2-dashboard-obligations": "node .\\mobile\\scripts\\validate-phase2-dashboard-obligations.js --output .\\Build\\delivery\\evidence\\phase2-dashboard-obligation-status-validation.json",
     "qa:phase2-payment-attempt-initiation": "node .\\mobile\\scripts\\validate-phase2-payment-attempt-initiation.js --output .\\Build\\delivery\\evidence\\phase2-payment-attempt-initiation-validation.json",
-    "qa:phase2-direct-payment-attempt": "node .\\mobile\\scripts\\validate-phase2-direct-payment-attempt-flow.js --output .\\Build\\delivery\\evidence\\phase2-direct-payment-attempt-flow-validation.json"
+    "qa:phase2-direct-payment-attempt": "node .\\mobile\\scripts\\validate-phase2-direct-payment-attempt-flow.js --output .\\Build\\delivery\\evidence\\phase2-direct-payment-attempt-flow-validation.json",
+    "qa:phase2-ussd-payment-attempt": "node .\\mobile\\scripts\\validate-phase2-ussd-payment-attempt-flow.js --output .\\Build\\delivery\\evidence\\phase2-ussd-payment-attempt-flow-validation.json"
   }
 }

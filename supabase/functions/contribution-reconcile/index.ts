@@ -2,14 +2,14 @@ import { fail, json } from '../_shared/contracts.ts';
 import type { ContributionPayload } from '../_shared/contracts.ts';
 import { signContributionSession, verifyContributionSession, verifySession } from '../_shared/auth.ts';
 import { recordLedgerEntry } from '../_shared/ledger.ts';
-import { getContributionObligationForUserRound, markContributionObligationPaid, markContributionObligationPendingPayment } from '../_shared/obligations.ts';
+import { getContributionObligationForUserRound, markContributionObligationPaid, markContributionObligationPendingPayment, markContributionObligationUnpaid } from '../_shared/obligations.ts';
 import { buildPaymentAttemptIdempotencyKey, ensurePaymentProviderAttempt, recordPaymentAttemptCallback } from '../_shared/paymentAttempts.ts';
 import { initiateSimulatedProvider } from '../_shared/paymentProviders.ts';
 import { normalizePhone } from '../_shared/phone.ts';
 import { ensureOpenRoundForGroup, getOpenRound } from '../_shared/rounds.ts';
 import { finalizeRoundIfReady } from '../_shared/roundLifecycle.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import type { GroupRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
+import type { GroupRecord, MembershipRecord, PaymentProviderAttemptRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -169,6 +169,75 @@ async function createContributionTransactionForAttempt(input: {
   return data as TransactionRecord;
 }
 
+async function completeSuccessfulContributionAttempt(input: {
+  actor: UserRecord;
+  group: GroupRecord;
+  round: RoundRecord;
+  method: 'Telebirr' | 'MockUSSD' | 'ChapaSandbox';
+  amount: number;
+  providerLabel: string;
+  attempt: PaymentProviderAttemptRecord;
+  obligationId: string;
+  event: string;
+  attemptCreated: boolean;
+}) {
+  const verifiedAttempt = await recordPaymentAttemptCallback({
+    attemptId: input.attempt.id,
+    status: 'Successful',
+    callbackPayload: {
+      provider_label: input.providerLabel,
+      gateway_reference: input.attempt.gateway_reference,
+      amount: input.amount,
+      currency: 'ETB',
+      event: input.event,
+    },
+    verificationResult: `${input.event} verified by Edge Function.`,
+  });
+
+  const transaction = await createContributionTransactionForAttempt({
+    actor: input.actor,
+    group: input.group,
+    round: input.round,
+    method: input.method,
+    gatewayReference: verifiedAttempt.gateway_reference ?? input.attempt.gateway_reference ?? buildReceipt(input.method === 'MockUSSD' ? 'USSD' : input.method === 'ChapaSandbox' ? 'CHAPA' : 'TB'),
+    amount: input.amount,
+  });
+  const paidObligation = await markContributionObligationPaid(input.obligationId, transaction.Trans_ID);
+  await recordLedgerEntry({
+    userId: input.actor.User_ID,
+    groupId: input.group.Group_ID,
+    roundId: input.round.Round_ID,
+    transactionId: transaction.Trans_ID,
+    entryType: 'ContributionReceived',
+    direction: 'Credit',
+    amount: input.amount,
+    currency: 'ETB',
+    description: `Contribution received for ${input.group.Group_Name} round ${input.round.Round_Number}.`,
+    referenceType: 'payment_provider_attempts',
+    referenceId: verifiedAttempt.id,
+    metadata: {
+      contribution_obligation_id: paidObligation.id,
+      idempotency_key: verifiedAttempt.idempotency_key,
+      attempt_created: input.attemptCreated,
+    },
+  });
+
+  const lifecycle = await finalizeRoundIfReady(input.group, input.round);
+  return {
+    transaction,
+    obligation: paidObligation,
+    attempt: verifiedAttempt,
+    ledgerRecorded: true,
+    paymentResult: {
+      receiptRef: transaction.Gateway_Ref,
+      amount: Number(transaction.Amount),
+      method: input.method,
+      autoDrawTriggered: lifecycle.autoDrawTriggered,
+      payoutAmount: lifecycle.payoutAmount,
+    } as PaymentResult,
+  };
+}
+
 async function payContributionThroughProviderAttempt(actor: UserRecord, groupId: string, method: 'Telebirr' | 'MockUSSD' | 'ChapaSandbox') {
   const { group, round } = await assertContributionReady(actor, groupId);
   const amount = Number(group.Amount);
@@ -202,60 +271,55 @@ async function payContributionThroughProviderAttempt(actor: UserRecord, groupId:
   });
 
   await markContributionObligationPendingPayment(obligation.id);
-  const verifiedAttempt = await recordPaymentAttemptCallback({
-    attemptId: attempt.id,
-    status: 'Successful',
-    callbackPayload: {
-      provider_label: provider.providerLabel,
-      gateway_reference: attempt.gateway_reference,
-      amount,
-      currency: 'ETB',
-      event: 'direct_mock_success',
-    },
-    verificationResult: 'Direct mock contribution verified by Edge Function.',
-  });
-
-  const transaction = await createContributionTransactionForAttempt({
+  return await completeSuccessfulContributionAttempt({
     actor,
     group,
     round,
     method,
-    gatewayReference: verifiedAttempt.gateway_reference ?? provider.gatewayRef,
     amount,
+    providerLabel: provider.providerLabel,
+    attempt,
+    obligationId: obligation.id,
+    event: 'direct_mock_success',
+    attemptCreated: created,
   });
-  const paidObligation = await markContributionObligationPaid(obligation.id, transaction.Trans_ID);
-  await recordLedgerEntry({
+}
+
+async function initiateUssdContributionAttempt(actor: UserRecord, group: GroupRecord, round: RoundRecord) {
+  const amount = Number(group.Amount);
+  const obligation = await requirePayableObligation(round.Round_ID, group, actor.User_ID);
+  const provider = initiateSimulatedProvider('MockUSSD', actor, group);
+  const idempotencyKey = buildPaymentAttemptIdempotencyKey([
+    'ussd-contribution',
+    obligation.id,
+    actor.User_ID,
+    round.Round_ID,
+  ]);
+  const { attempt, created } = await ensurePaymentProviderAttempt({
+    providerName: 'MockUSSD',
+    providerMode: 'Mock',
+    eventType: 'ContributionPayment',
     userId: actor.User_ID,
     groupId: group.Group_ID,
     roundId: round.Round_ID,
-    transactionId: transaction.Trans_ID,
-    entryType: 'ContributionReceived',
-    direction: 'Credit',
+    contributionObligationId: obligation.id,
     amount,
     currency: 'ETB',
-    description: `Contribution received for ${group.Group_Name} round ${round.Round_Number}.`,
-    referenceType: 'payment_provider_attempts',
-    referenceId: verifiedAttempt.id,
-    metadata: {
-      contribution_obligation_id: paidObligation.id,
-      idempotency_key: verifiedAttempt.idempotency_key,
-      attempt_created: created,
+    normalizedPhone: provider.senderPhone,
+    gatewayReference: provider.gatewayRef,
+    idempotencyKey,
+    initialStatus: 'Pending',
+    requestPayload: {
+      source: 'contribution-reconcile.startContributionUssd',
+      provider_label: provider.providerLabel,
     },
   });
-
-  const lifecycle = await finalizeRoundIfReady(group, round);
+  const pendingObligation = await markContributionObligationPendingPayment(obligation.id);
   return {
-    transaction,
-    obligation: paidObligation,
-    attempt: verifiedAttempt,
-    ledgerRecorded: true,
-    paymentResult: {
-      receiptRef: transaction.Gateway_Ref,
-      amount: Number(transaction.Amount),
-      method,
-      autoDrawTriggered: lifecycle.autoDrawTriggered,
-      payoutAmount: lifecycle.payoutAmount,
-    } as PaymentResult,
+    attempt,
+    obligation: pendingObligation,
+    provider,
+    created,
   };
 }
 
@@ -428,6 +492,7 @@ Deno.serve(async request => {
           return fail('Missing groupId for USSD start.', 400);
         }
         const { group, round } = await assertContributionReady(actor, body.groupId);
+        const { attempt, obligation } = await initiateUssdContributionAttempt(actor, group, round);
         const sessionId = await signContributionSession({
           userId: actor.User_ID,
           phoneNumber: actor.Phone_Number,
@@ -436,6 +501,8 @@ Deno.serve(async request => {
           stage: 'AwaitMenu',
           amount: Number(group.Amount),
           merchantRef: group.Virtual_Acc_Ref ?? '',
+          attemptId: attempt.id,
+          obligationId: obligation.id,
         });
         return json(await buildUssdState({ actor, group, round, stage: 'AwaitMenu', sessionId }));
       }
@@ -453,8 +520,10 @@ Deno.serve(async request => {
         const groupId = payload.groupId as string | undefined;
         const roundId = payload.roundId as string | undefined;
         const merchantRef = payload.merchantRef as string | undefined;
+        const attemptId = payload.attemptId as string | undefined;
+        const obligationId = payload.obligationId as string | undefined;
         const amount = Number(payload.amount ?? 0);
-        if (!stage || !groupId || !roundId || !merchantRef || !amount) {
+        if (!stage || !groupId || !roundId || !merchantRef || !amount || !attemptId || !obligationId) {
           return fail('Contribution session is invalid.', 400);
         }
         const group = await requireGroup(groupId);
@@ -465,6 +534,17 @@ Deno.serve(async request => {
         const input = body.input?.trim() ?? '';
 
         if (input === '0') {
+          await recordPaymentAttemptCallback({
+            attemptId,
+            status: 'Cancelled',
+            callbackPayload: {
+              event: 'ussd_cancelled',
+              stage,
+            },
+            failureCode: 'USSD_CANCELLED',
+            failureMessage: 'Member cancelled the USSD contribution session.',
+          });
+          await markContributionObligationUnpaid(obligationId);
           return json({ ussd: await buildUssdState({ actor, group, round, stage: 'Cancelled', sessionId: body.sessionId }) });
         }
 
@@ -473,36 +553,54 @@ Deno.serve(async request => {
             if (input !== '1') {
               return json({ ussd: await buildUssdState({ actor, group, round, stage, sessionId: body.sessionId, error: 'Reply with 1 to pay the merchant or 0 to cancel.' }) });
             }
-            const nextSessionId = await signContributionSession({ userId: actor.User_ID, phoneNumber: actor.Phone_Number, groupId, roundId, stage: 'AwaitReference', amount, merchantRef });
+            const nextSessionId = await signContributionSession({ userId: actor.User_ID, phoneNumber: actor.Phone_Number, groupId, roundId, stage: 'AwaitReference', amount, merchantRef, attemptId, obligationId });
             return json({ ussd: await buildUssdState({ actor, group, round, stage: 'AwaitReference', sessionId: nextSessionId }) });
           }
           case 'AwaitReference': {
             if (input.toUpperCase() !== merchantRef.toUpperCase()) {
               return json({ ussd: await buildUssdState({ actor, group, round, stage, sessionId: body.sessionId, error: `Reference must match ${merchantRef}.` }) });
             }
-            const nextSessionId = await signContributionSession({ userId: actor.User_ID, phoneNumber: actor.Phone_Number, groupId, roundId, stage: 'AwaitAmount', amount, merchantRef });
+            const nextSessionId = await signContributionSession({ userId: actor.User_ID, phoneNumber: actor.Phone_Number, groupId, roundId, stage: 'AwaitAmount', amount, merchantRef, attemptId, obligationId });
             return json({ ussd: await buildUssdState({ actor, group, round, stage: 'AwaitAmount', sessionId: nextSessionId }) });
           }
           case 'AwaitAmount': {
             if (Number(input) !== amount) {
               return json({ ussd: await buildUssdState({ actor, group, round, stage, sessionId: body.sessionId, error: `Amount must be exactly ${amount} ETB.` }) });
             }
-            const nextSessionId = await signContributionSession({ userId: actor.User_ID, phoneNumber: actor.Phone_Number, groupId, roundId, stage: 'AwaitConfirm', amount, merchantRef });
+            const nextSessionId = await signContributionSession({ userId: actor.User_ID, phoneNumber: actor.Phone_Number, groupId, roundId, stage: 'AwaitConfirm', amount, merchantRef, attemptId, obligationId });
             return json({ ussd: await buildUssdState({ actor, group, round, stage: 'AwaitConfirm', sessionId: nextSessionId }) });
           }
           case 'AwaitConfirm': {
             if (input !== '1') {
               return json({ ussd: await buildUssdState({ actor, group, round, stage, sessionId: body.sessionId, error: 'Reply with 1 to confirm or 0 to cancel.' }) });
             }
-            const nextSessionId = await signContributionSession({ userId: actor.User_ID, phoneNumber: actor.Phone_Number, groupId, roundId, stage: 'AwaitPin', amount, merchantRef });
+            const nextSessionId = await signContributionSession({ userId: actor.User_ID, phoneNumber: actor.Phone_Number, groupId, roundId, stage: 'AwaitPin', amount, merchantRef, attemptId, obligationId });
             return json({ ussd: await buildUssdState({ actor, group, round, stage: 'AwaitPin', sessionId: nextSessionId }) });
           }
           case 'AwaitPin': {
             if (!/^\d{6}$/.test(input)) {
               return json({ ussd: await buildUssdState({ actor, group, round, stage, sessionId: body.sessionId, error: 'Enter your 6-digit Telebirr PIN.' }) });
             }
-            const provider = initiateSimulatedProvider('MockUSSD', actor, group);
-            const result = await reconcileContributionByPhone(group.Group_ID, provider.senderPhone, 'MockUSSD', provider.gatewayRef);
+            const { data: existingAttempt, error: attemptError } = await supabaseAdmin
+              .from('payment_provider_attempts')
+              .select('*')
+              .eq('id', attemptId)
+              .single();
+            if (attemptError) {
+              throw attemptError;
+            }
+            const result = await completeSuccessfulContributionAttempt({
+              actor,
+              group,
+              round,
+              method: 'MockUSSD',
+              amount,
+              providerLabel: 'MockUSSD',
+              attempt: existingAttempt as PaymentProviderAttemptRecord,
+              obligationId,
+              event: 'ussd_mock_success',
+              attemptCreated: false,
+            });
             return json({
               ussd: await buildUssdState({
                 actor,
