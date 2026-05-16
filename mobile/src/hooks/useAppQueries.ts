@@ -16,6 +16,7 @@ export const queryKeys = {
   adminOverview: ['admin-overview'] as const,
   pendingKyc: ['pending-kyc'] as const,
   pendingGroups: ['pending-groups'] as const,
+  pendingFormationGroups: ['pending-formation-groups'] as const,
   reports: ['reports'] as const,
 };
 
@@ -129,6 +130,14 @@ export function usePendingGroupsQuery() {
   return useQuery({
     queryKey: queryKeys.pendingGroups,
     queryFn: () => services.groups.listPendingApprovals(),
+  });
+}
+
+export function usePendingFormationGroupsQuery() {
+  const services = useServices();
+  return useQuery({
+    queryKey: queryKeys.pendingFormationGroups,
+    queryFn: () => services.formation.listPendingApproval(),
   });
 }
 
@@ -256,7 +265,9 @@ export function useAdminActions() {
       queryClient.invalidateQueries({ queryKey: queryKeys.adminOverview }),
       queryClient.invalidateQueries({ queryKey: queryKeys.pendingKyc }),
       queryClient.invalidateQueries({ queryKey: queryKeys.pendingGroups }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.pendingFormationGroups }),
       queryClient.invalidateQueries({ queryKey: queryKeys.groups }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications }),
       queryClient.invalidateQueries({ queryKey: queryKeys.reports }),
     ]);
@@ -281,6 +292,16 @@ export function useAdminActions() {
     }),
     freezeGroup: useMutation({
       mutationFn: (groupId: string) => services.groups.freeze(groupId),
+      onSuccess: refreshAdminData,
+    }),
+    approveFormationGroup: useMutation({
+      mutationFn: ({ requestId, decisionReason }: { requestId: string; decisionReason?: string }) =>
+        services.formation.adminApprove(requestId, decisionReason),
+      onSuccess: refreshAdminData,
+    }),
+    rejectFormationGroup: useMutation({
+      mutationFn: ({ requestId, decisionReason }: { requestId: string; decisionReason?: string }) =>
+        services.formation.adminReject(requestId, decisionReason),
       onSuccess: refreshAdminData,
     }),
     sendReminders: useMutation({

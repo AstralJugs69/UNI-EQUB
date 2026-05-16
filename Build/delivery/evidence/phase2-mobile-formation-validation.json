@@ -11,11 +11,12 @@
   },
   "completedChecks": [
     "mobile contract exposes Phase 2 formation list/detail/create/join/invite/submit actions",
+    "mobile contract exposes admin pending-approval list for formation review",
     "live service invokes the group-formation Edge Function for formation actions",
     "service provider wires the live formation implementation",
     "mock backend supports the contract for repo-local tests before UI migration",
     "Edge Function getRequest route returns usable formation detail instead of the pending stub"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-15T16:50:54.825Z"
+  "validatedAt": "2026-05-16T04:53:46.171Z"
 }

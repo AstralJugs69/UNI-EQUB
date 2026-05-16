@@ -115,6 +115,7 @@ export interface GroupService {
 
 export interface GroupFormationService {
   listPublic(userId: string): Promise<GroupFormationRequestSummary[]>;
+  listPendingApproval(): Promise<GroupFormationRequestSummary[]>;
   getRequest(userId: string, requestId: string): Promise<GroupFormationDetail>;
   createRequest(userId: string, input: CreateGroupFormationInput): Promise<GroupFormationDetail>;
   requestJoin(userId: string, requestId: string, terms: FormationTermsAcceptance): Promise<GroupFormationDetail>;

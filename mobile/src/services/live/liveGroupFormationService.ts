@@ -91,6 +91,11 @@ export const liveGroupFormationService: GroupFormationService = {
     return response.requests;
   },
 
+  async listPendingApproval(): Promise<GroupFormationRequestSummary[]> {
+    const response = await invoke<FormationListResponse>({ action: 'listPendingApproval' });
+    return response.requests;
+  },
+
   async getRequest(_userId: string, requestId: string): Promise<GroupFormationDetail> {
     const response = await invoke<FormationDetailEnvelope>({ action: 'getRequest', requestId });
     return toDetail(response);

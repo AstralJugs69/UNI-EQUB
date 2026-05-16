@@ -1,0 +1,23 @@
+{
+  "scenario": "phase2-admin-formation-ui-validation",
+  "validatedFiles": {
+    "sharedContracts": "supabase/functions/_shared/contracts.ts",
+    "edgeFunction": "supabase/functions/group-formation/index.ts",
+    "mobileContracts": "mobile/src/services/contracts/index.ts",
+    "liveService": "mobile/src/services/live/liveGroupFormationService.ts",
+    "mockBackend": "mobile/src/services/mock/mockBackend.ts",
+    "hooks": "mobile/src/hooks/useAppQueries.ts",
+    "adminGroups": "mobile/src/screens/admin/AdminGroupsScreen.tsx",
+    "mockBackendTest": "mobile/src/services/mock/mockBackend.test.ts"
+  },
+  "completedChecks": [
+    "Edge Function exposes admin-only pending formation queue",
+    "mobile formation service exposes pending approval list and admin decisions",
+    "admin groups screen shows proposed terms, participants, risk, vesting, and review checks",
+    "admin groups screen can approve/reject Phase 2 formations while preserving legacy MVP queue",
+    "mock backend regression covers pending queue and admin approval"
+  ],
+  "requiresSupabaseCredentials": false,
+  "requiresDeviceValidation": true,
+  "validatedAt": "2026-05-16T04:53:45.759Z"
+}

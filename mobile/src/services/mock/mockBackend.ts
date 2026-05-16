@@ -506,6 +506,12 @@ export class MockBackend implements AppServices {
         .map(request => this.toFormationSummary(request));
     },
 
+    listPendingApproval: async (): Promise<GroupFormationRequestSummary[]> => {
+      return this.db.groupRequests
+        .filter(request => request.status === 'PendingApproval')
+        .map(request => this.toFormationSummary(request));
+    },
+
     getRequest: async (_userId: string, requestId: string): Promise<GroupFormationDetail> => {
       return this.toFormationDetail(this.requireFormationRequest(requestId));
     },

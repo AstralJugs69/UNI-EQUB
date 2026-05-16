@@ -24,6 +24,7 @@
     "qa:phase2-legacy-group": "node .\\mobile\\scripts\\validate-phase2-legacy-group-compat.js --output .\\Build\\delivery\\evidence\\phase2-legacy-group-compatibility.json",
     "qa:phase2-mobile-formation": "node .\\mobile\\scripts\\validate-phase2-mobile-formation.js --output .\\Build\\delivery\\evidence\\phase2-mobile-formation-validation.json",
     "qa:phase2-member-formation-ui": "node .\\mobile\\scripts\\validate-phase2-member-formation-ui.js --output .\\Build\\delivery\\evidence\\phase2-member-formation-ui-validation.json",
-    "qa:phase2-creator-formation-ui": "node .\\mobile\\scripts\\validate-phase2-creator-formation-ui.js --output .\\Build\\delivery\\evidence\\phase2-creator-formation-ui-validation.json"
+    "qa:phase2-creator-formation-ui": "node .\\mobile\\scripts\\validate-phase2-creator-formation-ui.js --output .\\Build\\delivery\\evidence\\phase2-creator-formation-ui-validation.json",
+    "qa:phase2-admin-formation-ui": "node .\\mobile\\scripts\\validate-phase2-admin-formation-ui.js --output .\\Build\\delivery\\evidence\\phase2-admin-formation-ui-validation.json"
   }
 }

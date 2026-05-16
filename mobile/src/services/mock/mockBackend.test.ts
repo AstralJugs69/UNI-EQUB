@@ -93,6 +93,32 @@ describe('MockBackend automatic draw flow', () => {
     expect(response.detail.invitations.some(item => item.id === response.invitation.id)).toBe(true);
   });
 
+  it('exposes pending Phase 2 formation requests for admin approval', async () => {
+    const backend = new MockBackend();
+    const created = await backend.formation.createRequest('user-dawit', {
+      groupName: 'Admin Review Formation Circle',
+      amount: 900,
+      frequency: 'Weekly',
+      minMembers: 2,
+      maxMembers: 5,
+      visibility: 'Public',
+      termsVersion: 'phase2-v1',
+    });
+    const joined = await backend.formation.requestJoin('user-miki', created.groupRequest.id, {
+      groupTermsAccepted: true,
+      acceptedTermsVersion: 'phase2-v1',
+    });
+    const joinRequest = joined.joinRequests.find(item => item.user_id === 'user-miki');
+    await backend.formation.acceptJoin('user-dawit', joinRequest!.id);
+    await backend.formation.submitForApproval('user-dawit', created.groupRequest.id);
+
+    const pending = await backend.formation.listPendingApproval();
+    expect(pending.some(item => item.id === created.groupRequest.id)).toBe(true);
+
+    const approvedGroup = await backend.formation.adminApprove(created.groupRequest.id);
+    expect(approvedGroup.Status).toBe('Active');
+  });
+
   it('keeps the legacy group creation request path pending during Phase 2 migration', async () => {
     const backend = new MockBackend();
     const group = await backend.groups.createRequest('user-dawit', {

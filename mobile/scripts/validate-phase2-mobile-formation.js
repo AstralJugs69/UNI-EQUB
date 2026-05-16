@@ -48,6 +48,7 @@ function main() {
   [
     'export interface GroupFormationService',
     'listPublic(userId: string)',
+    'listPendingApproval(): Promise<GroupFormationRequestSummary[]>',
     'getRequest(userId: string, requestId: string)',
     'createRequest(userId: string, input: CreateGroupFormationInput)',
     'requestJoin(userId: string, requestId: string, terms: FormationTermsAcceptance)',
@@ -67,6 +68,7 @@ function main() {
   [
     "supabase.functions.invoke<Envelope<T>>('group-formation'",
     "action: 'listPublic'",
+    "action: 'listPendingApproval'",
     "action: 'getRequest'",
     "action: 'createRequest'",
     "action: 'requestJoin'",
@@ -119,6 +121,7 @@ function main() {
     },
     completedChecks: [
       'mobile contract exposes Phase 2 formation list/detail/create/join/invite/submit actions',
+      'mobile contract exposes admin pending-approval list for formation review',
       'live service invokes the group-formation Edge Function for formation actions',
       'service provider wires the live formation implementation',
       'mock backend supports the contract for repo-local tests before UI migration',

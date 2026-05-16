@@ -8,6 +8,7 @@ const configPath = path.join(repoRoot, 'supabase/config.toml');
 
 const requiredActions = [
   'listPublic',
+  'listPendingApproval',
   'getRequest',
   'createRequest',
   'requestJoin',
@@ -95,6 +96,12 @@ function main() {
   ].forEach(token => assertIncludes(source, token, 'formation boundary token'));
 
   requiredActions.forEach(action => assertIncludes(source, `'${action}'`, `formation action ${action}`));
+  [
+    'listPendingApprovalFormationRequests',
+    ".eq('status', 'PendingApproval')",
+    'adminReviewQueue',
+  ].forEach(token => assertIncludes(source, token, 'admin pending approval list token'));
+
   [
     ".from('group_requests')",
     ".from('group_join_requests')",
@@ -217,6 +224,7 @@ function main() {
       'createRequest inserts a Forming group_requests row with config-driven min/max/expiry validation',
       'createRequest inserts the creator as an Accepted formation participant',
       'listPublic returns only Public Forming requests that are not expired with accepted participant counts',
+      'listPendingApproval returns the admin review queue for submitted formation requests',
       'getRequest returns formation detail with participants, creator/admin invitations, accepted count, and remaining slots',
       'requestJoin requires current terms acceptance and creates or reuses a Requested join row',
       'creator can accept requested participants and reject/remove participants with audit events',
