@@ -1,0 +1,17 @@
+{
+  "scenario": "phase2-provider-callback-idempotency-validation",
+  "validatedFiles": {
+    "contributionReconcile": "supabase/functions/contribution-reconcile/index.ts",
+    "paymentAttempts": "supabase/functions/_shared/paymentAttempts.ts",
+    "obligations": "supabase/functions/_shared/obligations.ts"
+  },
+  "completedChecks": [
+    "reconcileProviderCallback resolves the member, open round, and matching obligation before reconciliation",
+    "reconcileProviderCallback creates or links a payment_provider_attempts row by gateway/idempotency",
+    "reconcileProviderCallback records Successful callbacks through the shared completion helper",
+    "duplicate callbacks are marked Duplicate on the provider attempt",
+    "duplicate callbacks return existing transaction context without creating another successful Transaction"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-16T05:38:37.572Z"
+}

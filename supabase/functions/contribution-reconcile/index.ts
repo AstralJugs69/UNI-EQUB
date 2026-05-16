@@ -103,6 +103,19 @@ async function successfulContribution(roundId: string, userId: string) {
   return data as TransactionRecord | null;
 }
 
+async function findPaymentAttemptByGatewayReference(gatewayReference: string) {
+  const { data, error } = await supabaseAdmin
+    .from('payment_provider_attempts')
+    .select('*')
+    .eq('gateway_reference', gatewayReference)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+  return data as PaymentProviderAttemptRecord | null;
+}
+
 async function assertContributionReady(actor: UserRecord, groupId: string) {
   const group = await requireGroup(groupId);
   const round = await ensureOpenRoundForGroup(group);
@@ -368,6 +381,116 @@ async function reconcileContributionByPhone(groupId: string, senderPhone: string
   };
 }
 
+async function reconcileProviderCallbackThroughAttempt(input: {
+  groupId: string;
+  senderPhone: string;
+  method: 'Telebirr' | 'MockUSSD' | 'ChapaSandbox';
+  gatewayRef?: string;
+  amount?: number;
+}) {
+  const match = await findGroupMemberByPhone(input.groupId, input.senderPhone);
+  if (!match) {
+    throw new Error('No active group member matches the sender phone for this contribution.');
+  }
+
+  const actor = match.user;
+  const group = await requireGroup(input.groupId);
+  if (group.Status !== 'Active') {
+    throw new Error('Only active groups can accept contributions.');
+  }
+  const round = await ensureOpenRoundForGroup(group);
+  const amount = input.amount ?? Number(group.Amount);
+  if (amount !== Number(group.Amount)) {
+    throw new Error(`Contribution amount must match the expected round amount of ${group.Amount} ETB.`);
+  }
+
+  const obligation = await getContributionObligationForUserRound(round.Round_ID, actor.User_ID);
+  if (!obligation) {
+    throw new Error('Contribution obligation was not found for this member and round.');
+  }
+  if (['Waived', 'RefundPending'].includes(obligation.status)) {
+    throw new Error('This contribution obligation is already settled outside the provider callback flow.');
+  }
+
+  const existingTransaction = await successfulContribution(round.Round_ID, actor.User_ID);
+  const idempotencyKey = buildPaymentAttemptIdempotencyKey([
+    'provider-callback',
+    input.gatewayRef ?? obligation.id,
+    input.method,
+    actor.User_ID,
+    round.Round_ID,
+  ]);
+  const provider = initiateSimulatedProvider(input.method, actor, group);
+  const existingAttempt = input.gatewayRef ? await findPaymentAttemptByGatewayReference(input.gatewayRef) : null;
+  const ensured = existingAttempt
+    ? { attempt: existingAttempt, created: false }
+    : await ensurePaymentProviderAttempt({
+      providerName: input.method,
+      providerMode: input.method === 'ChapaSandbox' ? 'Sandbox' : 'Mock',
+      eventType: 'ContributionPayment',
+      userId: actor.User_ID,
+      groupId: group.Group_ID,
+      roundId: round.Round_ID,
+      contributionObligationId: obligation.id,
+      amount,
+      currency: 'ETB',
+      normalizedPhone: normalizePhone(input.senderPhone),
+      gatewayReference: input.gatewayRef ?? provider.gatewayRef,
+      idempotencyKey,
+      initialStatus: 'Pending',
+      requestPayload: {
+        source: 'contribution-reconcile.reconcileProviderCallback',
+        provider_label: provider.providerLabel,
+      },
+    });
+
+  if (existingTransaction || ensured.attempt.status === 'Successful') {
+    const duplicateAttempt = await recordPaymentAttemptCallback({
+      attemptId: ensured.attempt.id,
+      status: 'Duplicate',
+      callbackPayload: {
+        event: 'duplicate_provider_callback',
+        gateway_reference: input.gatewayRef ?? ensured.attempt.gateway_reference,
+        amount,
+        currency: 'ETB',
+        existing_transaction_id: existingTransaction?.Trans_ID ?? null,
+      },
+      verificationResult: 'Duplicate provider callback detected; no transaction was created.',
+      failureCode: 'DUPLICATE_CALLBACK',
+      failureMessage: 'A successful contribution already exists for this user and round.',
+    });
+    return {
+      duplicate: true,
+      transaction: existingTransaction,
+      attempt: duplicateAttempt,
+      obligation,
+      paymentResult: existingTransaction
+        ? {
+          receiptRef: existingTransaction.Gateway_Ref,
+          amount: Number(existingTransaction.Amount),
+          method: existingTransaction.Payment_Method,
+          autoDrawTriggered: false,
+          payoutAmount: 0,
+        } as PaymentResult
+        : null,
+    };
+  }
+
+  await markContributionObligationPendingPayment(obligation.id);
+  return await completeSuccessfulContributionAttempt({
+    actor,
+    group,
+    round,
+    method: input.method,
+    amount,
+    providerLabel: provider.providerLabel,
+    attempt: ensured.attempt,
+    obligationId: obligation.id,
+    event: 'provider_callback_success',
+    attemptCreated: ensured.created,
+  });
+}
+
 async function listUserTransactions(userId: string) {
   const { data, error } = await supabaseAdmin.from('Transaction').select('*').eq('User_ID', userId).order('Date', { ascending: false });
   if (error) {
@@ -622,7 +745,13 @@ Deno.serve(async request => {
         if (!body.groupId || !body.method || !body.senderPhone) {
           return fail('Missing callback reconciliation payload.', 400);
         }
-        return json(await reconcileContributionByPhone(body.groupId, body.senderPhone, body.method, body.gatewayRef, body.amount));
+        return json(await reconcileProviderCallbackThroughAttempt({
+          groupId: body.groupId,
+          senderPhone: body.senderPhone,
+          method: body.method,
+          gatewayRef: body.gatewayRef,
+          amount: body.amount,
+        }));
       }
 
       default:

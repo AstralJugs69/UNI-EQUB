@@ -15,5 +15,5 @@
     "USSD PIN success marks the obligation Paid and writes ledger/transaction through the shared completion helper"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-16T05:31:08.663Z"
+  "validatedAt": "2026-05-16T05:38:37.631Z"
 }
