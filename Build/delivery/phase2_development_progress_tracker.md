@@ -2,7 +2,7 @@
 
 Version: 1.22
 Last Updated: 2026-05-16
-Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation/status/payment-attempt idempotency work started; legacy group creation compatibility preserved
+Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation/status/payment-attempt idempotency/outcome/reminder work started; legacy group creation compatibility preserved
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -138,9 +138,9 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-404 | Agent | Route direct `payContribution` mock flow through provider attempts. | Completed | P2-403 | Direct mock contribution creates attempt, verifies event, marks obligation paid, writes transaction/ledger. | `supabase/functions/contribution-reconcile/index.ts`; `supabase/functions/_shared/obligations.ts`; `mobile/scripts/validate-phase2-direct-payment-attempt-flow.js`; `Build/delivery/evidence/phase2-direct-payment-attempt-flow-validation.json`; typecheck/lint passing |
 | P2-405 | Agent | Route USSD session flow through provider attempts. | Completed | P2-403 | USSD success/failure/cancel paths update attempts/obligations consistently. | `supabase/functions/contribution-reconcile/index.ts`; `supabase/functions/_shared/auth.ts`; `supabase/functions/_shared/obligations.ts`; `mobile/scripts/validate-phase2-ussd-payment-attempt-flow.js`; `Build/delivery/evidence/phase2-ussd-payment-attempt-flow-validation.json`; typecheck/lint passing |
 | P2-406 | Agent | Route `reconcileProviderCallback` through idempotency and attempt verification. | Completed | P2-403 | Duplicate callback writes audit/attempt metadata but no duplicate successful transaction. | `supabase/functions/contribution-reconcile/index.ts`; `mobile/scripts/validate-phase2-provider-callback-idempotency.js`; `Build/delivery/evidence/phase2-provider-callback-idempotency-validation.json`; typecheck/lint passing |
-| P2-407 | Agent | Implement wrong amount, timeout, failure, cancelled, and pending mock outcomes. | Not Started | P2-403 | All supported mock events are representable and leave obligation in correct status. | Function tests |
+| P2-407 | Agent | Implement wrong amount, timeout, failure, cancelled, and pending mock outcomes. | Completed | P2-403 | All supported mock events are representable and leave obligation in correct status. | `supabase/functions/payment-attempt/index.ts`; `supabase/functions/_shared/contracts.ts`; `supabase/config.toml`; `mobile/scripts/validate-phase2-payment-outcomes.js`; `Build/delivery/evidence/phase2-payment-outcome-validation.json` |
 | P2-408 | Agent | Update `notification-center` or helper writes for payment confirmation/failure/timeout and contribution reminder. | Not Started | P2-205, P2-407 | Payment events create durable notifications. | Function test/evidence |
-| P2-409 | Agent | Update admin reminder derivation to use `contribution_obligations`. | Not Started | P2-402 | Reminder queue derives from unpaid/late obligations, not transaction-minus-membership only. | Function test |
+| P2-409 | Agent | Update admin reminder derivation to use `contribution_obligations`. | Completed | P2-402 | Reminder queue derives from unpaid/late obligations, not transaction-minus-membership only. | `supabase/functions/report-export/index.ts`; `supabase/functions/_shared/obligations.ts`; `mobile/scripts/validate-phase2-reminder-obligations.js`; `Build/delivery/evidence/phase2-reminder-obligation-validation.json` |
 | P2-410 | Agent | Change round readiness to settled-obligation logic. | Not Started | P2-401-P2-407 | Draw triggers only when all required obligations are settled. | Round lifecycle tests |
 | P2-411 | Agent | Add obligation/payment tests to mock backend or live service test harness. | Not Started | P2-401-P2-410 | Tests cover unpaid, pending, paid, failed, duplicate, wrong amount, and readiness. | Jest/script output |
 | P2-412 | User | Validate contribution flows on device with success, cancel, wrong amount, duplicate callback, and timeout demo cases. | Blocked | P2-404-P2-411 | Evidence shows all mock outcomes behave defensibly. | `Build/delivery/evidence/payment-attempt-uat.*` |
@@ -439,3 +439,13 @@ Sixth repo-local Phase 4 provider-callback batch completed on 2026-05-16:
 4. reused the shared successful completion helper for provider callback success
 5. detected duplicate callbacks from existing successful contributions and marked the provider attempt `Duplicate` without creating another transaction
 6. added `mobile/scripts/validate-phase2-provider-callback-idempotency.js` and `Build/delivery/evidence/phase2-provider-callback-idempotency-validation.json`
+
+Seventh repo-local Phase 4 payment-outcome/reminder batch completed on 2026-05-16:
+
+1. registered `payment-attempt` in `supabase/config.toml`
+2. added `PaymentAttemptOutcome` contract fields for success, failure, timeout, cancelled, wrong amount, and pending mock outcomes
+3. implemented `recordProviderCallback`, `markAttemptTimeout`, and `markAttemptCancelled` in `supabase/functions/payment-attempt/index.ts`
+4. kept successful contribution callbacks routed through `contribution-reconcile` so transaction, obligation, ledger, and draw updates remain atomic
+5. mapped failed, timeout, cancelled, and invalid-amount outcomes back to `Unpaid` obligations while pending outcomes stay `PendingPayment`
+6. updated admin reminder derivation in `report-export` to use obligation progress, including late obligation counts and the existing MVP transaction overlay
+7. added `mobile/scripts/validate-phase2-payment-outcomes.js`, `mobile/scripts/validate-phase2-reminder-obligations.js`, `Build/delivery/evidence/phase2-payment-outcome-validation.json`, and `Build/delivery/evidence/phase2-reminder-obligation-validation.json`

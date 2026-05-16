@@ -31,6 +31,9 @@ verify_jwt = false
 [functions.contribution-reconcile]
 verify_jwt = false
 
+[functions.payment-attempt]
+verify_jwt = false
+
 [functions.round-complete]
 verify_jwt = false
 

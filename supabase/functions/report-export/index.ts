@@ -1,8 +1,9 @@
 import { fail, json } from '../_shared/contracts.ts';
 import type { ReportExportPayload } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
+import { getRoundObligationProgress } from '../_shared/obligations.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import type { GroupRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
+import type { GroupRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -101,7 +102,7 @@ async function deriveReminderQueue(groups: GroupRecord[], rounds: RoundRecord[])
     if (membershipError) {
       throw membershipError;
     }
-    const activeMemberships = memberships ?? [];
+    const activeMemberships = (memberships ?? []) as MembershipRecord[];
     const { data: contributions, error: contributionError } = await supabaseAdmin
       .from('Transaction')
       .select('*')
@@ -111,9 +112,15 @@ async function deriveReminderQueue(groups: GroupRecord[], rounds: RoundRecord[])
     if (contributionError) {
       throw contributionError;
     }
-    const unpaid = Math.max(activeMemberships.length - (contributions ?? []).length, 0);
-    if (unpaid > 0) {
-      queue.push(`${group.Group_Name} • ${unpaid} unpaid members • reminder queued`);
+    const obligationProgress = await getRoundObligationProgress(
+      round.Round_ID,
+      activeMemberships,
+      ((contributions ?? []) as TransactionRecord[]),
+    );
+    if (obligationProgress.unpaidCount > 0) {
+      const lateCount = obligationProgress.obligations.filter(obligation => obligation.status === 'Late').length;
+      const lateLabel = lateCount > 0 ? ` • ${lateCount} late` : '';
+      queue.push(`${group.Group_Name} • ${obligationProgress.unpaidCount} unpaid obligations${lateLabel} • reminder queued`);
     }
   }
   return queue;

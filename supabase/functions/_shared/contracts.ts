@@ -9,6 +9,7 @@ export type GroupLifecycleAction = 'listBrowseable' | 'getGroup' | 'getGroupStat
 export type GroupFormationAction = 'listPublic' | 'listPendingApproval' | 'getRequest' | 'createRequest' | 'requestJoin' | 'acceptJoin' | 'removeParticipant' | 'invite' | 'acceptInvite' | 'submitForApproval' | 'adminApprove' | 'adminReject';
 export type ContributionAction = 'payContribution' | 'startContributionUssd' | 'submitContributionUssd' | 'listTransactions' | 'getWallet' | 'reconcileProviderCallback';
 export type PaymentAttemptAction = 'initiateContributionAttempt' | 'recordProviderCallback' | 'markAttemptTimeout' | 'markAttemptCancelled';
+export type PaymentAttemptOutcome = 'success' | 'failure' | 'timeout' | 'cancelled' | 'wrong_amount' | 'pending';
 export type PayoutAction = 'createPayoutRequest' | 'processImmediateRelease' | 'releaseReservedPayout' | 'freezePayoutRequest' | 'cancelPayoutRequest';
 export type ReportAction = 'getAdminOverview' | 'listReports' | 'exportReport';
 
@@ -129,7 +130,10 @@ export interface PaymentAttemptPayload {
   providerMode?: 'Mock' | 'Sandbox';
   amount?: number;
   senderPhone?: string;
+  outcome?: PaymentAttemptOutcome;
   callbackPayload?: Record<string, unknown>;
+  failureCode?: string;
+  failureMessage?: string;
 }
 
 export interface PayoutPayload {

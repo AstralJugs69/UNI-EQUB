@@ -1,0 +1,15 @@
+{
+  "scenario": "phase2-reminder-obligation-validation",
+  "validatedFiles": {
+    "reportExport": "supabase/functions/report-export/index.ts",
+    "obligations": "supabase/functions/_shared/obligations.ts"
+  },
+  "completedChecks": [
+    "admin reminder queue reads shared contribution_obligations progress",
+    "reminder queue preserves successful Transaction overlay while migration is in progress",
+    "late obligations are surfaced in reminder text",
+    "reminder queue no longer derives unpaid count from active memberships minus transactions only"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-16T10:34:15.113Z"
+}

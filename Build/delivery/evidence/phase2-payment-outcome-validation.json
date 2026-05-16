@@ -1,0 +1,18 @@
+{
+  "scenario": "phase2-payment-attempt-outcome-validation",
+  "validatedFiles": {
+    "contracts": "supabase/functions/_shared/contracts.ts",
+    "paymentAttempt": "supabase/functions/payment-attempt/index.ts",
+    "config": "supabase/config.toml"
+  },
+  "completedChecks": [
+    "payment-attempt endpoint is registered in Supabase config",
+    "payment attempt contracts can represent success, failure, timeout, cancelled, wrong amount, and pending mock outcomes",
+    "non-success contribution attempt outcomes update payment_provider_attempts without creating a Transaction",
+    "failed, timeout, cancelled, and invalid-amount outcomes return the matching contribution obligation to Unpaid",
+    "pending outcomes keep the matching contribution obligation in PendingPayment",
+    "successful contribution callbacks remain routed through contribution-reconcile for atomic transaction, ledger, obligation, and draw handling"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-16T10:35:14.080Z"
+}

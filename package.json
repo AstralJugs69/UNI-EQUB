@@ -31,6 +31,8 @@
     "qa:phase2-payment-attempt-initiation": "node .\\mobile\\scripts\\validate-phase2-payment-attempt-initiation.js --output .\\Build\\delivery\\evidence\\phase2-payment-attempt-initiation-validation.json",
     "qa:phase2-direct-payment-attempt": "node .\\mobile\\scripts\\validate-phase2-direct-payment-attempt-flow.js --output .\\Build\\delivery\\evidence\\phase2-direct-payment-attempt-flow-validation.json",
     "qa:phase2-ussd-payment-attempt": "node .\\mobile\\scripts\\validate-phase2-ussd-payment-attempt-flow.js --output .\\Build\\delivery\\evidence\\phase2-ussd-payment-attempt-flow-validation.json",
-    "qa:phase2-provider-callback-idempotency": "node .\\mobile\\scripts\\validate-phase2-provider-callback-idempotency.js --output .\\Build\\delivery\\evidence\\phase2-provider-callback-idempotency-validation.json"
+    "qa:phase2-provider-callback-idempotency": "node .\\mobile\\scripts\\validate-phase2-provider-callback-idempotency.js --output .\\Build\\delivery\\evidence\\phase2-provider-callback-idempotency-validation.json",
+    "qa:phase2-payment-outcomes": "node .\\mobile\\scripts\\validate-phase2-payment-outcomes.js --output .\\Build\\delivery\\evidence\\phase2-payment-outcome-validation.json",
+    "qa:phase2-reminder-obligations": "node .\\mobile\\scripts\\validate-phase2-reminder-obligations.js --output .\\Build\\delivery\\evidence\\phase2-reminder-obligation-validation.json"
   }
 }

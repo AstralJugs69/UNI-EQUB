@@ -1,12 +1,12 @@
 import { fail, json } from '../_shared/contracts.ts';
-import type { PaymentAttemptPayload } from '../_shared/contracts.ts';
+import type { PaymentAttemptOutcome, PaymentAttemptPayload } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
-import { getContributionObligationForUserRound, markContributionObligationPendingPayment } from '../_shared/obligations.ts';
-import { buildPaymentAttemptIdempotencyKey, ensurePaymentProviderAttempt } from '../_shared/paymentAttempts.ts';
+import { getContributionObligationForUserRound, markContributionObligationPendingPayment, markContributionObligationUnpaid } from '../_shared/obligations.ts';
+import { buildPaymentAttemptIdempotencyKey, ensurePaymentProviderAttempt, recordPaymentAttemptCallback } from '../_shared/paymentAttempts.ts';
 import { initiateSimulatedProvider } from '../_shared/paymentProviders.ts';
 import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import type { ContributionObligationRecord, GroupRecord, MembershipRecord, UserRecord } from '../_shared/types.ts';
+import type { ContributionObligationRecord, GroupRecord, MembershipRecord, PaymentProviderAttemptRecord, PaymentProviderAttemptStatus, UserRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -149,6 +149,114 @@ async function initiateContributionAttempt(actor: UserRecord, body: PaymentAttem
   };
 }
 
+async function findAttemptForOutcome(actor: UserRecord, body: PaymentAttemptPayload) {
+  let query = supabaseAdmin.from('payment_provider_attempts').select('*');
+  if (body.attemptId) {
+    query = query.eq('id', body.attemptId);
+  } else if (body.idempotencyKey) {
+    query = query.eq('idempotency_key', body.idempotencyKey);
+  } else if (body.gatewayReference) {
+    query = query.eq('gateway_reference', body.gatewayReference);
+  } else {
+    throw new Error('A payment attempt id, idempotency key, or gateway reference is required.');
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error) {
+    throw error;
+  }
+  if (!data) {
+    throw new Error('Payment provider attempt was not found.');
+  }
+
+  const attempt = data as PaymentProviderAttemptRecord;
+  if (attempt.user_id !== actor.User_ID && actor.Role !== 'Admin') {
+    throw new Error('You can only update your own payment attempt outcome.');
+  }
+  if (attempt.event_type !== 'ContributionPayment') {
+    throw new Error('Only contribution payment attempts are supported by this outcome endpoint.');
+  }
+  if (!attempt.contribution_obligation_id) {
+    throw new Error('Contribution payment attempt is missing its obligation link.');
+  }
+  return attempt;
+}
+
+function outcomeToAttemptStatus(input: {
+  action: PaymentAttemptPayload['action'];
+  outcome?: PaymentAttemptOutcome;
+  attemptedAmount?: number;
+  expectedAmount?: number | null;
+}): PaymentProviderAttemptStatus {
+  if (input.action === 'markAttemptTimeout') {
+    return 'Timeout';
+  }
+  if (input.action === 'markAttemptCancelled') {
+    return 'Cancelled';
+  }
+  if (
+    input.outcome === 'wrong_amount' ||
+    (typeof input.attemptedAmount === 'number' &&
+      typeof input.expectedAmount === 'number' &&
+      input.attemptedAmount !== input.expectedAmount)
+  ) {
+    return 'InvalidAmount';
+  }
+  switch (input.outcome) {
+    case 'failure':
+      return 'Failed';
+    case 'timeout':
+      return 'Timeout';
+    case 'cancelled':
+      return 'Cancelled';
+    case 'pending':
+    case undefined:
+      return 'Pending';
+    case 'success':
+      throw new Error('Successful contribution callbacks must use contribution-reconcile so the Transaction, obligation, ledger, and draw checks stay atomic.');
+  }
+}
+
+async function recordContributionAttemptOutcome(actor: UserRecord, body: PaymentAttemptPayload) {
+  const attempt = await findAttemptForOutcome(actor, body);
+  const status = outcomeToAttemptStatus({
+    action: body.action,
+    outcome: body.outcome,
+    attemptedAmount: body.amount,
+    expectedAmount: attempt.amount,
+  });
+  if (attempt.status === 'Successful') {
+    throw new Error('A successful payment attempt cannot be rewritten by a later non-success mock outcome.');
+  }
+  const event = status === 'InvalidAmount' ? 'wrong_amount' : body.outcome ?? status.toLowerCase();
+
+  const updatedAttempt = await recordPaymentAttemptCallback({
+    attemptId: attempt.id,
+    status,
+    callbackPayload: {
+      event,
+      action: body.action,
+      expected_amount: attempt.amount,
+      attempted_amount: body.amount ?? null,
+      gateway_reference: body.gatewayReference ?? attempt.gateway_reference,
+      ...(body.callbackPayload ?? {}),
+    },
+    verificationResult: status === 'Pending' ? undefined : `${event} mock provider event recorded by Edge Function.`,
+    failureCode: body.failureCode ?? (status === 'Pending' ? undefined : status.toUpperCase()),
+    failureMessage: body.failureMessage ?? (status === 'Pending' ? undefined : `Mock provider attempt ended with ${status}.`),
+  });
+
+  const updatedObligation = status === 'Pending'
+    ? await markContributionObligationPendingPayment(attempt.contribution_obligation_id)
+    : await markContributionObligationUnpaid(attempt.contribution_obligation_id);
+
+  return {
+    attempt: updatedAttempt,
+    obligation: updatedObligation,
+    transactionCreated: false,
+  };
+}
+
 Deno.serve(async request => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -164,6 +272,10 @@ Deno.serve(async request => {
     switch (body.action) {
       case 'initiateContributionAttempt':
         return json(await initiateContributionAttempt(actor, body));
+      case 'recordProviderCallback':
+      case 'markAttemptTimeout':
+      case 'markAttemptCancelled':
+        return json(await recordContributionAttemptOutcome(actor, body));
       default:
         return fail('Unsupported payment attempt action.', 400);
     }
