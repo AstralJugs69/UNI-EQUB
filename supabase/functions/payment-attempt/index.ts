@@ -1,6 +1,7 @@
 import { fail, json } from '../_shared/contracts.ts';
 import type { PaymentAttemptOutcome, PaymentAttemptPayload } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
+import { listLedgerEntriesForReference, recordLedgerEntry } from '../_shared/ledger.ts';
 import { getContributionObligationForUserRound, markContributionObligationPendingPayment, markContributionObligationUnpaid } from '../_shared/obligations.ts';
 import { buildPaymentAttemptIdempotencyKey, ensurePaymentProviderAttempt, recordPaymentAttemptCallback } from '../_shared/paymentAttempts.ts';
 import { initiateSimulatedProvider } from '../_shared/paymentProviders.ts';
@@ -133,6 +134,12 @@ async function initiateContributionAttempt(actor: UserRecord, body: PaymentAttem
     },
   });
   const updatedObligation = await markContributionObligationPendingPayment(obligation.id);
+  await recordPaymentAttemptLedgerMemo({
+    attempt,
+    entryType: 'PaymentAttemptPending',
+    description: `Pending ${providerName} contribution attempt for ${group.Group_Name} round ${round.Round_Number}.`,
+    status: 'Pending',
+  });
 
   return {
     group,
@@ -147,6 +154,37 @@ async function initiateContributionAttempt(actor: UserRecord, body: PaymentAttem
     },
     transactionCreated: false,
   };
+}
+
+async function recordPaymentAttemptLedgerMemo(input: {
+  attempt: PaymentProviderAttemptRecord;
+  entryType: 'PaymentAttemptPending' | 'PaymentAttemptFailed';
+  description: string;
+  status: PaymentProviderAttemptStatus;
+}) {
+  const existingEntries = await listLedgerEntriesForReference('payment_provider_attempts', input.attempt.id);
+  if (existingEntries.some(entry => entry.entry_type === input.entryType)) {
+    return null;
+  }
+
+  return await recordLedgerEntry({
+    userId: input.attempt.user_id,
+    groupId: input.attempt.group_id ?? undefined,
+    roundId: input.attempt.round_id ?? undefined,
+    entryType: input.entryType,
+    direction: 'Memo',
+    amount: input.attempt.amount ?? 0,
+    currency: input.attempt.currency,
+    description: input.description,
+    referenceType: 'payment_provider_attempts',
+    referenceId: input.attempt.id,
+    metadata: {
+      contribution_obligation_id: input.attempt.contribution_obligation_id,
+      gateway_reference: input.attempt.gateway_reference,
+      idempotency_key: input.attempt.idempotency_key,
+      payment_attempt_status: input.status,
+    },
+  });
 }
 
 async function findAttemptForOutcome(actor: UserRecord, body: PaymentAttemptPayload) {
@@ -249,6 +287,14 @@ async function recordContributionAttemptOutcome(actor: UserRecord, body: Payment
   const updatedObligation = status === 'Pending'
     ? await markContributionObligationPendingPayment(attempt.contribution_obligation_id)
     : await markContributionObligationUnpaid(attempt.contribution_obligation_id);
+  await recordPaymentAttemptLedgerMemo({
+    attempt: updatedAttempt,
+    entryType: status === 'Pending' ? 'PaymentAttemptPending' : 'PaymentAttemptFailed',
+    description: status === 'Pending'
+      ? 'Payment attempt remains pending with the mock provider.'
+      : `Payment attempt ended with ${status}; no contribution transaction was created.`,
+    status,
+  });
 
   return {
     attempt: updatedAttempt,

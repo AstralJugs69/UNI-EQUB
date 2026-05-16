@@ -1,7 +1,7 @@
 import { fail, json } from '../_shared/contracts.ts';
 import type { ContributionPayload } from '../_shared/contracts.ts';
 import { signContributionSession, verifyContributionSession, verifySession } from '../_shared/auth.ts';
-import { recordLedgerEntry } from '../_shared/ledger.ts';
+import { listLedgerEntriesForReference, recordLedgerEntry } from '../_shared/ledger.ts';
 import { getContributionObligationForUserRound, markContributionObligationPaid, markContributionObligationPendingPayment, markContributionObligationUnpaid } from '../_shared/obligations.ts';
 import { buildPaymentAttemptIdempotencyKey, ensurePaymentProviderAttempt, recordPaymentAttemptCallback } from '../_shared/paymentAttempts.ts';
 import { initiateSimulatedProvider } from '../_shared/paymentProviders.ts';
@@ -251,6 +251,37 @@ async function completeSuccessfulContributionAttempt(input: {
   };
 }
 
+async function recordPaymentAttemptLedgerMemo(input: {
+  attempt: PaymentProviderAttemptRecord;
+  entryType: 'PaymentAttemptPending' | 'PaymentAttemptFailed';
+  description: string;
+  status: string;
+}) {
+  const existingEntries = await listLedgerEntriesForReference('payment_provider_attempts', input.attempt.id);
+  if (existingEntries.some(entry => entry.entry_type === input.entryType)) {
+    return null;
+  }
+
+  return await recordLedgerEntry({
+    userId: input.attempt.user_id,
+    groupId: input.attempt.group_id ?? undefined,
+    roundId: input.attempt.round_id ?? undefined,
+    entryType: input.entryType,
+    direction: 'Memo',
+    amount: input.attempt.amount ?? 0,
+    currency: input.attempt.currency,
+    description: input.description,
+    referenceType: 'payment_provider_attempts',
+    referenceId: input.attempt.id,
+    metadata: {
+      contribution_obligation_id: input.attempt.contribution_obligation_id,
+      gateway_reference: input.attempt.gateway_reference,
+      idempotency_key: input.attempt.idempotency_key,
+      payment_attempt_status: input.status,
+    },
+  });
+}
+
 async function payContributionThroughProviderAttempt(actor: UserRecord, groupId: string, method: 'Telebirr' | 'MockUSSD' | 'ChapaSandbox') {
   const { group, round } = await assertContributionReady(actor, groupId);
   const amount = Number(group.Amount);
@@ -284,6 +315,12 @@ async function payContributionThroughProviderAttempt(actor: UserRecord, groupId:
   });
 
   await markContributionObligationPendingPayment(obligation.id);
+  await recordPaymentAttemptLedgerMemo({
+    attempt,
+    entryType: 'PaymentAttemptPending',
+    description: `Pending ${method} contribution attempt for ${group.Group_Name} round ${round.Round_Number}.`,
+    status: 'Pending',
+  });
   return await completeSuccessfulContributionAttempt({
     actor,
     group,
@@ -328,6 +365,12 @@ async function initiateUssdContributionAttempt(actor: UserRecord, group: GroupRe
     },
   });
   const pendingObligation = await markContributionObligationPendingPayment(obligation.id);
+  await recordPaymentAttemptLedgerMemo({
+    attempt,
+    entryType: 'PaymentAttemptPending',
+    description: `Pending MockUSSD contribution session for ${group.Group_Name} round ${round.Round_Number}.`,
+    status: 'Pending',
+  });
   return {
     attempt,
     obligation: pendingObligation,
@@ -666,6 +709,20 @@ Deno.serve(async request => {
             },
             failureCode: 'USSD_CANCELLED',
             failureMessage: 'Member cancelled the USSD contribution session.',
+          });
+          const { data: cancelledAttempt, error: cancelledAttemptError } = await supabaseAdmin
+            .from('payment_provider_attempts')
+            .select('*')
+            .eq('id', attemptId)
+            .single();
+          if (cancelledAttemptError) {
+            throw cancelledAttemptError;
+          }
+          await recordPaymentAttemptLedgerMemo({
+            attempt: cancelledAttempt as PaymentProviderAttemptRecord,
+            entryType: 'PaymentAttemptFailed',
+            description: 'MockUSSD contribution session was cancelled before completion.',
+            status: 'Cancelled',
           });
           await markContributionObligationUnpaid(obligationId);
           return json({ ussd: await buildUssdState({ actor, group, round, stage: 'Cancelled', sessionId: body.sessionId }) });

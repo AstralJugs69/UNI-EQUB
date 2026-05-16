@@ -1,0 +1,17 @@
+{
+  "scenario": "phase2-payment-attempt-ledger-validation",
+  "validatedFiles": {
+    "paymentAttempt": "supabase/functions/payment-attempt/index.ts",
+    "contributionReconcile": "supabase/functions/contribution-reconcile/index.ts",
+    "ledger": "supabase/functions/_shared/ledger.ts"
+  },
+  "completedChecks": [
+    "pending payment attempts write PaymentAttemptPending memo ledger entries",
+    "failed/cancelled/timeout/invalid payment outcomes write PaymentAttemptFailed memo ledger entries",
+    "direct and USSD contribution paths record pending attempt memos",
+    "USSD cancellation records a failed attempt memo before returning the obligation to Unpaid",
+    "ledger memo writes are de-duplicated per attempt and entry type"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-16T12:40:12.523Z"
+}
