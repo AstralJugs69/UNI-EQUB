@@ -1,0 +1,19 @@
+{
+  "scenario": "phase2-direct-payment-attempt-flow-validation",
+  "validatedFiles": {
+    "contributionReconcile": "supabase/functions/contribution-reconcile/index.ts",
+    "obligations": "supabase/functions/_shared/obligations.ts",
+    "paymentAttempts": "supabase/functions/_shared/paymentAttempts.ts",
+    "ledger": "supabase/functions/_shared/ledger.ts"
+  },
+  "completedChecks": [
+    "direct payContribution routes through an idempotent payment_provider_attempts row",
+    "direct payContribution marks the obligation PendingPayment before simulated success",
+    "direct payContribution records a Successful provider callback before transaction creation",
+    "direct payContribution marks the obligation Paid with the created transaction id",
+    "direct payContribution writes a ContributionReceived ledger entry linked to the attempt",
+    "USSD and external provider callback paths remain deferred for later tracker tasks"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-16T05:23:47.132Z"
+}

@@ -50,6 +50,25 @@ export async function markContributionObligationPendingPayment(obligationId: str
   return data as ContributionObligationRecord;
 }
 
+export async function markContributionObligationPaid(obligationId: string, transactionId: string, paidAt = new Date().toISOString()) {
+  const { data, error } = await supabaseAdmin
+    .from('contribution_obligations')
+    .update({
+      status: 'Paid',
+      paid_transaction_id: transactionId,
+      paid_at: paidAt,
+    })
+    .eq('id', obligationId)
+    .in('status', ['Unpaid', 'PendingPayment', 'Late', 'Paid'])
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return data as ContributionObligationRecord;
+}
+
 export async function ensureContributionObligationsForRound(group: GroupRecord, round: RoundRecord, timing?: { dueAt?: string; graceEndsAt?: string }) {
   const { data: memberships, error: membershipsError } = await supabaseAdmin
     .from('GroupMembers')

@@ -1,6 +1,9 @@
 import { fail, json } from '../_shared/contracts.ts';
 import type { ContributionPayload } from '../_shared/contracts.ts';
 import { signContributionSession, verifyContributionSession, verifySession } from '../_shared/auth.ts';
+import { recordLedgerEntry } from '../_shared/ledger.ts';
+import { getContributionObligationForUserRound, markContributionObligationPaid, markContributionObligationPendingPayment } from '../_shared/obligations.ts';
+import { buildPaymentAttemptIdempotencyKey, ensurePaymentProviderAttempt, recordPaymentAttemptCallback } from '../_shared/paymentAttempts.ts';
 import { initiateSimulatedProvider } from '../_shared/paymentProviders.ts';
 import { normalizePhone } from '../_shared/phone.ts';
 import { ensureOpenRoundForGroup, getOpenRound } from '../_shared/rounds.ts';
@@ -124,17 +127,37 @@ function buildReceipt(prefix: string) {
   return `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
-async function createContributionTransaction(actor: UserRecord, group: GroupRecord, round: RoundRecord, method: 'Telebirr' | 'MockUSSD' | 'ChapaSandbox') {
-  const receiptRef = buildReceipt(method === 'MockUSSD' ? 'USSD' : method === 'ChapaSandbox' ? 'CHAPA' : 'TB');
+async function requirePayableObligation(roundId: string, group: GroupRecord, userId: string) {
+  const obligation = await getContributionObligationForUserRound(roundId, userId);
+  if (!obligation) {
+    throw new Error('Contribution obligation was not found for this member and round.');
+  }
+  if (obligation.group_id !== group.Group_ID) {
+    throw new Error('Contribution obligation does not belong to this group.');
+  }
+  if (['Paid', 'Waived', 'RefundPending'].includes(obligation.status)) {
+    throw new Error('This contribution obligation is already settled.');
+  }
+  return obligation;
+}
+
+async function createContributionTransactionForAttempt(input: {
+  actor: UserRecord;
+  group: GroupRecord;
+  round: RoundRecord;
+  method: 'Telebirr' | 'MockUSSD' | 'ChapaSandbox';
+  gatewayReference: string;
+  amount: number;
+}) {
   const { data, error } = await supabaseAdmin
     .from('Transaction')
     .insert({
-      User_ID: actor.User_ID,
-      Round_ID: round.Round_ID,
-      Amount: group.Amount,
+      User_ID: input.actor.User_ID,
+      Round_ID: input.round.Round_ID,
+      Amount: input.amount,
       Type: 'Contribution',
-      Payment_Method: method,
-      Gateway_Ref: receiptRef,
+      Payment_Method: input.method,
+      Gateway_Ref: input.gatewayReference,
       Status: 'Successful',
       Date: new Date().toISOString(),
     })
@@ -143,12 +166,91 @@ async function createContributionTransaction(actor: UserRecord, group: GroupReco
   if (error) {
     throw error;
   }
-  const transaction = data as TransactionRecord;
+  return data as TransactionRecord;
+}
+
+async function payContributionThroughProviderAttempt(actor: UserRecord, groupId: string, method: 'Telebirr' | 'MockUSSD' | 'ChapaSandbox') {
+  const { group, round } = await assertContributionReady(actor, groupId);
+  const amount = Number(group.Amount);
+  const obligation = await requirePayableObligation(round.Round_ID, group, actor.User_ID);
+  const provider = initiateSimulatedProvider(method, actor, group);
+  const idempotencyKey = buildPaymentAttemptIdempotencyKey([
+    'direct-contribution',
+    obligation.id,
+    method,
+    actor.User_ID,
+    round.Round_ID,
+  ]);
+  const { attempt, created } = await ensurePaymentProviderAttempt({
+    providerName: method,
+    providerMode: method === 'ChapaSandbox' ? 'Sandbox' : 'Mock',
+    eventType: 'ContributionPayment',
+    userId: actor.User_ID,
+    groupId: group.Group_ID,
+    roundId: round.Round_ID,
+    contributionObligationId: obligation.id,
+    amount,
+    currency: 'ETB',
+    normalizedPhone: provider.senderPhone,
+    gatewayReference: provider.gatewayRef,
+    idempotencyKey,
+    initialStatus: 'Pending',
+    requestPayload: {
+      source: 'contribution-reconcile.payContribution',
+      provider_label: provider.providerLabel,
+    },
+  });
+
+  await markContributionObligationPendingPayment(obligation.id);
+  const verifiedAttempt = await recordPaymentAttemptCallback({
+    attemptId: attempt.id,
+    status: 'Successful',
+    callbackPayload: {
+      provider_label: provider.providerLabel,
+      gateway_reference: attempt.gateway_reference,
+      amount,
+      currency: 'ETB',
+      event: 'direct_mock_success',
+    },
+    verificationResult: 'Direct mock contribution verified by Edge Function.',
+  });
+
+  const transaction = await createContributionTransactionForAttempt({
+    actor,
+    group,
+    round,
+    method,
+    gatewayReference: verifiedAttempt.gateway_reference ?? provider.gatewayRef,
+    amount,
+  });
+  const paidObligation = await markContributionObligationPaid(obligation.id, transaction.Trans_ID);
+  await recordLedgerEntry({
+    userId: actor.User_ID,
+    groupId: group.Group_ID,
+    roundId: round.Round_ID,
+    transactionId: transaction.Trans_ID,
+    entryType: 'ContributionReceived',
+    direction: 'Credit',
+    amount,
+    currency: 'ETB',
+    description: `Contribution received for ${group.Group_Name} round ${round.Round_Number}.`,
+    referenceType: 'payment_provider_attempts',
+    referenceId: verifiedAttempt.id,
+    metadata: {
+      contribution_obligation_id: paidObligation.id,
+      idempotency_key: verifiedAttempt.idempotency_key,
+      attempt_created: created,
+    },
+  });
+
   const lifecycle = await finalizeRoundIfReady(group, round);
   return {
     transaction,
+    obligation: paidObligation,
+    attempt: verifiedAttempt,
+    ledgerRecorded: true,
     paymentResult: {
-      receiptRef,
+      receiptRef: transaction.Gateway_Ref,
       amount: Number(transaction.Amount),
       method,
       autoDrawTriggered: lifecycle.autoDrawTriggered,
@@ -312,13 +414,7 @@ Deno.serve(async request => {
         if (!body.groupId || !body.method) {
           return fail('Missing direct contribution payload.', 400);
         }
-        if (body.method === 'MockUSSD') {
-          const { group, round } = await assertContributionReady(actor, body.groupId);
-          return json(await createContributionTransaction(actor, group, round, 'MockUSSD'));
-        }
-        const group = await requireGroup(body.groupId);
-        const provider = initiateSimulatedProvider(body.method, actor, group);
-        return json(await reconcileContributionByPhone(body.groupId, provider.senderPhone, body.method, provider.gatewayRef));
+        return json(await payContributionThroughProviderAttempt(actor, body.groupId, body.method));
       }
 
       case 'listTransactions':
