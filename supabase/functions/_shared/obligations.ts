@@ -1,5 +1,5 @@
 import { supabaseAdmin } from './supabaseAdmin.ts';
-import type { ContributionObligationRecord, ContributionObligationStatus, GroupRecord, MembershipRecord, RoundRecord } from './types.ts';
+import type { ContributionObligationRecord, ContributionObligationStatus, GroupRecord, MembershipRecord, RoundRecord, TransactionRecord } from './types.ts';
 
 const settledObligationStatuses: ContributionObligationStatus[] = ['Paid', 'Waived', 'RefundPending'];
 
@@ -67,4 +67,51 @@ export async function getRoundObligationReadiness(roundId: string) {
     readyForDraw: total > 0 && settled === total,
     obligations,
   };
+}
+
+export interface RoundObligationProgress {
+  totalMembers: number;
+  paidCount: number;
+  unpaidCount: number;
+  paidUserIds: Set<string>;
+  obligations: ContributionObligationRecord[];
+}
+
+export function deriveRoundObligationProgress(
+  obligations: ContributionObligationRecord[],
+  activeMemberships: MembershipRecord[],
+  successfulContributionTransactions: TransactionRecord[] = [],
+): RoundObligationProgress {
+  const activeMemberIds = new Set(activeMemberships.map(membership => membership.User_ID));
+  const paidUserIds = new Set<string>();
+
+  obligations
+    .filter(obligation => activeMemberIds.has(obligation.user_id))
+    .filter(obligation => isContributionObligationSettled(obligation.status))
+    .forEach(obligation => paidUserIds.add(obligation.user_id));
+
+  // Transitional guardrail: until the provider-attempt flow marks obligations Paid,
+  // preserve existing MVP contribution behavior by overlaying successful transactions.
+  successfulContributionTransactions
+    .filter(transaction => activeMemberIds.has(transaction.User_ID))
+    .forEach(transaction => paidUserIds.add(transaction.User_ID));
+
+  const totalMembers = obligations.length > 0 ? obligations.filter(obligation => activeMemberIds.has(obligation.user_id)).length : activeMemberships.length;
+  const paidCount = Math.min(paidUserIds.size, totalMembers);
+  return {
+    totalMembers,
+    paidCount,
+    unpaidCount: Math.max(totalMembers - paidCount, 0),
+    paidUserIds,
+    obligations,
+  };
+}
+
+export async function getRoundObligationProgress(
+  roundId: string,
+  activeMemberships: MembershipRecord[],
+  successfulContributionTransactions: TransactionRecord[] = [],
+) {
+  const obligations = await listRoundObligations(roundId);
+  return deriveRoundObligationProgress(obligations, activeMemberships, successfulContributionTransactions);
 }

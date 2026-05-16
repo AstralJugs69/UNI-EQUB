@@ -1,6 +1,7 @@
 import { fail, json } from '../_shared/contracts.ts';
 import type { CreateGroupRequest, GroupLifecyclePayload } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
+import { getRoundObligationProgress } from '../_shared/obligations.ts';
 import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import type { GroupRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
@@ -133,21 +134,6 @@ async function successfulContributions(roundId: string) {
   return (data ?? []) as TransactionRecord[];
 }
 
-async function successfulContribution(roundId: string, userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from('Transaction')
-    .select('*')
-    .eq('Round_ID', roundId)
-    .eq('User_ID', userId)
-    .eq('Type', 'Contribution')
-    .eq('Status', 'Successful')
-    .maybeSingle();
-  if (error) {
-    throw error;
-  }
-  return data as TransactionRecord | null;
-}
-
 async function getWinnerHistory(groupId: string) {
   const { data, error } = await supabaseAdmin.from('Round').select('*').eq('Group_ID', groupId).not('Winner_ID', 'is', null).order('Round_Number', { ascending: false });
   if (error) {
@@ -174,16 +160,19 @@ async function getGroupStatusSnapshot(actor: UserRecord, groupId: string) {
   const currentRound = await ensureOpenRoundForGroup(group);
   const memberships = await listActiveMemberships(groupId);
   const paidTransactions = currentRound ? await successfulContributions(currentRound.Round_ID) : [];
+  const obligationProgress = currentRound
+    ? await getRoundObligationProgress(currentRound.Round_ID, memberships, paidTransactions)
+    : { paidCount: 0, totalMembers: memberships.length, paidUserIds: new Set<string>() };
   const canCurrentUserPay = !!currentRound
     && group.Status === 'Active'
     && memberships.some(item => item.User_ID === actor.User_ID)
-    && !paidTransactions.some(item => item.User_ID === actor.User_ID);
+    && !obligationProgress.paidUserIds.has(actor.User_ID);
 
   return {
     group: toAppGroup(group),
     currentRound,
-    paidCount: paidTransactions.length,
-    totalMembers: memberships.length,
+    paidCount: obligationProgress.paidCount,
+    totalMembers: obligationProgress.totalMembers,
     winnerHistory: await getWinnerHistory(groupId),
     canCurrentUserPay,
     isFrozen: group.Status === 'Frozen',
@@ -211,8 +200,10 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
     if (!candidateRound) {
       continue;
     }
-    const memberPaid = await successfulContribution(candidateRound.Round_ID, actor.User_ID);
-    if (!memberPaid) {
+    const candidateMemberships = await listActiveMemberships(candidateGroup.Group_ID);
+    const candidateTransactions = await successfulContributions(candidateRound.Round_ID);
+    const candidateProgress = await getRoundObligationProgress(candidateRound.Round_ID, candidateMemberships, candidateTransactions);
+    if (!candidateProgress.paidUserIds.has(actor.User_ID)) {
       currentMembership = membership;
       currentGroup = candidateGroup;
       currentRound = candidateRound;
@@ -233,6 +224,9 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
 
   const paidTransactions = currentRound ? await successfulContributions(currentRound.Round_ID) : [];
   const activeMembers = currentGroup ? await listActiveMemberships(currentGroup.Group_ID) : [];
+  const obligationProgress = currentRound
+    ? await getRoundObligationProgress(currentRound.Round_ID, activeMembers, paidTransactions)
+    : { paidCount: 0, totalMembers: activeMembers.length };
 
   const { data: transactions, error: transactionError } = await supabaseAdmin
     .from('Transaction')
@@ -267,8 +261,8 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
   return {
     currentGroup: currentGroup ? toAppGroup(currentGroup) : null,
     currentRound,
-    paidCount: paidTransactions.length,
-    totalMembers: activeMembers.length,
+    paidCount: obligationProgress.paidCount,
+    totalMembers: obligationProgress.totalMembers,
     totalSaved: (savedTransactions ?? []).reduce((sum, item) => sum + Number(item.Amount ?? 0), 0),
     readyPayout: (payoutTransactions ?? []).reduce((sum, item) => sum + Number(item.Amount ?? 0), 0),
     recentTransactions: ((transactions ?? []) as TransactionRecord[]).map(toTransactionRecord),
