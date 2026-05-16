@@ -2,7 +2,7 @@
 
 Version: 1.22
 Last Updated: 2026-05-16
-Status: Phase 1 database foundation complete in repo and applied remotely; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation/status/payment-attempt idempotency/outcome/reminder/readiness work started; Phase 5 payment-attempt ledger memo and payout maturity helper work started; Phase 1 existing-state backfill migration added; legacy group creation compatibility preserved
+Status: Phase 1 database foundation complete in repo and applied remotely; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation/status/payment-attempt idempotency/outcome/reminder/readiness work started; Phase 5 payment-attempt ledger memo, payout maturity helper, payout request, immediate release, reserve ledger, and release schedule work started; Phase 1 existing-state backfill migration added; legacy group creation compatibility preserved
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -151,9 +151,9 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | --- | --- | --- | --- | --- | --- | --- |
 | P2-501 | Agent | Add ledger writes for successful contribution and failed/pending payment attempt memos. | Completed | P2-109, P2-404-P2-407 | Ledger reflects contribution/payment attempt events. | `supabase/functions/contribution-reconcile/index.ts`; `supabase/functions/payment-attempt/index.ts`; `mobile/scripts/validate-phase2-attempt-ledger.js`; `Build/delivery/evidence/phase2-attempt-ledger-validation.json` |
 | P2-502 | Agent | Add payout maturity calculation for `New`, `BuildingTrust`, and `Trusted` users. | Completed | P2-210, P2-112 | Immediate/reserved amount follows app config and strict first-cycle rule. | `supabase/functions/_shared/payoutVesting.ts`; `mobile/scripts/validate-phase2-payout-maturity.js`; `Build/delivery/evidence/phase2-payout-maturity-validation.json` |
-| P2-503 | Agent | Modify draw completion to create `payout_requests`. | Not Started | P2-410, P2-502 | Draw creates payout request instead of only one pending full payout transaction. | Round lifecycle tests |
-| P2-504 | Agent | Create immediate payout `Transaction` only for immediate release amount. | Not Started | P2-503 | Probationary early winner does not receive full early payout transaction. | Tests/evidence |
-| P2-505 | Agent | Create reserve ledger entries and `payout_release_schedules` for withheld amount. | Not Started | P2-503 | Reserved payout appears in ledger/schedule and is not immediately withdrawable. | Tests/evidence |
+| P2-503 | Agent | Modify draw completion to create `payout_requests`. | Completed | P2-410, P2-502 | Draw creates payout request instead of only one pending full payout transaction. | `supabase/functions/_shared/roundLifecycle.ts`; `mobile/scripts/validate-phase2-payout-request-flow.js`; `Build/delivery/evidence/phase2-payout-request-flow-validation.json` |
+| P2-504 | Agent | Create immediate payout `Transaction` only for immediate release amount. | Completed | P2-503 | Probationary early winner does not receive full early payout transaction. | `supabase/functions/_shared/roundLifecycle.ts`; `Build/delivery/evidence/phase2-payout-request-flow-validation.json` |
+| P2-505 | Agent | Create reserve ledger entries and `payout_release_schedules` for withheld amount. | Completed | P2-503 | Reserved payout appears in ledger/schedule and is not immediately withdrawable. | `supabase/functions/_shared/roundLifecycle.ts`; `Build/delivery/evidence/phase2-payout-request-flow-validation.json` |
 | P2-506 | Agent | Release reserved payout after later successful obligations. | Not Started | P2-505, P2-410 | Successful later contribution triggers scheduled release and ledger entry. | Tests/evidence |
 | P2-507 | Agent | Update wallet/payout screens to explain immediate release, reserve, and simulated wallet behavior. | Not Started | P2-503-P2-506, P2-307 | User-facing UI is clear and defense-safe. | Screenshots |
 | P2-508 | Agent | Enforce new/probationary active group limit during join and formation approval. | Not Started | P2-206, P2-310 | New user cannot exceed configured active group limit through direct join or formation approval. | Tests |
@@ -491,3 +491,13 @@ Second repo-local Phase 5 payout maturity helper batch completed on 2026-05-16:
 4. added profile-based payout maturity calculation from `user_reliability_profiles.public_status`
 5. left payout request creation, reserve ledger entries, and release schedules for the next Phase 5 flow batch
 6. added `mobile/scripts/validate-phase2-payout-maturity.js` and `Build/delivery/evidence/phase2-payout-maturity-validation.json`
+
+Third repo-local Phase 5 payout request/reserve batch completed on 2026-05-16:
+
+1. updated `finalizeRoundIfReady` to create a `payout_requests` row after winner selection
+2. preserved full pending payout behavior for legacy MVP groups without Phase 2 formation-request vesting metadata
+3. applied approved `group_requests.vesting_enabled` and reliability profile status to payout maturity calculation for Phase 2 groups
+4. created the MVP pending payout `Transaction` only for the immediate release amount when that amount is greater than zero
+5. recorded payout request, immediate release, and reserved amount ledger entries against the payout request
+6. created pending `payout_release_schedules` for withheld reserve amounts, leaving release execution for P2-506
+7. added `mobile/scripts/validate-phase2-payout-request-flow.js` and `Build/delivery/evidence/phase2-payout-request-flow-validation.json`

@@ -1,0 +1,24 @@
+{
+  "scenario": "phase2-payout-request-flow-validation",
+  "validatedFiles": {
+    "roundLifecycle": "supabase/functions/_shared/roundLifecycle.ts",
+    "payoutVesting": "supabase/functions/_shared/payoutVesting.ts",
+    "ledger": "supabase/functions/_shared/ledger.ts",
+    "migration": "supabase/migrations/20260513090000_phase2_foundation_companion_tables.sql"
+  },
+  "completedChecks": [
+    "round draw creates a payout_request row with total, immediate, and reserved amounts",
+    "legacy groups without a Phase 2 formation request preserve full-payout behavior",
+    "approved Phase 2 group vesting uses the group request vesting flag",
+    "immediate payout Transaction is created only when immediate_release_amount is greater than zero",
+    "payout request, immediate release, and reserve ledger entries are written server-side",
+    "reserved payout is split into pending release schedule rows for future contribution-triggered releases"
+  ],
+  "stillPending": [
+    "reserved payout release after later successful obligations",
+    "wallet UI copy for payout reserve and release schedules",
+    "durable notification row for payout request creation"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-16T13:49:43.733Z"
+}

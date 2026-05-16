@@ -75,7 +75,7 @@ function main() {
       'draw readiness is based on active members having settled obligations',
       'eligible winner selection is based on settled obligations instead of successful transaction count',
       'legacy transaction-count readiness trigger was removed from round finalization',
-      'payout request/reserve maturity is intentionally left for Phase 5',
+      'payout request/reserve maturity is validated by the Phase 5 payout request flow check',
     ],
     requiresSupabaseCredentials: false,
     validatedAt: new Date().toISOString(),

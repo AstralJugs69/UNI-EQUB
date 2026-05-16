@@ -9,8 +9,8 @@
     "draw readiness is based on active members having settled obligations",
     "eligible winner selection is based on settled obligations instead of successful transaction count",
     "legacy transaction-count readiness trigger was removed from round finalization",
-    "payout request/reserve maturity is intentionally left for Phase 5"
+    "payout request/reserve maturity is validated by the Phase 5 payout request flow check"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-16T12:35:46.953Z"
+  "validatedAt": "2026-05-16T13:49:43.910Z"
 }
