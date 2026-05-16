@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabaseAdmin.ts';
+import { ensureContributionObligationsForRound } from './obligations.ts';
 import type { GroupRecord, MembershipRecord, RoundRecord, TransactionRecord } from './types.ts';
 
 interface RoundCompletionResult {
@@ -89,11 +90,11 @@ async function createPendingPayout(winnerId: string, round: RoundRecord, amount:
   return data as TransactionRecord;
 }
 
-async function createNextRound(groupId: string, roundNumber: number) {
+async function createNextRound(group: GroupRecord, roundNumber: number) {
   const { data, error } = await supabaseAdmin
     .from('Round')
     .insert({
-      Group_ID: groupId,
+      Group_ID: group.Group_ID,
       Round_Number: roundNumber,
       Status: 'Open',
     })
@@ -102,7 +103,9 @@ async function createNextRound(groupId: string, roundNumber: number) {
   if (error) {
     throw error;
   }
-  return data as RoundRecord;
+  const round = data as RoundRecord;
+  await ensureContributionObligationsForRound(group, round);
+  return round;
 }
 
 export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecord): Promise<RoundCompletionResult> {
@@ -157,7 +160,7 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
     };
   }
 
-  const nextRound = await createNextRound(group.Group_ID, completedRound.Round_Number + 1);
+  const nextRound = await createNextRound(group, completedRound.Round_Number + 1);
   return {
     autoDrawTriggered: true,
     payoutAmount,

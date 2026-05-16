@@ -1,8 +1,8 @@
 # UniEqub Phase 2 Development Progress Tracker
 
-Version: 1.16
+Version: 1.17
 Last Updated: 2026-05-16
-Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; legacy group creation compatibility preserved
+Status: Phase 1 database foundation complete in repo; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation started; legacy group creation compatibility preserved
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -132,7 +132,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 
 | ID | Owner | Task | Status | Depends On | Acceptance Condition | Required Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| P2-401 | Agent | Modify `ensureOpenRoundForGroup` to generate obligations idempotently when a new round opens. | Not Started | P2-207 | Every active member has one obligation per open round. | Tests/evidence |
+| P2-401 | Agent | Modify `ensureOpenRoundForGroup` to generate obligations idempotently when a new round opens. | Completed | P2-207 | Every active member has one obligation per open round. | `supabase/functions/_shared/rounds.ts`; `supabase/functions/_shared/roundLifecycle.ts`; `mobile/scripts/validate-phase2-round-obligations.js`; `Build/delivery/evidence/phase2-round-obligation-generation-validation.json`; typecheck/lint passing |
 | P2-402 | Agent | Update dashboard/status queries to use obligations for paid/unpaid counts. | Not Started | P2-401 | Dashboard and group status show obligation-derived progress. | Tests/screenshot |
 | P2-403 | Agent | Add payment initiation path that creates `payment_provider_attempts` and marks obligation `PendingPayment`. | Not Started | P2-208 | Payment start records attempt and pending obligation without creating successful transaction. | Function test |
 | P2-404 | Agent | Route direct `payContribution` mock flow through provider attempts. | Not Started | P2-403 | Direct mock contribution creates attempt, verifies event, marks obligation paid, writes transaction/ledger. | Function test |
@@ -386,3 +386,11 @@ Thirteenth repo-local Phase 3 admin UI batch completed on 2026-05-16:
 3. displayed proposed terms, participants, risk level, vesting setting, agreement state, and review checks for admin decisions
 4. added admin approve/reject formation mutations while preserving legacy `EqubGroup` approval controls during migration
 5. added `mobile/scripts/validate-phase2-admin-formation-ui.js`, `Build/delivery/evidence/phase2-admin-formation-ui-validation.json`, and a Jest regression for pending formation approval
+
+First repo-local Phase 4 obligations batch completed on 2026-05-16:
+
+1. updated `ensureOpenRoundForGroup` to call `ensureContributionObligationsForRound` for existing open rounds
+2. updated `ensureOpenRoundForGroup` to generate obligations immediately after it creates a new open round
+3. updated round lifecycle next-round creation to generate active-member obligations for the newly opened round
+4. kept obligation generation idempotent through the existing `round_id,user_id` upsert guardrail
+5. added `mobile/scripts/validate-phase2-round-obligations.js` and `Build/delivery/evidence/phase2-round-obligation-generation-validation.json`

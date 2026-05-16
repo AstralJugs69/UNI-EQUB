@@ -1,0 +1,18 @@
+{
+  "scenario": "phase2-round-obligation-generation-validation",
+  "validatedFiles": {
+    "rounds": "supabase/functions/_shared/rounds.ts",
+    "roundLifecycle": "supabase/functions/_shared/roundLifecycle.ts",
+    "obligations": "supabase/functions/_shared/obligations.ts",
+    "formation": "supabase/functions/group-formation/index.ts"
+  },
+  "completedChecks": [
+    "ensureOpenRoundForGroup idempotently ensures obligations for existing open rounds",
+    "ensureOpenRoundForGroup idempotently ensures obligations after creating a new open round",
+    "round lifecycle next-round creation idempotently ensures active-member obligations",
+    "obligation helper upserts one unpaid obligation per active member per round",
+    "group formation approval remains compatible with obligation generation"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-16T05:02:56.419Z"
+}

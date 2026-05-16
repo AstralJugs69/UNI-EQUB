@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabaseAdmin.ts';
+import { ensureContributionObligationsForRound } from './obligations.ts';
 import type { GroupRecord, RoundRecord } from './types.ts';
 
 export async function getOpenRound(groupId: string) {
@@ -32,6 +33,7 @@ async function getLatestRound(groupId: string) {
 export async function ensureOpenRoundForGroup(group: GroupRecord) {
   const existingOpenRound = await getOpenRound(group.Group_ID);
   if (existingOpenRound) {
+    await ensureContributionObligationsForRound(group, existingOpenRound);
     return existingOpenRound;
   }
 
@@ -54,5 +56,7 @@ export async function ensureOpenRoundForGroup(group: GroupRecord) {
   if (error) {
     throw error;
   }
-  return data as RoundRecord;
+  const round = data as RoundRecord;
+  await ensureContributionObligationsForRound(group, round);
+  return round;
 }
