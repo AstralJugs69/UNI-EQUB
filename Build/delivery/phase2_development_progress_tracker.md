@@ -2,7 +2,7 @@
 
 Version: 1.22
 Last Updated: 2026-05-16
-Status: Phase 1 database foundation complete in repo and applied remotely; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation/status/payment-attempt idempotency/outcome/reminder work started; Phase 1 existing-state backfill migration added; legacy group creation compatibility preserved
+Status: Phase 1 database foundation complete in repo and applied remotely; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation/status/payment-attempt idempotency/outcome/reminder/readiness work started; Phase 1 existing-state backfill migration added; legacy group creation compatibility preserved
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -141,7 +141,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-407 | Agent | Implement wrong amount, timeout, failure, cancelled, and pending mock outcomes. | Completed | P2-403 | All supported mock events are representable and leave obligation in correct status. | `supabase/functions/payment-attempt/index.ts`; `supabase/functions/_shared/contracts.ts`; `supabase/config.toml`; `mobile/scripts/validate-phase2-payment-outcomes.js`; `Build/delivery/evidence/phase2-payment-outcome-validation.json` |
 | P2-408 | Agent | Update `notification-center` or helper writes for payment confirmation/failure/timeout and contribution reminder. | Not Started | P2-205, P2-407 | Payment events create durable notifications. | Function test/evidence |
 | P2-409 | Agent | Update admin reminder derivation to use `contribution_obligations`. | Completed | P2-402 | Reminder queue derives from unpaid/late obligations, not transaction-minus-membership only. | `supabase/functions/report-export/index.ts`; `supabase/functions/_shared/obligations.ts`; `mobile/scripts/validate-phase2-reminder-obligations.js`; `Build/delivery/evidence/phase2-reminder-obligation-validation.json` |
-| P2-410 | Agent | Change round readiness to settled-obligation logic. | Not Started | P2-401-P2-407 | Draw triggers only when all required obligations are settled. | Round lifecycle tests |
+| P2-410 | Agent | Change round readiness to settled-obligation logic. | Completed | P2-401-P2-407 | Draw triggers only when all required obligations are settled. | `supabase/functions/_shared/roundLifecycle.ts`; `supabase/functions/_shared/obligations.ts`; `mobile/scripts/validate-phase2-round-readiness.js`; `Build/delivery/evidence/phase2-round-readiness-validation.json` |
 | P2-411 | Agent | Add obligation/payment tests to mock backend or live service test harness. | Not Started | P2-401-P2-410 | Tests cover unpaid, pending, paid, failed, duplicate, wrong amount, and readiness. | Jest/script output |
 | P2-412 | User | Validate contribution flows on device with success, cancel, wrong amount, duplicate callback, and timeout demo cases. | Blocked | P2-404-P2-411 | Evidence shows all mock outcomes behave defensibly. | `Build/delivery/evidence/payment-attempt-uat.*` |
 
@@ -465,3 +465,11 @@ Seventh repo-local Phase 4 payment-outcome/reminder batch completed on 2026-05-1
 5. mapped failed, timeout, cancelled, and invalid-amount outcomes back to `Unpaid` obligations while pending outcomes stay `PendingPayment`
 6. updated admin reminder derivation in `report-export` to use obligation progress, including late obligation counts and the existing MVP transaction overlay
 7. added `mobile/scripts/validate-phase2-payment-outcomes.js`, `mobile/scripts/validate-phase2-reminder-obligations.js`, `Build/delivery/evidence/phase2-payment-outcome-validation.json`, and `Build/delivery/evidence/phase2-reminder-obligation-validation.json`
+
+Eighth repo-local Phase 4 round-readiness batch completed on 2026-05-16:
+
+1. updated `finalizeRoundIfReady` to ensure contribution obligations exist before checking draw readiness
+2. replaced successful-transaction-count readiness with active-member settled-obligation readiness
+3. changed winner eligibility to use settled obligation user ids while preserving the existing MVP payout transaction behavior
+4. left payout requests, reserves, and maturity release scheduling for Phase 5
+5. added `mobile/scripts/validate-phase2-round-readiness.js` and `Build/delivery/evidence/phase2-round-readiness-validation.json`

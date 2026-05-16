@@ -1,5 +1,5 @@
 import { supabaseAdmin } from './supabaseAdmin.ts';
-import { ensureContributionObligationsForRound } from './obligations.ts';
+import { ensureContributionObligationsForRound, getRoundObligationReadiness, isContributionObligationSettled } from './obligations.ts';
 import type { GroupRecord, MembershipRecord, RoundRecord, TransactionRecord } from './types.ts';
 
 interface RoundCompletionResult {
@@ -17,19 +17,6 @@ async function listActiveMemberships(groupId: string) {
     throw error;
   }
   return (data ?? []) as MembershipRecord[];
-}
-
-async function listSuccessfulContributions(roundId: string) {
-  const { data, error } = await supabaseAdmin
-    .from('Transaction')
-    .select('*')
-    .eq('Round_ID', roundId)
-    .eq('Type', 'Contribution')
-    .eq('Status', 'Successful');
-  if (error) {
-    throw error;
-  }
-  return (data ?? []) as TransactionRecord[];
 }
 
 async function listPriorWinnerIds(groupId: string) {
@@ -110,9 +97,18 @@ async function createNextRound(group: GroupRecord, roundNumber: number) {
 
 export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecord): Promise<RoundCompletionResult> {
   const memberships = await listActiveMemberships(group.Group_ID);
-  const contributions = await listSuccessfulContributions(round.Round_ID);
+  await ensureContributionObligationsForRound(group, round);
+  const readiness = await getRoundObligationReadiness(round.Round_ID);
+  const activeMemberIds = new Set(memberships.map(item => item.User_ID));
+  const settledObligationUserIds = new Set(
+    readiness.obligations
+      .filter(obligation => activeMemberIds.has(obligation.user_id))
+      .filter(obligation => isContributionObligationSettled(obligation.status))
+      .map(obligation => obligation.user_id),
+  );
+  const allActiveMembersSettled = memberships.length > 0 && memberships.every(membership => settledObligationUserIds.has(membership.User_ID));
 
-  if (contributions.length !== memberships.length) {
+  if (!allActiveMembersSettled) {
     return {
       autoDrawTriggered: false,
       payoutAmount: 0,
@@ -127,7 +123,7 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
   const priorWinnerIds = await listPriorWinnerIds(group.Group_ID);
   const eligibleUserIds = memberships
     .map(item => item.User_ID)
-    .filter(userId => contributions.some(transaction => transaction.User_ID === userId))
+    .filter(userId => settledObligationUserIds.has(userId))
     .filter(userId => !priorWinnerIds.has(userId));
 
   const winnerId = chooseWinner(eligibleUserIds);
@@ -145,7 +141,6 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
   const payoutTransaction = await createPendingPayout(winnerId, completedRound, payoutAmount);
 
   const winnersAfterThisRound = new Set<string>([...priorWinnerIds, winnerId]);
-  const activeMemberIds = new Set(memberships.map(item => item.User_ID));
   const cycleComplete = [...activeMemberIds].every(userId => winnersAfterThisRound.has(userId));
 
   if (cycleComplete) {

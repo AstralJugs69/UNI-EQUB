@@ -56,6 +56,7 @@ This repository is organized as an implementation workspace around the original 
 - `npm run qa:phase2-payment-outcomes`
 - `npm run qa:phase2-reminder-obligations`
 - `npm run qa:phase2-backfill`
+- `npm run qa:phase2-round-readiness`
 - `node .\mobile\scripts\seed-final-draw.js --phone 09XXXXXXXX --name "Your Name"`
 
 ## Hosted USSD simulator
