@@ -16,6 +16,7 @@ export interface CreatePaymentAttemptInput {
   gatewayReference?: string;
   idempotencyKey: string;
   requestPayload?: Record<string, unknown>;
+  initialStatus?: 'Initiated' | 'Pending';
 }
 
 export interface RecordAttemptCallbackInput {
@@ -72,7 +73,7 @@ export async function ensurePaymentProviderAttempt(input: CreatePaymentAttemptIn
       gateway_reference: input.gatewayReference ?? null,
       idempotency_key: input.idempotencyKey,
       request_payload: input.requestPayload ?? {},
-      status: 'Initiated',
+      status: input.initialStatus ?? 'Initiated',
     })
     .select('*')
     .single();

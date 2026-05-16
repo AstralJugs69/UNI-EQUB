@@ -19,6 +19,37 @@ export async function listRoundObligations(roundId: string) {
   return (data ?? []) as ContributionObligationRecord[];
 }
 
+export async function getContributionObligationForUserRound(roundId: string, userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('contribution_obligations')
+    .select('*')
+    .eq('round_id', roundId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+  return data as ContributionObligationRecord | null;
+}
+
+export async function markContributionObligationPendingPayment(obligationId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('contribution_obligations')
+    .update({
+      status: 'PendingPayment',
+    })
+    .eq('id', obligationId)
+    .in('status', ['Unpaid', 'Late', 'PendingPayment'])
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return data as ContributionObligationRecord;
+}
+
 export async function ensureContributionObligationsForRound(group: GroupRecord, round: RoundRecord, timing?: { dueAt?: string; graceEndsAt?: string }) {
   const { data: memberships, error: membershipsError } = await supabaseAdmin
     .from('GroupMembers')

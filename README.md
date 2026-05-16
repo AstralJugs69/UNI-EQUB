@@ -49,6 +49,7 @@ This repository is organized as an implementation workspace around the original 
 - `npm run qa:phase2-admin-formation-ui`
 - `npm run qa:phase2-round-obligations`
 - `npm run qa:phase2-dashboard-obligations`
+- `npm run qa:phase2-payment-attempt-initiation`
 - `node .\mobile\scripts\seed-final-draw.js --phone 09XXXXXXXX --name "Your Name"`
 
 ## Hosted USSD simulator

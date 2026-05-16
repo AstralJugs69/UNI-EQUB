@@ -1,0 +1,19 @@
+{
+  "scenario": "phase2-payment-attempt-initiation-validation",
+  "validatedFiles": {
+    "paymentAttemptFunction": "supabase/functions/payment-attempt/index.ts",
+    "paymentAttemptsHelper": "supabase/functions/_shared/paymentAttempts.ts",
+    "obligations": "supabase/functions/_shared/obligations.ts",
+    "contracts": "supabase/functions/_shared/contracts.ts"
+  },
+  "completedChecks": [
+    "payment-attempt Edge Function exposes initiateContributionAttempt command boundary",
+    "initiation requires active membership, active group, and current open round",
+    "initiation locates the actor round obligation and rejects settled obligations",
+    "initiation creates an idempotent payment_provider_attempts row in Pending state",
+    "initiation marks the obligation PendingPayment",
+    "initiation does not create successful Transaction rows or run round finalization"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-16T05:16:36.214Z"
+}
