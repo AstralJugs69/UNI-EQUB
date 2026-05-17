@@ -1,0 +1,18 @@
+{
+  "scenario": "phase2-debug-apk-build",
+  "path": "C:/dev/projects/UNI-EQUB/mobile/android/app/build/outputs/apk/debug/app-debug.apk",
+  "applicationId": "com.uniequb",
+  "variantName": "debug",
+  "versionCode": 1,
+  "versionName": "1.0",
+  "sizeBytes": 193622737,
+  "sha256": "45CFDBD4CF442933493C8B413FEE78F99C6A4C8C3CEED6969846CBBB8C997410",
+  "lastWriteTimeLocal": "2026-05-17T06:17:03",
+  "recordedAt": "2026-05-17T03:17:51.6150130Z",
+  "buildCommand": "npm run mobile:apk:debug",
+  "notes": [
+    "The build command exceeded the tool timeout, but Gradle completed and produced the debug APK artifact.",
+    "This is a debug APK for demo/device installation, not a signed release APK.",
+    "Physical-device or emulator UAT screenshots/videos remain separate evidence tasks."
+  ]
+}

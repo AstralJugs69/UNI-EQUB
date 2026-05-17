@@ -151,6 +151,7 @@ Overall Status: In Progress
 - Phase 2 reliability update validation: `supabase/functions/_shared/reliability.ts`, `supabase/functions/_shared/obligations.ts`, `supabase/functions/_shared/roundLifecycle.ts`, `mobile/scripts/validate-phase2-reliability-updates.js`, `Build/delivery/evidence/phase2-reliability-update-validation.json`
 - Phase 2 default/restriction validation: `supabase/functions/default-maintenance/index.ts`, `supabase/functions/_shared/obligations.ts`, `supabase/functions/_shared/reliability.ts`, `mobile/scripts/validate-phase2-default-restriction.js`, `Build/delivery/evidence/phase2-default-restriction-validation.json`
 - Phase 2 completed-feature demo package: `Build/delivery/demo/phase2_completed_features_demo.md`, `Build/delivery/demo/phase2_demo_operator_checklist.md`, `mobile/src/screens/auth/DemoTourScreen.tsx`, `mobile/src/components/DemoModeBanner.tsx`, `mobile/scripts/validate-phase2-demo-readiness.js`, `mobile/scripts/validate-phase2-in-app-demo.js`, `Build/delivery/evidence/phase2-demo-readiness-validation.json`, `Build/delivery/evidence/phase2-in-app-demo-validation.json`
+- Phase 2 debug APK build evidence: `Build/delivery/evidence/phase2-debug-apk-build.json`, artifact path `mobile/android/app/build/outputs/apk/debug/app-debug.apk`
 - UAT checklist: `Build/delivery/uat_checklist.md`
 - Delivery docs: `Build/delivery/implementation_plan.md`, `Build/delivery/implementation_traceability_matrix.md`, `Build/delivery/progress_spec.md`, `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, `Build/delivery/phase2_development_progress_tracker.md`
 
@@ -160,7 +161,7 @@ Overall Status: In Progress
 - The seeded final-draw scenario needs one real member phone number because OTP login is mandatory; a dummy seeded tester account would not be usable by the user.
 - The original fixed schema has no persisted group description or rejected status field. Phase 2 resolves this additively through `group_requests` and related formation tables rather than adding `Rejected` to canonical `EqubGroup.Status`.
 - True image capture is wired, but it still relies on device camera/gallery permissions and has not yet been validated on a physical device in this workspace session.
-- Android debug testing is now automated, but release APK generation and emulator validation are still pending.
+- Android debug testing is automated and a Phase 2 debug APK build has been recorded, but release APK generation and emulator validation are still pending.
 - Major screen-level inline style debt was removed by modularizing auth/member/admin surfaces and rebuilding the shared UI layer; the final phone-fit polish pass now needs on-device validation.
 - The mock layer is now close to the intended backend contracts, but any future contract change must be updated in both the mock implementation and the Edge Function scaffolds immediately.
 - The Phase 2 foundation migration has been applied to the linked Supabase environment. The follow-up existing-state backfill migration is in repo and should be applied with the next `supabase db push` before relying on historical remote demo data for reliability/obligation state.
