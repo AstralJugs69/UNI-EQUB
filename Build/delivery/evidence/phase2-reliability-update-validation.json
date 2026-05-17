@@ -1,0 +1,22 @@
+{
+  "scenario": "phase2-reliability-update-validation",
+  "validatedFiles": {
+    "reliability": "supabase/functions/_shared/reliability.ts",
+    "obligations": "supabase/functions/_shared/obligations.ts",
+    "roundLifecycle": "supabase/functions/_shared/roundLifecycle.ts",
+    "config": "supabase/functions/_shared/config.ts"
+  },
+  "completedChecks": [
+    "completed group cycles update member reliability counters and public status",
+    "perfect completion uses group obligations and excludes late/defaulted obligations",
+    "trusted status uses the configured current perfect-group maturity threshold",
+    "late and default obligation helpers record reliability events for future default flows",
+    "restriction reliability helper records public Restricted state for future restriction workflows"
+  ],
+  "limitations": [
+    "scheduled late/default orchestration and admin restriction workflows are still separate Phase 2 tasks",
+    "device screenshots for reliability labels remain pending under later UI/UAT tasks"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-17T04:54:55.027Z"
+}

@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabaseAdmin.ts';
+import { recordDefaultReliability, recordLatePaymentReliability } from './reliability.ts';
 import type { ContributionObligationRecord, ContributionObligationStatus, GroupRecord, MembershipRecord, RoundRecord, TransactionRecord } from './types.ts';
 
 const settledObligationStatuses: ContributionObligationStatus[] = ['Paid', 'Waived', 'RefundPending'];
@@ -31,6 +32,19 @@ export async function getContributionObligationForUserRound(roundId: string, use
     throw error;
   }
   return data as ContributionObligationRecord | null;
+}
+
+async function getContributionObligationById(obligationId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('contribution_obligations')
+    .select('*')
+    .eq('id', obligationId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return data as ContributionObligationRecord;
 }
 
 export async function markContributionObligationPendingPayment(obligationId: string) {
@@ -84,6 +98,56 @@ export async function markContributionObligationPaid(obligationId: string, trans
     throw error;
   }
   return data as ContributionObligationRecord;
+}
+
+export async function markContributionObligationLate(obligationId: string, lateAt = new Date().toISOString()) {
+  const { data, error } = await supabaseAdmin
+    .from('contribution_obligations')
+    .update({
+      status: 'Late',
+      late_at: lateAt,
+    })
+    .eq('id', obligationId)
+    .in('status', ['Unpaid', 'PendingPayment'])
+    .select('*')
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return getContributionObligationById(obligationId);
+  }
+
+  const obligation = data as ContributionObligationRecord;
+  await recordLatePaymentReliability(obligation.user_id);
+  return obligation;
+}
+
+export async function markContributionObligationDefaulted(obligationId: string, defaultedAt = new Date().toISOString()) {
+  const { data, error } = await supabaseAdmin
+    .from('contribution_obligations')
+    .update({
+      status: 'Defaulted',
+      defaulted_at: defaultedAt,
+    })
+    .eq('id', obligationId)
+    .in('status', ['Unpaid', 'PendingPayment', 'Late'])
+    .select('*')
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return getContributionObligationById(obligationId);
+  }
+
+  const obligation = data as ContributionObligationRecord;
+  await recordDefaultReliability(obligation.user_id);
+  return obligation;
 }
 
 export async function ensureContributionObligationsForRound(group: GroupRecord, round: RoundRecord, timing?: { dueAt?: string; graceEndsAt?: string }) {

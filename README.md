@@ -63,6 +63,7 @@ This repository is organized as an implementation workspace around the original 
 - `npm run qa:phase2-payout-idempotency-reserve-release`
 - `npm run qa:phase2-payout-reserve-ui`
 - `npm run qa:phase2-active-group-limit`
+- `npm run qa:phase2-reliability-updates`
 - `node .\mobile\scripts\seed-final-draw.js --phone 09XXXXXXXX --name "Your Name"`
 
 ## Hosted USSD simulator

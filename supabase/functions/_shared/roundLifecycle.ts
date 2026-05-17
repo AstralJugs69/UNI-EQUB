@@ -2,8 +2,16 @@ import { supabaseAdmin } from './supabaseAdmin.ts';
 import { ensureContributionObligationsForRound, getRoundObligationReadiness, isContributionObligationSettled } from './obligations.ts';
 import { recordLedgerEntry } from './ledger.ts';
 import { calculatePayoutVestingFromConfig, buildPayoutReleaseScheduleAmounts } from './payoutVesting.ts';
-import { ensureReliabilityProfile } from './reliability.ts';
-import type { GroupRecord, MembershipRecord, PayoutReleaseScheduleRecord, PayoutRequestRecord, RoundRecord, TransactionRecord } from './types.ts';
+import { ensureReliabilityProfile, recordCompletedGroupReliability } from './reliability.ts';
+import type {
+  GroupRecord,
+  MembershipRecord,
+  PayoutReleaseScheduleRecord,
+  PayoutRequestRecord,
+  RoundRecord,
+  TransactionRecord,
+  UserReliabilityProfileRecord,
+} from './types.ts';
 
 interface RoundCompletionResult {
   autoDrawTriggered: boolean;
@@ -14,6 +22,7 @@ interface RoundCompletionResult {
   nextRound: RoundRecord | null;
   updatedRound: RoundRecord;
   completedGroup: GroupRecord | null;
+  reliabilityProfileUpdates: UserReliabilityProfileRecord[];
 }
 
 async function listActiveMemberships(groupId: string) {
@@ -322,6 +331,7 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
       nextRound: null,
       updatedRound: round,
       completedGroup: null,
+      reliabilityProfileUpdates: [],
     };
   }
 
@@ -336,6 +346,7 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
       nextRound: null,
       updatedRound: await getRoundById(round.Round_ID),
       completedGroup: null,
+      reliabilityProfileUpdates: [],
     };
   }
   const priorWinnerIds = await listPriorWinnerIds(group.Group_ID);
@@ -400,6 +411,7 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
 
   if (cycleComplete) {
     const completedGroup = await updateGroup(group.Group_ID, { Status: 'Completed' });
+    const reliabilityProfileUpdates = await recordCompletedGroupReliability(group.Group_ID, [...activeMemberIds]);
     return {
       autoDrawTriggered: true,
       payoutAmount,
@@ -409,6 +421,7 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
       nextRound: null,
       updatedRound: completedRound,
       completedGroup,
+      reliabilityProfileUpdates,
     };
   }
 
@@ -422,5 +435,6 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
     nextRound,
     updatedRound: completedRound,
     completedGroup: null,
+    reliabilityProfileUpdates: [],
   };
 }
