@@ -1,0 +1,32 @@
+{
+  "scenario": "phase2-standalone-signed-release-apk",
+  "artifact": "mobile/android/app/build/outputs/apk/release/app-release.apk",
+  "absolutePath": "C:/dev/projects/UNI-EQUB/mobile/android/app/build/outputs/apk/release/app-release.apk",
+  "sizeBytes": 84550564,
+  "sha256": "09D663FDEED934523904BB0A7460878558A524609EE43A7BFD1EC8DD6789AB9B",
+  "buildCommand": "powershell -ExecutionPolicy Bypass -File .\\scripts\\build-android-release.ps1",
+  "signing": {
+    "verified": true,
+    "schemeV2": true,
+    "signerCertificateDn": "CN=UniEqub Demo, OU=Capstone, O=UniEqub, L=Addis Ababa, ST=Addis Ababa, C=ET",
+    "signerCertificateSha256": "b8129935b900783e36f2703308c33451ddbd1fcd87e5546608993ef0ba0ce981",
+    "keystoreTrackedInGit": false,
+    "notes": "Built with a local demo release keystore ignored by git. Replace with production/upload signing material before Play Store distribution."
+  },
+  "standaloneChecks": {
+    "reactNativeBundlePackaged": true,
+    "bundlePathInApk": "assets/index.android.bundle",
+    "metroRequired": false
+  },
+  "commandsRun": [
+    "keytool -genkeypair -v -storetype PKCS12 -keystore mobile\\android\\app\\uniequb-demo-release.keystore -alias uniequb-demo -keyalg RSA -keysize 2048 -validity 10000",
+    "powershell -ExecutionPolicy Bypass -File .\\scripts\\build-android-release.ps1",
+    "apksigner verify --verbose --print-certs mobile\\android\\app\\build\\outputs\\apk\\release\\app-release.apk",
+    "jar tf mobile\\android\\app\\build\\outputs\\apk\\release\\app-release.apk"
+  ],
+  "limitations": [
+    "No Android device was connected during this batch, so install/open walkthrough evidence is still pending.",
+    "This is demo signing, not production Play Store signing."
+  ],
+  "validatedAt": "2026-05-18T02:20:00+03:00"
+}

@@ -98,7 +98,7 @@ Overall Status: In Progress
 | 52 | H2 | Stage H | Run emulator validation with scripted startup | Plan Stage H | Not Started | Android SDK + AVD | None | App verified on emulator | Pending |
 | 53 | H3 | Stage H | Run physical-device validation and log evidence | Plan Stage H | In Progress | A5 | physical install/launch already proven | Full member and admin flows validated on device with evidence captured | Partial |
 | 54 | H4 | Stage H | Generate debug APK artifact and document path | Plan Stage H | Completed | H2 or H3 | `Build/delivery/evidence/debug-apk-build.json`, `mobile/android/app/build/outputs/apk/debug/app-debug.apk` | Debug APK build path recorded in evidence log | Done |
-| 55 | H5 | Stage H | Generate release APK path that works without Metro | Plan Stage H | Not Started | live/backend readiness not required, signing needed | None | Release APK builds successfully | Pending |
+| 55 | H5 | Stage H | Generate release APK path that works without Metro | Plan Stage H | Completed for demo signing | live/backend readiness not required, signing needed | `Build/delivery/evidence/phase2-release-build.json`, `mobile/android/app/build/outputs/apk/release/app-release.apk` | Release APK builds successfully | Standalone APK is signed with a local demo release keystore and includes `assets/index.android.bundle`; production Play signing remains separate |
 | 56 | H6 | Stage H | Prepare UAT checklist and final delivery evidence pack | Plan Stage H | In Progress | H2-H5 | `Build/delivery/uat_checklist.md`, `Build/delivery/evidence/` | Delivery evidence complete and traceable | Checklist and core evidence artifacts are in place; full final pack still needs emulator/device/UAT completion |
 
 ## 4. Milestone State Summary
@@ -161,7 +161,7 @@ Overall Status: In Progress
 - The seeded final-draw scenario needs one real member phone number because OTP login is mandatory; a dummy seeded tester account would not be usable by the user.
 - The original fixed schema has no persisted group description or rejected status field. Phase 2 resolves this additively through `group_requests` and related formation tables rather than adding `Rejected` to canonical `EqubGroup.Status`.
 - True image capture is wired, but it still relies on device camera/gallery permissions and has not yet been validated on a physical device in this workspace session.
-- Android debug testing is automated and a Phase 2 debug APK build has been recorded, but release APK generation and emulator validation are still pending.
+- Android debug testing is automated and a Phase 2 debug APK build has been recorded; a standalone demo-signed release APK has also been built, but emulator/device install validation remains pending.
 - Major screen-level inline style debt was removed by modularizing auth/member/admin surfaces and rebuilding the shared UI layer; the final phone-fit polish pass now needs on-device validation.
 - The mock layer is now close to the intended backend contracts, but any future contract change must be updated in both the mock implementation and the Edge Function scaffolds immediately.
 - The Phase 2 foundation migration has been applied to the linked Supabase environment. The follow-up existing-state backfill migration is in repo and should be applied with the next `supabase db push` before relying on historical remote demo data for reliability/obligation state.

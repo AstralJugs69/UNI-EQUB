@@ -44,7 +44,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | Payments | Simulated/USSD-style payment flow and callback reconciliation exist. | Keep sandbox/mock; add provider attempts, idempotency, obligation updates, and ledger entries. |
 | Draw/payout | Round completion and pending payout transaction creation exist. | Replace transaction-count readiness with obligations; add payout requests/reserves/release schedules. |
 | Notifications | Notifications are derived; read state is mobile-local. | Add durable `notifications`, then phase out derived fallback. |
-| QA/release | Debug APK evidence exists; release APK/emulator/full UAT still pending. | Preserve original MVP validation while Phase 2 is built. |
+| QA/release | Debug APK evidence exists; demo-signed release APK evidence exists; emulator/full UAT still pending. | Preserve original MVP validation while Phase 2 is built. |
 
 ## 5. Master Progress Roadmap
 
@@ -216,8 +216,8 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-904 | User | Run emulator validation pass. | Blocked | P2-903, local Android setup | App installs and passes Phase 2 smoke/UAT on emulator. | `Build/delivery/evidence/phase2-emulator-uat.*` |
 | P2-905 | User | Run physical Android device validation pass. | Blocked | P2-903, device | App installs and passes Phase 2 smoke/UAT on physical device. | `Build/delivery/evidence/phase2-device-uat.*` |
 | P2-906 | Agent | Generate debug APK after Phase 2 implementation. | Completed | Stable Phase 2 build | Debug APK path, size, and timestamp are recorded. | `Build/delivery/evidence/phase2-debug-apk-build.json`; `mobile/android/app/build/outputs/apk/debug/app-debug.apk` |
-| P2-907 | User | Provide Android release signing decision and keystore if release APK is required. | Not Started | Stable Phase 2 build | Signing material/decision is available outside git. | `Build/delivery/evidence/release-signing-decision.md` |
-| P2-908 | Agent | Generate release APK/AAB if signing material and environment are available. | Blocked | P2-907 | Release artifact builds without Metro. | `Build/delivery/evidence/phase2-release-build.json` |
+| P2-907 | User | Provide Android release signing decision and keystore if release APK is required. | Completed for demo; production signing still user-only | Stable Phase 2 build | Signing material/decision is available outside git. | Demo release keystore generated locally outside git; `Build/delivery/evidence/phase2-release-build.json` |
+| P2-908 | Agent | Generate release APK/AAB if signing material and environment are available. | Completed for APK | P2-907 | Release artifact builds without Metro. | `Build/delivery/evidence/phase2-release-build.json`; `mobile/android/app/build/outputs/apk/release/app-release.apk` |
 | P2-909 | User | Capture final screenshots/videos for defense/demo. | Blocked | P2-904/P2-905 | Evidence pack includes critical member/admin flows. | `Build/delivery/evidence/screenshots/` or video links |
 | P2-910 | Agent | Update README and delivery docs with final Phase 2 run/test/deploy instructions. | In Progress | Stable Phase 2 implementation | Docs match actual commands and evidence. | README and demo/UAT docs include current in-app demo and validation commands; final deploy/release instructions remain pending |
 | P2-911 | User | Update capstone report diagrams: use case, sequence, activity, class, ERD, relational mapping. | Not Started | Stable Phase 2 design | Academic document diagrams match implementation. | Updated report/docx or exported diagrams |
@@ -597,7 +597,7 @@ Second repo-local Phase 2 in-app demo batch completed on 2026-05-17:
 5. added `mobile/scripts/validate-phase2-in-app-demo.js`, `npm run qa:phase2-in-app-demo`, and `Build/delivery/evidence/phase2-in-app-demo-validation.json`
 6. updated README, UAT checklist, demo runbook, operator checklist, progress spec, and traceability matrix with the in-app demo path
 7. ran `npm run qa:phase2-in-app-demo`, `npm run qa:phase2-demo-readiness`, `npm run mobile:typecheck`, `npm run mobile:test`, `npm run mobile:lint`, and `git diff --check`
-8. still requires user/device validation, screenshots/video capture, and any release APK evidence before P2-904/P2-905/P2-909 can move out of Blocked
+8. still requires user/device validation and screenshots/video capture before P2-904/P2-905/P2-909 can move out of Blocked; release APK evidence was added in the later standalone demo APK batch
 
 Third repo-local Phase 2 in-app demo polish batch completed on 2026-05-17:
 
@@ -630,3 +630,11 @@ Sixth repo-local Phase 2 formation behavior batch completed on 2026-05-18:
 4. removed private admin-review wording from member create/detail/creator UI and mirrored the same behavior in demo mode
 5. added `supabase/migrations/20260518100000_phase2_private_formation_policy_text.sql` to correct the private vesting override policy description in `app_config`
 6. refreshed Phase 2 formation, creator UI, member UI, in-app demo, and demo readiness validation evidence; device screenshots/video and deployed function verification remain user/Both evidence work
+
+First repo-local Phase 2 standalone demo APK batch completed on 2026-05-18:
+
+1. added release signing configuration that reads `UNIEQUB_RELEASE_STORE_FILE`, `UNIEQUB_RELEASE_STORE_PASSWORD`, `UNIEQUB_RELEASE_KEY_ALIAS`, and `UNIEQUB_RELEASE_KEY_PASSWORD`
+2. added `scripts/build-android-release.ps1` and wired `npm run mobile:apk:release` through it
+3. generated a local demo release keystore outside git and built `mobile/android/app/build/outputs/apk/release/app-release.apk`
+4. verified the APK signature with `apksigner` and confirmed `assets/index.android.bundle` is packaged, so Metro is not required for launch
+5. recorded `Build/delivery/evidence/phase2-release-build.json`; device install/open evidence remains pending because no Android device was connected

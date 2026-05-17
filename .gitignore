@@ -1,0 +1,7 @@
+# Local Android signing material must stay out of git.
+*.keystore
+*.jks
+!mobile/android/app/debug.keystore
+
+# Supabase CLI local project state.
+supabase/.temp/

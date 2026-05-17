@@ -1,6 +1,6 @@
 # UniEqub Phase 2 Completed Features Demo
 
-Last Updated: 2026-05-17
+Last Updated: 2026-05-18
 
 ## Demo Positioning
 
@@ -10,7 +10,7 @@ Use this wording during the demo:
 
 > UniEqub is demonstrated as a capstone-safe Equb simulation platform. It preserves the original MVP core tables while adding Phase 2 companion workflows for group formation, contribution obligations, mock payment attempts, payout maturity/reserves, reliability, and default restriction handling. Payments and wallet behavior are simulated for academic defense and do not represent real custody or live financial rails.
 
-Do not claim that real payment processing, real wallet custody, durable notification/audit UI, freeze polling, refund tickets, release APK, or full UAT are finished.
+Do not claim that real payment processing, real wallet custody, durable notification/audit UI, freeze polling, refund tickets, production Play Store signing, or full UAT are finished.
 
 ## Demo Modes
 
@@ -18,7 +18,7 @@ Do not claim that real payment processing, real wallet custody, durable notifica
 
 Use this as the preferred phone-ready showcase when you want completed flows connected neatly without depending on OTP or live Supabase availability.
 
-1. Install/run the app with `npm run android:dev` or open an already installed debug build.
+1. Install/run the app with the standalone release APK or use `npm run android:dev` during development.
 2. On the splash screen, tap **Try Demo Mode**.
 3. Tap **Launch Member Demo** to enter Dawit's seeded member workspace.
 4. Show Dashboard -> Pay This Round -> direct mock payment or USSD -> Payment Success -> Wallet -> History/Notifications.
@@ -26,6 +26,13 @@ Use this as the preferred phone-ready showcase when you want completed flows con
 6. Show Admin Dashboard -> Review KYC -> Approve Groups -> Reports.
 
 The in-app demo uses the mock service layer intentionally. It is repeatable, resets seeded state on each launch, and keeps live Supabase behavior available through the normal sign-in path.
+
+Standalone APK evidence:
+
+- `mobile/android/app/build/outputs/apk/release/app-release.apk`
+- `Build/delivery/evidence/phase2-release-build.json`
+
+This APK is demo-signed, contains `assets/index.android.bundle`, and does not require Metro to launch. It is not production Play Store signing.
 
 ### Live Mobile Demo
 
@@ -222,7 +229,7 @@ End with the honest remaining work:
 
 - Durable notifications and audit timeline are not finished.
 - Freeze events, frozen-group resolution, polls, and refund tickets are still staged.
-- Full emulator/physical-device UAT, screenshots, release signing, release APK, and final report/diagram updates remain user-facing delivery work.
+- Full emulator/physical-device UAT, screenshots, production Play Store signing, and final report/diagram updates remain user-facing delivery work.
 
 Recommended close:
 

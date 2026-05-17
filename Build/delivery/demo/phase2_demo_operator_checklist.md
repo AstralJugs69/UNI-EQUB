@@ -1,6 +1,6 @@
 # UniEqub Phase 2 Demo Operator Checklist
 
-Last Updated: 2026-05-17
+Last Updated: 2026-05-18
 
 ## Pre-Demo Setup
 
@@ -21,6 +21,7 @@ Last Updated: 2026-05-17
 - Confirm `mobile/.env` has:
   - `UNIEQUB_SUPABASE_URL`
   - `UNIEQUB_SUPABASE_ANON_KEY`
+- Confirm whether you are installing the standalone signed APK or using the Metro development flow.
 - Confirm an OTP-capable phone is available if demonstrating real auth.
 - Confirm the user understands payments/wallets are simulated.
 
@@ -28,7 +29,7 @@ Last Updated: 2026-05-17
 
 Use this path when the goal is to show the working app flows on a device without relying on OTP delivery or remote state.
 
-1. Start/install the debug app with `npm run android:dev`.
+1. Install `mobile/android/app/build/outputs/apk/release/app-release.apk` for a standalone demo, or start/install the debug app with `npm run android:dev` for development.
 2. On the splash screen, tap **Try Demo Mode**.
 3. Tap **Launch Member Demo** to show final contribution, mock/USSD payment, auto draw, wallet, history, notifications, Explore, and member-side group creation.
 4. Log out, return to **Try Demo Mode**, and tap **Launch Admin Demo** to show KYC, legacy group approval, Phase 2 formation approval, reminders, and reports.
@@ -44,6 +45,7 @@ npm run qa:phase2-in-app-demo
 npm run mobile:typecheck
 npm run mobile:test
 npm run mobile:lint
+npm run mobile:apk:release
 ```
 
 Optional deeper evidence pass:
@@ -99,7 +101,8 @@ Then in the app:
 
 - Do not say payments are real.
 - Do not say wallet funds are held by the app.
-- Do not say release APK or emulator validation is complete unless fresh evidence exists.
+- Do not say emulator/device validation is complete unless fresh evidence exists.
+- Do not describe the demo signing key as production Play Store signing.
 - Do not say durable notification/audit UI is complete.
 - Do not say freeze polling/refund tickets are complete.
 

@@ -36,6 +36,7 @@ This repository is organized as an implementation workspace around the original 
 - `npm run mobile:typecheck`
 - `npm run mobile:lint`
 - `npm run mobile:apk:debug`
+- `npm run mobile:apk:release`
 - `npm run qa:kyc-upload`
 - `npm run qa:wallet-clearance`
 - `npm run qa:ussd-simulator`
@@ -75,6 +76,7 @@ This repository is organized as an implementation workspace around the original 
 - Readiness validation: `npm run qa:phase2-demo-readiness`
 - In-app demo validation: `npm run qa:phase2-in-app-demo`
 - Device path: run/install the app, tap **Try Demo Mode**, then launch the seeded member or admin showcase. This uses local mock data and leaves normal Supabase login untouched.
+- Standalone signed demo APK: `npm run mobile:apk:release` builds `mobile/android/app/build/outputs/apk/release/app-release.apk` with the React Native bundle packaged inside. Configure `UNIEQUB_RELEASE_STORE_FILE`, `UNIEQUB_RELEASE_STORE_PASSWORD`, `UNIEQUB_RELEASE_KEY_ALIAS`, and `UNIEQUB_RELEASE_KEY_PASSWORD` to use a release key; otherwise the Gradle file falls back to debug signing.
 
 ## Hosted USSD simulator
 - Edge Function endpoint: `supabase/functions/ussd-simulator/`

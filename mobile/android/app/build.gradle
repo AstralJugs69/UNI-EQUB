@@ -72,6 +72,12 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+def releaseStoreFile = project.findProperty("UNIEQUB_RELEASE_STORE_FILE") ?: System.getenv("UNIEQUB_RELEASE_STORE_FILE")
+def releaseStorePassword = project.findProperty("UNIEQUB_RELEASE_STORE_PASSWORD") ?: System.getenv("UNIEQUB_RELEASE_STORE_PASSWORD")
+def releaseKeyAlias = project.findProperty("UNIEQUB_RELEASE_KEY_ALIAS") ?: System.getenv("UNIEQUB_RELEASE_KEY_ALIAS")
+def releaseKeyPassword = project.findProperty("UNIEQUB_RELEASE_KEY_PASSWORD") ?: System.getenv("UNIEQUB_RELEASE_KEY_PASSWORD")
+def hasReleaseSigning = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -92,15 +98,21 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig hasReleaseSigning ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
