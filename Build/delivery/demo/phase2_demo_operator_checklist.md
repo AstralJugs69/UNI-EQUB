@@ -30,7 +30,7 @@ Use this path when the goal is to show the working app flows on a device without
 
 1. Start/install the debug app with `npm run android:dev`.
 2. On the splash screen, tap **Try Demo Mode**.
-3. Tap **Launch Member Demo** to show final contribution, mock/USSD payment, auto draw, wallet, history, notifications, and Explore.
+3. Tap **Launch Member Demo** to show final contribution, mock/USSD payment, auto draw, wallet, history, notifications, Explore, and member-side group creation.
 4. Log out, return to **Try Demo Mode**, and tap **Launch Admin Demo** to show KYC, legacy group approval, Phase 2 formation approval, reminders, and reports.
 5. Tell the audience this path uses seeded local mock data and simulated payment rails.
 

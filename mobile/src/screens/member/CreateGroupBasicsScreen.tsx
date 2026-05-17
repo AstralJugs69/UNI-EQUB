@@ -1,5 +1,5 @@
 ﻿import React, { useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { InputField, MetricTile, PrimaryCTA, ScreenScroll, SectionCard, SegmentedTabs, TopAppBar, TitleBlock } from '../../components/ui';
 import { routes } from '../../navigation/routes';
@@ -20,7 +20,7 @@ export function CreateGroupBasicsScreen() {
   return (
     <ScreenScroll>
       <TopAppBar title="Create New Equb" subtitle="Step 1 of 2" onBack={() => navigation.goBack()} />
-      <TitleBlock title="Set the basics" subtitle="Define the group name, contribution amount, cadence, and target size before adding the final rules." />
+      <TitleBlock title="Set the basics" subtitle="This starts a Phase 2 formation request. The final Equb group is created only after enough members join and an admin approves it." />
       <SectionCard>
         <InputField label="Group Name" value={groupName} onChangeText={setGroupName} leadingIcon="groups" />
         <InputField label="Contribution Amount (ETB)" value={amount} onChangeText={setAmount} keyboardType="number-pad" leadingIcon="payments" />
@@ -42,10 +42,13 @@ export function CreateGroupBasicsScreen() {
         <MetricTile label="Contribution" value={formatCurrency(parsedAmount)} />
         <MetricTile label="Estimated Pot" value={formatCurrency(estimatedPot)} helper={`${parsedMembers || 0} members`} tone="active" />
       </View>
+      {parsedMembers > 0 && parsedMembers < 5 ? (
+        <Text style={memberStyles.mutedText}>Use at least 5 members for the current Phase 2 policy default.</Text>
+      ) : null}
       <PrimaryCTA
         label="Continue To Rules"
         onPress={() => navigation.navigate(routes.createRules, { groupName, amount: parsedAmount, frequency, maxMembers: parsedMembers })}
-        disabled={!groupName || parsedAmount <= 0 || parsedMembers <= 1}
+        disabled={!groupName || parsedAmount <= 0 || parsedMembers < 5}
       />
     </ScreenScroll>
   );

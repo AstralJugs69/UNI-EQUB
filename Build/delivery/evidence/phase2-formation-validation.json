@@ -5,6 +5,7 @@
   "config": "supabase/config.toml",
   "routedActions": [
     "listPublic",
+    "listMine",
     "listPendingApproval",
     "getRequest",
     "createRequest",
@@ -35,5 +36,5 @@
     "Supabase function config registers group-formation with internal token verification pattern"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-16T05:02:56.511Z"
+  "validatedAt": "2026-05-17T04:38:02.310Z"
 }

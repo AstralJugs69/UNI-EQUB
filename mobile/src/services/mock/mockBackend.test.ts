@@ -81,6 +81,9 @@ describe('MockBackend automatic draw flow', () => {
     const publicRequests = await backend.formation.listPublic('user-miki');
     expect(publicRequests.some(item => item.id === created.groupRequest.id)).toBe(true);
 
+    const creatorRequests = await backend.formation.listMine('user-dawit');
+    expect(creatorRequests.some(item => item.id === created.groupRequest.id)).toBe(true);
+
     const joined = await backend.formation.requestJoin('user-miki', created.groupRequest.id, {
       groupTermsAccepted: true,
       acceptedTermsVersion: 'phase2-v1',

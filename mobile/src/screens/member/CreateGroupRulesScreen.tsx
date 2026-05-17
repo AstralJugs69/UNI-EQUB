@@ -11,8 +11,10 @@ export function CreateGroupRulesScreen({ route }: any) {
   const { createFormation } = useMemberActions();
   const [description, setDescription] = useState('Weekly savings circle for verified AAU students with automatic draw and payout tracking.');
   const [visibility, setVisibility] = useState<'Public' | 'Private'>('Public');
-  const [minMembers, setMinMembers] = useState('2');
+  const [minMembers, setMinMembers] = useState(String(Math.min(5, route.params?.maxMembers ?? 5)));
   const [error, setError] = useState('');
+  const parsedMinMembers = Number(minMembers || 0);
+  const maxMembers = Number(route.params.maxMembers || 0);
 
   async function handleSubmit() {
     try {
@@ -22,8 +24,8 @@ export function CreateGroupRulesScreen({ route }: any) {
         description,
         amount: route.params.amount,
         frequency: route.params.frequency,
-        minMembers: Number(minMembers || 0),
-        maxMembers: route.params.maxMembers,
+        minMembers: parsedMinMembers,
+        maxMembers,
         visibility,
         inviteMode: visibility === 'Public' ? 'PublicRequest' : 'InviteCodeAndDirect',
         vestingEnabled: true,
@@ -40,7 +42,7 @@ export function CreateGroupRulesScreen({ route }: any) {
       <TopAppBar title="Create New Equb" subtitle="Step 2 of 2" onBack={() => navigation.goBack()} />
       <TitleBlock title="Finalize the request" subtitle="Add member-facing terms, gathering mode, and the minimum group size before inviting participants." />
       <SectionCard>
-        <InputField label="Short Description" value={description} onChangeText={setDescription} multiline helper="This appears in the browse and detail views once the group is approved." />
+        <InputField label="Short Description" value={description} onChangeText={setDescription} multiline helper="This appears while gathering members and remains visible after approval." />
         <InputField label="Minimum Members" value={minMembers} onChangeText={setMinMembers} keyboardType="number-pad" leadingIcon="group" />
       </SectionCard>
       <SectionCard variant="soft">
@@ -60,10 +62,21 @@ export function CreateGroupRulesScreen({ route }: any) {
           <Pill label="Creator review" tone="active" />
           <Pill label="Admin approval" tone="active" />
           <Pill label="Canonical group on approval" tone="neutral" />
+          <Pill label="Simulated payout reserve" tone="neutral" />
         </View>
       </SectionCard>
+      {parsedMinMembers > maxMembers ? (
+        <InlineError message="Minimum members cannot be greater than max members." />
+      ) : parsedMinMembers < 5 ? (
+        <InlineError message="Current Phase 2 policy requires at least 5 accepted members before admin submission." />
+      ) : null}
       <InlineError message={error} />
-      <PrimaryCTA label="Create Formation Request" onPress={handleSubmit} loading={createFormation.isPending} disabled={!description || Number(minMembers || 0) < 2 || createFormation.isPending} />
+      <PrimaryCTA
+        label="Create Formation Request"
+        onPress={handleSubmit}
+        loading={createFormation.isPending}
+        disabled={!description || parsedMinMembers < 5 || parsedMinMembers > maxMembers || createFormation.isPending}
+      />
     </ScreenScroll>
   );
 }

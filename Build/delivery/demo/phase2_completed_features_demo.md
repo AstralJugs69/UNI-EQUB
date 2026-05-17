@@ -116,9 +116,8 @@ Evidence:
 Show:
 
 - Member opens the in-app demo and sees a public forming request in Explore
-- Member explores forming groups
-- Creator creates a forming request
-- Creator manages participants or invitations
+- Member taps Create New Equb, creates a forming request, and returns to it from My group requests
+- Creator manages participants or invitations from the creator workspace
 - Admin demo reviews the seeded `Campus Demo Formation` request
 - Admin approval creates canonical `EqubGroup`, `GroupMembers`, initial `Round`, and obligations
 

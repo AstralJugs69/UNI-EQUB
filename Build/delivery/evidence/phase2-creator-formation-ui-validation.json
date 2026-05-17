@@ -5,11 +5,13 @@
     "navigator": "mobile/src/navigation/AppNavigator.tsx",
     "hooks": "mobile/src/hooks/useAppQueries.ts",
     "rules": "mobile/src/screens/member/CreateGroupRulesScreen.tsx",
+    "explore": "mobile/src/screens/member/ExploreScreen.tsx",
     "creator": "mobile/src/screens/member/FormationCreatorScreen.tsx",
     "mockBackendTest": "mobile/src/services/mock/mockBackend.test.ts"
   },
   "completedChecks": [
     "create-group flow creates Phase 2 formation requests and opens creator management",
+    "Explore screen lets creators return to their own formation requests",
     "creator management screen exposes invitation creation",
     "creator management screen exposes accept/remove participant actions",
     "creator management screen exposes submit-for-approval action",
@@ -17,5 +19,5 @@
   ],
   "requiresSupabaseCredentials": false,
   "requiresDeviceValidation": true,
-  "validatedAt": "2026-05-16T04:54:06.948Z"
+  "validatedAt": "2026-05-17T04:38:02.308Z"
 }

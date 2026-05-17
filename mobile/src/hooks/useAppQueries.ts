@@ -8,6 +8,7 @@ export const queryKeys = {
   groups: ['groups'] as const,
   group: (groupId: string) => ['group', groupId] as const,
   formationGroups: ['formation-groups'] as const,
+  myFormationGroups: ['my-formation-groups'] as const,
   formationGroup: (requestId: string) => ['formation-group', requestId] as const,
   groupStatus: (groupId: string) => ['group-status', groupId] as const,
   history: ['history'] as const,
@@ -56,6 +57,16 @@ export function useFormationGroupsQuery() {
     queryKey: queryKeys.formationGroups,
     enabled: !!session,
     queryFn: () => services.formation.listPublic(session!.user.userId),
+  });
+}
+
+export function useMyFormationGroupsQuery() {
+  const services = useServices();
+  const { session } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.myFormationGroups,
+    enabled: !!session,
+    queryFn: () => services.formation.listMine(session!.user.userId),
   });
 }
 
@@ -159,6 +170,7 @@ export function useMemberActions() {
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard }),
       queryClient.invalidateQueries({ queryKey: queryKeys.groups }),
       queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.myFormationGroups }),
       queryClient.invalidateQueries({ queryKey: queryKeys.history }),
       queryClient.invalidateQueries({ queryKey: queryKeys.wallet }),
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications }),
@@ -198,6 +210,7 @@ export function useMemberActions() {
       onSuccess: async detail => {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.myFormationGroups }),
           queryClient.invalidateQueries({ queryKey: queryKeys.formationGroup(detail.groupRequest.id) }),
         ]);
       },
@@ -211,6 +224,7 @@ export function useMemberActions() {
       onSuccess: async (_detail, variables) => {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.myFormationGroups }),
           queryClient.invalidateQueries({ queryKey: queryKeys.formationGroup(variables.requestId) }),
         ]);
       },
@@ -220,6 +234,7 @@ export function useMemberActions() {
         services.formation.invite(session!.user.userId, input),
       onSuccess: async response => {
         await queryClient.invalidateQueries({ queryKey: queryKeys.formationGroup(response.detail.groupRequest.id) });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.myFormationGroups });
       },
     }),
     acceptFormationJoin: useMutation({
@@ -228,6 +243,7 @@ export function useMemberActions() {
       onSuccess: async detail => {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.myFormationGroups }),
           queryClient.invalidateQueries({ queryKey: queryKeys.formationGroup(detail.groupRequest.id) }),
         ]);
       },
@@ -238,6 +254,7 @@ export function useMemberActions() {
       onSuccess: async detail => {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.myFormationGroups }),
           queryClient.invalidateQueries({ queryKey: queryKeys.formationGroup(detail.groupRequest.id) }),
         ]);
       },
@@ -248,6 +265,7 @@ export function useMemberActions() {
       onSuccess: async detail => {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.myFormationGroups }),
           queryClient.invalidateQueries({ queryKey: queryKeys.formationGroup(detail.groupRequest.id) }),
           queryClient.invalidateQueries({ queryKey: queryKeys.pendingGroups }),
         ]);

@@ -31,6 +31,7 @@ export function FormationCreatorScreen({ route }: any) {
   const request = data.groupRequest;
   const canInvite = request.status === 'Forming' && request.invite_mode !== 'PublicRequest';
   const canSubmit = request.status === 'Forming' && data.accepted_participant_count >= request.min_members;
+  const acceptedRemaining = Math.max(request.min_members - data.accepted_participant_count, 0);
 
   async function handleInvite() {
     try {
@@ -88,6 +89,15 @@ export function FormationCreatorScreen({ route }: any) {
       {request.status === 'PendingApproval' ? (
         <StatusBanner tone="success" title="Submitted for admin approval" body="An admin can now review the request and create the canonical Equb group." />
       ) : null}
+      {request.status === 'Approved' ? (
+        <StatusBanner tone="success" title="Approved" body="Admin approval created the canonical Equb group. It is now available as an active cycle." />
+      ) : null}
+      {request.status === 'Rejected' ? (
+        <StatusBanner tone="danger" title="Request was not approved" body={request.rejection_reason ?? 'Review the reason and create a revised request when ready.'} />
+      ) : null}
+      {request.status === 'Forming' && acceptedRemaining > 0 ? (
+        <StatusBanner tone="info" title={`${acceptedRemaining} more accepted member${acceptedRemaining === 1 ? '' : 's'} needed`} body="Invite participants or accept public join requests before submitting this group for admin approval." />
+      ) : null}
       {canInvite ? (
         <SectionCard>
           <Text style={memberStyles.sectionTitle}>Invite participant</Text>
@@ -111,6 +121,22 @@ export function FormationCreatorScreen({ route }: any) {
           ))}
         </View>
       </SectionCard>
+      {data.invitations.length ? (
+        <SectionCard variant="soft">
+          <Text style={memberStyles.sectionTitle}>Invitations</Text>
+          <View style={memberStyles.listGroup}>
+            {data.invitations.map(invitation => (
+              <ListRow
+                key={invitation.id}
+                title={invitation.invited_phone_or_student_id ?? invitation.invite_code ?? 'Invitation'}
+                subtitle={invitation.invite_code ? `Code ${invitation.invite_code}` : 'Direct invitation'}
+                right={<Pill label={invitation.status} tone={invitation.status === 'Accepted' ? 'good' : invitation.status === 'Pending' ? 'warn' : 'neutral'} />}
+                leadingIcon="mail"
+              />
+            ))}
+          </View>
+        </SectionCard>
+      ) : null}
       <SectionCard variant="soft">
         <Text style={memberStyles.sectionTitle}>Accepted participants</Text>
         <View style={memberStyles.listGroup}>
@@ -121,7 +147,7 @@ export function FormationCreatorScreen({ route }: any) {
       </SectionCard>
       <InlineError message={error} />
       <PrimaryCTA
-        label={request.status === 'PendingApproval' ? 'Waiting For Admin' : 'Submit For Approval'}
+        label={request.status === 'PendingApproval' ? 'Waiting For Admin' : request.status === 'Approved' ? 'Approved' : 'Submit For Approval'}
         onPress={handleSubmit}
         loading={submitFormationForApproval.isPending}
         disabled={!canSubmit || submitFormationForApproval.isPending || request.status !== 'Forming'}

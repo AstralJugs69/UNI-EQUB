@@ -8,6 +8,7 @@ const configPath = path.join(repoRoot, 'supabase/config.toml');
 
 const requiredActions = [
   'listPublic',
+  'listMine',
   'listPendingApproval',
   'getRequest',
   'createRequest',
@@ -62,6 +63,7 @@ function main() {
     'createFormationRequest',
     'validateCreateRequestInput',
     'listPublicFormationRequests',
+    'listMyFormationRequests',
     'getFormationRequestDetail',
     'requestJoinFormationGroup',
     'assertRequestCanReceivePublicJoinRequest',
@@ -98,9 +100,15 @@ function main() {
   requiredActions.forEach(action => assertIncludes(source, `'${action}'`, `formation action ${action}`));
   [
     'listPendingApprovalFormationRequests',
+    'listMyFormationRequests',
     ".eq('status', 'PendingApproval')",
     'adminReviewQueue',
   ].forEach(token => assertIncludes(source, token, 'admin pending approval list token'));
+
+  [
+    ".eq('creator_id', actor.User_ID)",
+    'mine: true',
+  ].forEach(token => assertIncludes(source, token, 'creator-owned request list token'));
 
   [
     ".from('group_requests')",

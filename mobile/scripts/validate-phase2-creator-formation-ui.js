@@ -41,6 +41,7 @@ function main() {
   const hooks = read(hooksPath);
   const rules = read(rulesPath);
   const creator = read(creatorPath);
+  const explore = read(path.join(repoRoot, 'mobile/src/screens/member/ExploreScreen.tsx'));
   const mockTest = read(mockTestPath);
 
   assertIncludes(routes, "formationCreator: 'FormationCreator'", 'creator formation route');
@@ -51,6 +52,7 @@ function main() {
 
   [
     'createFormation',
+    'useMyFormationGroupsQuery',
     'inviteFormation',
     'acceptFormationJoin',
     'removeFormationParticipant',
@@ -70,6 +72,14 @@ function main() {
   ].forEach(token => assertIncludes(rules, token, 'create flow formation token'));
 
   [
+    'useMyFormationGroupsQuery',
+    'My group requests',
+    'myRequests.map',
+    'navigation.navigate(routes.formationCreator',
+    'Create New Equb',
+  ].forEach(token => assertIncludes(explore, token, 'member-owned formation request list token'));
+
+  [
     'FormationCreatorScreen',
     'inviteFormation.mutateAsync',
     'acceptFormationJoin.mutateAsync',
@@ -77,6 +87,8 @@ function main() {
     'submitFormationForApproval.mutateAsync',
     'pendingRequests.map',
     'Accepted participants',
+    'Invitations',
+    'more accepted member',
     'Waiting For Admin',
   ].forEach(token => assertIncludes(creator, token, 'creator management screen token'));
 
@@ -93,11 +105,13 @@ function main() {
       navigator: 'mobile/src/navigation/AppNavigator.tsx',
       hooks: 'mobile/src/hooks/useAppQueries.ts',
       rules: 'mobile/src/screens/member/CreateGroupRulesScreen.tsx',
+      explore: 'mobile/src/screens/member/ExploreScreen.tsx',
       creator: 'mobile/src/screens/member/FormationCreatorScreen.tsx',
       mockBackendTest: 'mobile/src/services/mock/mockBackend.test.ts',
     },
     completedChecks: [
       'create-group flow creates Phase 2 formation requests and opens creator management',
+      'Explore screen lets creators return to their own formation requests',
       'creator management screen exposes invitation creation',
       'creator management screen exposes accept/remove participant actions',
       'creator management screen exposes submit-for-approval action',

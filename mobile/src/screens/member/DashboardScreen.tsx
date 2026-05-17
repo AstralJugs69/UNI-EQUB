@@ -88,6 +88,7 @@ export function DashboardScreen() {
         <View style={memberStyles.actionGroup}>
           <SecondaryCTA label="Open Group" onPress={() => navigation.navigate(routes.groupStatus, { groupId: group.Group_ID })} />
           <SecondaryCTA label="Explore More Groups" onPress={() => navigation.navigate(routes.explore)} />
+          <SecondaryCTA label="Create Equb" onPress={() => navigation.navigate(routes.createBasics)} />
           <SecondaryCTA label="Notifications" onPress={() => navigation.navigate(routes.notifications)} />
         </View>
       </SectionCard>

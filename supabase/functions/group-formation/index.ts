@@ -17,6 +17,7 @@ const corsHeaders = {
 
 const routedActions: GroupFormationAction[] = [
   'listPublic',
+  'listMine',
   'listPendingApproval',
   'getRequest',
   'createRequest',
@@ -270,6 +271,53 @@ async function listPublicFormationRequests(actor: UserRecord) {
       visibility: 'Public',
       status: 'Forming',
       expiredRequestsHidden: true,
+    },
+  });
+}
+
+async function listMyFormationRequests(actor: UserRecord) {
+  assertVerifiedMember(actor);
+  const { data, error } = await supabaseAdmin
+    .from('group_requests')
+    .select('*')
+    .eq('creator_id', actor.User_ID)
+    .order('updated_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    throw error;
+  }
+
+  const requests = (data ?? []) as GroupRequestRecord[];
+  const requestIds = requests.map(request => request.id);
+  const participantCounts = new Map<string, number>();
+
+  if (requestIds.length > 0) {
+    const { data: participants, error: participantError } = await supabaseAdmin
+      .from('group_join_requests')
+      .select('group_request_id')
+      .in('group_request_id', requestIds)
+      .eq('status', 'Accepted');
+
+    if (participantError) {
+      throw participantError;
+    }
+
+    for (const participant of participants ?? []) {
+      const requestId = String(participant.group_request_id);
+      participantCounts.set(requestId, (participantCounts.get(requestId) ?? 0) + 1);
+    }
+  }
+
+  return json({
+    requests: requests.map(request => ({
+      ...request,
+      accepted_participant_count: participantCounts.get(request.id) ?? 0,
+      remaining_slots: Math.max(request.max_members - (participantCounts.get(request.id) ?? 0), 0),
+    })),
+    filter: {
+      creatorId: actor.User_ID,
+      mine: true,
     },
   });
 }
@@ -1305,6 +1353,9 @@ Deno.serve(async request => {
     switch (body.action) {
       case 'listPublic':
         return listPublicFormationRequests(actor);
+
+      case 'listMine':
+        return listMyFormationRequests(actor);
 
       case 'listPendingApproval':
         assertAdmin(actor);
