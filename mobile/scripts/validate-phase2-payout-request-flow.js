@@ -113,7 +113,6 @@ function main() {
       'reserved payout is split into pending release schedule rows for future contribution-triggered releases',
     ],
     stillPending: [
-      'reserved payout release after later successful obligations',
       'wallet UI copy for payout reserve and release schedules',
       'durable notification row for payout request creation',
     ],

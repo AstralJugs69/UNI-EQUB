@@ -5,6 +5,7 @@ import { listLedgerEntriesForReference, recordLedgerEntry } from '../_shared/led
 import { getContributionObligationForUserRound, markContributionObligationPaid, markContributionObligationPendingPayment, markContributionObligationUnpaid } from '../_shared/obligations.ts';
 import { buildPaymentAttemptIdempotencyKey, ensurePaymentProviderAttempt, recordPaymentAttemptCallback } from '../_shared/paymentAttempts.ts';
 import { initiateSimulatedProvider } from '../_shared/paymentProviders.ts';
+import { releaseNextReservedPayoutForContribution } from '../_shared/payoutReserves.ts';
 import { normalizePhone } from '../_shared/phone.ts';
 import { ensureOpenRoundForGroup, getOpenRound } from '../_shared/rounds.ts';
 import { finalizeRoundIfReady } from '../_shared/roundLifecycle.ts';
@@ -234,6 +235,12 @@ async function completeSuccessfulContributionAttempt(input: {
       attempt_created: input.attemptCreated,
     },
   });
+  const reserveRelease = await releaseNextReservedPayoutForContribution({
+    userId: input.actor.User_ID,
+    groupId: input.group.Group_ID,
+    triggerRound: input.round,
+    triggerObligationId: paidObligation.id,
+  });
 
   const lifecycle = await finalizeRoundIfReady(input.group, input.round);
   return {
@@ -241,6 +248,7 @@ async function completeSuccessfulContributionAttempt(input: {
     obligation: paidObligation,
     attempt: verifiedAttempt,
     ledgerRecorded: true,
+    reserveRelease,
     paymentResult: {
       receiptRef: transaction.Gateway_Ref,
       amount: Number(transaction.Amount),

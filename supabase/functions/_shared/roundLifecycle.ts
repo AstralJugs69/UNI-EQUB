@@ -53,6 +53,29 @@ async function updateRound(roundId: string, changes: Partial<RoundRecord>) {
   return data as RoundRecord;
 }
 
+async function getRoundById(roundId: string) {
+  const { data, error } = await supabaseAdmin.from('Round').select('*').eq('Round_ID', roundId).single();
+  if (error) {
+    throw error;
+  }
+  return data as RoundRecord;
+}
+
+async function claimOpenRoundForFinalization(roundId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('Round')
+    .update({ Status: 'Locked' })
+    .eq('Round_ID', roundId)
+    .eq('Status', 'Open')
+    .select('*')
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+  return data as RoundRecord | null;
+}
+
 async function updateGroup(groupId: string, changes: Partial<GroupRecord>) {
   const { data, error } = await supabaseAdmin.from('EqubGroup').update(changes).eq('Group_ID', groupId).select('*').single();
   if (error) {
@@ -116,7 +139,7 @@ async function sumWinnerContributionsSoFar(group: GroupRecord, round: RoundRecor
 
   const roundIds = (rounds ?? []).map(item => (item as { Round_ID: string }).Round_ID);
   if (!roundIds.length) {
-    return roundMoney(Number(group.Amount) * Number(round.Round_Number));
+    return 0;
   }
 
   const { data: transactions, error: transactionsError } = await supabaseAdmin
@@ -132,7 +155,7 @@ async function sumWinnerContributionsSoFar(group: GroupRecord, round: RoundRecor
   }
 
   const total = (transactions ?? []).reduce((sum, item) => sum + Number((item as { Amount: number }).Amount), 0);
-  return total > 0 ? roundMoney(total) : roundMoney(Number(group.Amount) * Number(round.Round_Number));
+  return roundMoney(total);
 }
 
 async function createPayoutRequest(input: {
@@ -302,7 +325,19 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
     };
   }
 
-  await updateRound(round.Round_ID, { Status: 'Locked' });
+  const lockedRound = await claimOpenRoundForFinalization(round.Round_ID);
+  if (!lockedRound) {
+    return {
+      autoDrawTriggered: false,
+      payoutAmount: 0,
+      payoutRequest: null,
+      payoutTransaction: null,
+      payoutReleaseSchedules: [],
+      nextRound: null,
+      updatedRound: await getRoundById(round.Round_ID),
+      completedGroup: null,
+    };
+  }
   const priorWinnerIds = await listPriorWinnerIds(group.Group_ID);
   const eligibleUserIds = memberships
     .map(item => item.User_ID)

@@ -60,6 +60,7 @@ This repository is organized as an implementation workspace around the original 
 - `npm run qa:phase2-attempt-ledger`
 - `npm run qa:phase2-payout-maturity`
 - `npm run qa:phase2-payout-request-flow`
+- `npm run qa:phase2-payout-idempotency-reserve-release`
 - `node .\mobile\scripts\seed-final-draw.js --phone 09XXXXXXXX --name "Your Name"`
 
 ## Hosted USSD simulator

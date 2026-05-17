@@ -15,10 +15,9 @@
     "reserved payout is split into pending release schedule rows for future contribution-triggered releases"
   ],
   "stillPending": [
-    "reserved payout release after later successful obligations",
     "wallet UI copy for payout reserve and release schedules",
     "durable notification row for payout request creation"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-16T13:49:43.733Z"
+  "validatedAt": "2026-05-17T04:36:53.447Z"
 }

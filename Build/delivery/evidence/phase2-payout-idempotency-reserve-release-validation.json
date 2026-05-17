@@ -1,0 +1,24 @@
+{
+  "scenario": "phase2-payout-idempotency-reserve-release-validation",
+  "validatedFiles": {
+    "roundLifecycle": "supabase/functions/_shared/roundLifecycle.ts",
+    "payoutReserves": "supabase/functions/_shared/payoutReserves.ts",
+    "contributionReconcile": "supabase/functions/contribution-reconcile/index.ts",
+    "migration": "supabase/migrations/20260517100000_phase2_payout_round_idempotency.sql"
+  },
+  "completedChecks": [
+    "draw finalization claims only Open rounds before choosing a winner",
+    "active payout requests are unique per round at the database layer",
+    "payout maturity uses actual successful contribution transactions instead of fabricated fallback amounts",
+    "successful later contribution claims the next pending reserve release schedule",
+    "reserve release creates a mock pending payout Transaction and ledger entries",
+    "payout request immediate/reserved totals and lifecycle status are updated after reserve release"
+  ],
+  "stillPending": [
+    "device/UAT validation of reserve release wallet behavior",
+    "wallet UI copy for reserve and release schedule explanation",
+    "durable notification row for reserve release"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-17T04:36:53.151Z"
+}
