@@ -13,6 +13,9 @@ const files = {
   banner: 'mobile/src/components/DemoModeBanner.tsx',
   dashboard: 'mobile/src/screens/member/DashboardScreen.tsx',
   adminDashboard: 'mobile/src/screens/admin/AdminDashboardScreen.tsx',
+  adminKyc: 'mobile/src/screens/admin/AdminKycScreen.tsx',
+  adminGroups: 'mobile/src/screens/admin/AdminGroupsScreen.tsx',
+  adminReports: 'mobile/src/screens/admin/AdminReportsScreen.tsx',
   mockBackend: 'mobile/src/services/mock/mockBackend.ts',
   mockTests: 'mobile/src/services/mock/mockBackend.test.ts',
   packageJson: 'package.json',
@@ -96,10 +99,34 @@ function main() {
 
   assertIncludes(content.dashboard, 'DemoModeBanner', 'member demo banner');
   assertIncludes(content.adminDashboard, 'DemoModeBanner', 'admin demo banner');
+  [
+    'Review queues',
+    'Provider activity',
+  ].forEach(token => assertIncludes(content.adminDashboard, token, 'expanded admin dashboard token'));
+
+  [
+    'data.map',
+    'Student ID',
+    'Review note',
+  ].forEach(token => assertIncludes(content.adminKyc, token, 'expanded admin KYC token'));
+
+  [
+    'More Phase 2 requests',
+    'More legacy requests',
+  ].forEach(token => assertIncludes(content.adminGroups, token, 'expanded admin groups token'));
+
+  [
+    'Operations snapshot',
+    'Provider activity',
+    'Audit timeline',
+  ].forEach(token => assertIncludes(content.adminReports, token, 'expanded admin reports token'));
 
   [
     'reset()',
+    'createDemoAdminUsers',
+    'createDemoAdminGroups',
     'formation-demo-review',
+    'formation-demo-no-vesting-review',
     'formation-demo-public',
     'formation-demo-private',
     'UNI-DEMO',
@@ -108,6 +135,9 @@ function main() {
     'Campus Demo Formation',
     'Laptop Repair Rotation',
     'Dorm Coffee Circle',
+    'Private Lab Supplies',
+    'Transport Mini Equb',
+    'providerLogs',
   ].forEach(token => assertIncludes(content.mockBackend, token, 'seeded mock demo state'));
 
   [
@@ -130,6 +160,7 @@ function main() {
       'services provider can switch between live Supabase services and mock demo services',
       'mock backend reset restores repeatable final-draw, public/private formation, invite-code, and admin formation queues',
       'member and admin dashboards show a visible demo-mode banner',
+      'admin demo screens expose richer KYC, group, provider, reminder, and audit states',
       'demo docs and root npm script reference the in-app showcase path',
     ],
     requiresSupabaseCredentials: false,

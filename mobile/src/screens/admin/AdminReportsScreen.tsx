@@ -1,6 +1,6 @@
 ﻿import React from 'react';
 import { Text } from 'react-native';
-import { AppScreen, EmptyState, ListRow, PrimaryCTA, SecondaryCTA, SectionCard, TopAppBar, TitleBlock } from '../../components/ui';
+import { AppScreen, EmptyState, ListRow, MetricTile, Pill, PrimaryCTA, SecondaryCTA, SectionCard, TopAppBar, TitleBlock } from '../../components/ui';
 import { useAdminActions, useAdminOverviewQuery, useReportsQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { AdminNav } from './shared';
@@ -14,6 +14,14 @@ export function AdminReportsScreen() {
   return (
     <AppScreen footer={<AdminNav active={routes.adminReports} />} footerFlush>
       <TopAppBar title="Audit And Reports" subtitle="Exports" rightLabel="Ready" />
+      {overview ? (
+        <SectionCard>
+          <TitleBlock title="Operations snapshot" subtitle="Current admin-facing state from the same reporting service." />
+          <MetricTile label="KYC" value={String(overview.pendingKycCount)} tone={overview.pendingKycCount > 0 ? 'warn' : 'good'} />
+          <MetricTile label="Groups" value={String(overview.pendingGroupCount)} tone={overview.pendingGroupCount > 0 ? 'warn' : 'good'} />
+          <MetricTile label="Active" value={String(overview.activeGroupCount)} />
+        </SectionCard>
+      ) : null}
       <SectionCard>
         <TitleBlock title="Report packages" subtitle="Export the current backend summaries in PDF or CSV." />
         {reports.length ? reports.map(report => (
@@ -24,6 +32,26 @@ export function AdminReportsScreen() {
         <TitleBlock title="Reminder queue" subtitle="Entries are derived from active groups and unpaid members in open rounds." />
         {overview?.reminderQueue.length ? overview.reminderQueue.map(entry => <ListRow key={entry} title={entry} leadingIcon="notifications-active" />) : <EmptyState icon="notifications-none" title="Queue is clear" subtitle="No unpaid reminder candidates were found at the moment." />}
       </SectionCard>
+      {overview?.providerLogs?.length ? (
+        <SectionCard variant="soft">
+          <TitleBlock title="Provider activity" subtitle="Sandbox payment and reminder events." />
+          {overview.providerLogs.map(log => (
+            <ListRow
+              key={`${log.provider}-${log.createdAt}-${log.message}`}
+              title={log.message}
+              subtitle={`${log.provider} • ${log.createdAt}`}
+              right={<Pill label={log.status} tone={log.status === 'Successful' ? 'good' : log.status === 'Failed' ? 'bad' : 'warn'} />}
+              leadingIcon="sync"
+            />
+          ))}
+        </SectionCard>
+      ) : null}
+      {overview?.logs.length ? (
+        <SectionCard>
+          <TitleBlock title="Audit timeline" subtitle="Recent decisions and automated events." />
+          {overview.logs.map(log => <ListRow key={log} title={log} leadingIcon="history" />)}
+        </SectionCard>
+      ) : null}
       <PrimaryCTA label="Send Reminder Batch" onPress={() => sendReminders.mutate()} loading={sendReminders.isPending} disabled={sendReminders.isPending} />
       <SecondaryCTA label="Export First Report" onPress={() => exportReport.mutate({ title: reports[0]?.title ?? 'report', format: reports[0]?.format ?? 'PDF' })} loading={exportReport.isPending} disabled={exportReport.isPending || !reports.length} />
       {exportReport.data ? (

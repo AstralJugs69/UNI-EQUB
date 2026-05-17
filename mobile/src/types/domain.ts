@@ -186,6 +186,12 @@ export interface AdminOverview {
   exportsCount: number;
   logs: string[];
   reminderQueue: string[];
+  providerLogs?: Array<{
+    provider: PaymentMethod | 'ReminderEngine';
+    status: 'Queued' | 'Successful' | 'Failed';
+    message: string;
+    createdAt: string;
+  }>;
 }
 
 export interface KycReviewItem {

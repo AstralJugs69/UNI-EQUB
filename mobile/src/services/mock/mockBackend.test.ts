@@ -46,6 +46,10 @@ describe('MockBackend automatic draw flow', () => {
 
     const adminSession = await backend.auth.login({ phoneNumber: '0999000000', password: 'admin1234' }, 'Admin');
     expect(adminSession.user.userId).toBe('user-admin');
+    const overview = await backend.reports.getAdminOverview();
+    expect(overview.pendingKycCount).toBeGreaterThanOrEqual(3);
+    expect(overview.pendingGroupCount).toBeGreaterThanOrEqual(4);
+    expect(overview.providerLogs?.length).toBeGreaterThanOrEqual(3);
 
     const publicRequests = await backend.formation.listPublic('user-dawit');
     expect(publicRequests.some(item => item.id === 'formation-demo-public')).toBe(true);
@@ -58,6 +62,7 @@ describe('MockBackend automatic draw flow', () => {
 
     const pendingBeforeApproval = await backend.formation.listPendingApproval();
     expect(pendingBeforeApproval.some(item => item.id === 'formation-demo-review')).toBe(true);
+    expect(pendingBeforeApproval.some(item => item.id === 'formation-demo-no-vesting-review')).toBe(true);
 
     await backend.formation.adminApprove('formation-demo-review');
     const pendingAfterApproval = await backend.formation.listPendingApproval();

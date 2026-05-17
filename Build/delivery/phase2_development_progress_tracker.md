@@ -612,3 +612,12 @@ Fourth repo-local Phase 2 in-app demo polish batch completed on 2026-05-18:
 2. kept demo mode on the same create/manage/invite screens as live mode rather than adding a separate showcase-only route
 3. refreshed `Build/delivery/evidence/phase2-in-app-demo-validation.json` and `Build/delivery/evidence/phase2-demo-readiness-validation.json`
 4. final screenshots/video and physical/emulator proof remain user/Both evidence work
+
+Fifth repo-local Phase 2 in-app demo polish batch completed on 2026-05-18:
+
+1. expanded demo admin seed state with additional pending KYC users, a second legacy group request, a second Phase 2 approval request, provider activity, reminder queue entries, and audit logs
+2. updated `AdminDashboardScreen` to show richer review queues, audit activity, and provider activity in demo and live-compatible form
+3. updated `AdminKycScreen` to render all pending KYC reviews with per-item approve/ban actions instead of only the first review
+4. updated `AdminGroupsScreen` to preview additional Phase 2 and legacy requests below the primary actionable review item
+5. updated `AdminReportsScreen` with an operations snapshot, provider activity, and audit timeline while preserving report export/reminder actions
+6. refreshed `Build/delivery/evidence/phase2-in-app-demo-validation.json` and `Build/delivery/evidence/phase2-demo-readiness-validation.json`; final device screenshots/video remain user/Both evidence work

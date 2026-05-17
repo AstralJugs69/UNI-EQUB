@@ -73,6 +73,22 @@ export function AdminGroupsScreen() {
           <SecondaryCTA label="Reject Formation" onPress={() => rejectFormationGroup.mutate({ requestId: formationItem.id, decisionReason: 'Rejected from admin review.' })} loading={rejectFormationGroup.isPending} disabled={busy} />
         </>
       ) : null}
+      {formationQueue.length > 1 ? (
+        <SectionCard variant="soft">
+          <Text style={adminStyles.sectionTitle}>More Phase 2 requests</Text>
+          <View style={adminStyles.listGroup}>
+            {formationQueue.slice(1).map(request => (
+              <ListRow
+                key={request.id}
+                title={request.proposed_group_name}
+                subtitle={`${request.frequency} • ${request.visibility} • ${request.accepted_participant_count}/${request.min_members} accepted`}
+                right={<Pill label={request.risk_level} tone={request.risk_level === 'Low' ? 'good' : 'warn'} />}
+                leadingIcon="groups"
+              />
+            ))}
+          </View>
+        </SectionCard>
+      ) : null}
       {legacyItem ? (
         <>
           <SectionCard>
@@ -97,6 +113,21 @@ export function AdminGroupsScreen() {
           <SecondaryCTA label="Freeze Legacy Group" onPress={() => freezeGroup.mutate(legacyItem.group.Group_ID)} loading={freezeGroup.isPending} disabled={busy} />
           <InlineError message={adminNote} />
         </>
+      ) : null}
+      {legacyData && legacyData.length > 1 ? (
+        <SectionCard variant="soft">
+          <Text style={adminStyles.sectionTitle}>More legacy requests</Text>
+          <View style={adminStyles.listGroup}>
+            {legacyData.slice(1).map(item => (
+              <ListRow
+                key={item.group.Group_ID}
+                title={item.group.Group_Name}
+                subtitle={`${item.group.Frequency} • ${item.group.Amount} ETB • ${item.creator.Full_Name}`}
+                leadingIcon="pending-actions"
+              />
+            ))}
+          </View>
+        </SectionCard>
       ) : null}
       {!formationItem && !legacyItem ? (
         <EmptyState icon="playlist-add-check" title="No pending group requests" subtitle="Submitted Phase 2 formations and legacy MVP requests will appear here for review." />

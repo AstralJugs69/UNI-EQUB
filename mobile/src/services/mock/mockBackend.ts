@@ -96,8 +96,8 @@ export class MockBackend implements AppServices {
 
   private createInitialState(): DatabaseState {
     return {
-      users: clone(seedUsers),
-      groups: clone(seedGroups),
+      users: [...clone(seedUsers), ...this.createDemoAdminUsers()],
+      groups: [...clone(seedGroups), ...this.createDemoAdminGroups()],
       memberships: clone(seedMemberships),
       rounds: clone(seedRounds),
       transactions: clone(seedTransactions),
@@ -105,15 +105,71 @@ export class MockBackend implements AppServices {
       sessions: {},
       otpChallenges: {},
       ussdSessions: {},
-      auditLogs: ['KYC approved for Dawit Abebe • 09:15 AM', 'Cycle frozen for suspicious mismatch • 08:47 AM'],
-      reminderQueue: ['Dorm A Savings Group • 1 unpaid member • automatic reminder queued', 'AAU Coders Circle • 2 unpaid members • automatic reminder queued'],
-      providerLogs: [],
+      auditLogs: [
+        'Phase 2 formation submitted: Campus Demo Formation • 09:42 AM',
+        'Private daily formation flagged for no-vesting review • 09:36 AM',
+        'KYC approved for Dawit Abebe • 09:15 AM',
+        'Cycle frozen for suspicious mismatch • 08:47 AM',
+      ],
+      reminderQueue: [
+        'Dorm A Savings Group • 1 unpaid member • automatic reminder queued',
+        'AAU Coders Circle • 2 unpaid members • automatic reminder queued',
+        'Exam Week Buffer • 4 unpaid members • due today',
+      ],
+      providerLogs: [
+        { provider: 'MockUSSD', status: 'Successful', message: 'USSD contribution reconciled for Dorm A Savings Group', createdAt: nowIso() },
+        { provider: 'Telebirr', status: 'Queued', message: 'Mock provider callback waiting for confirmation', createdAt: nowIso() },
+        { provider: 'ReminderEngine', status: 'Successful', message: 'Reminder batch generated for demo queues', createdAt: nowIso() },
+      ],
       rejectedGroupIds: [],
       groupRequests: this.createDemoGroupRequests(),
       groupJoinRequests: this.createDemoJoinRequests(),
       groupInvitations: this.createDemoGroupInvitations(),
     };
   }
+
+  private createDemoAdminUsers(): UserRecord[] {
+    return [
+      {
+        User_ID: 'user-hana',
+        Full_Name: 'Hana Bekele',
+        Phone_Number: '0911000005',
+        Password_Hash: 'hash:hana1234',
+        Student_ID_Img: 'storage://students/hana-id.png',
+        KYC_Status: 'Unverified',
+        Role: 'Member',
+        Created_At: nowIso(),
+      },
+      {
+        User_ID: 'user-yared',
+        Full_Name: 'Yared Mekonnen',
+        Phone_Number: '0911000006',
+        Password_Hash: 'hash:yared1234',
+        Student_ID_Img: 'storage://students/yared-id.png',
+        KYC_Status: 'Unverified',
+        Role: 'Member',
+        Created_At: nowIso(),
+      },
+    ];
+  }
+
+  private createDemoAdminGroups(): GroupRecord[] {
+    return [
+      {
+        Group_ID: 'group-demo-transport',
+        Creator_ID: 'user-saba',
+        Group_Name: 'Transport Mini Equb',
+        Amount: 150,
+        Max_Members: 6,
+        Frequency: 'Daily',
+        Virtual_Acc_Ref: '',
+        Status: 'Pending',
+        Start_Date: '2026-05-18',
+        Description: 'Small daily transport contribution request queued for admin review.',
+      },
+    ];
+  }
+
 
   private createDemoGroupRequests(): GroupRequestRecord[] {
     return [
@@ -136,6 +192,36 @@ export class MockBackend implements AppServices {
         vesting_enabled: true,
         vesting_disabled_by_creator: false,
         risk_warning_accepted_at: null,
+        expires_at: plusMinutes(60 * 24 * 3),
+        submitted_at: nowIso(),
+        reviewed_by: null,
+        reviewed_at: null,
+        approval_decision_note: null,
+        rejection_reason: null,
+        approved_group_id: null,
+        created_group_at: null,
+        created_at: nowIso(),
+        updated_at: nowIso(),
+      },
+      {
+        id: 'formation-demo-no-vesting-review',
+        creator_id: 'user-saba',
+        submitted_by: 'user-saba',
+        proposed_group_name: 'Private Lab Supplies',
+        description: 'Private daily request with creator-accepted no-vesting risk.',
+        contribution_amount: 250,
+        frequency: 'Daily',
+        min_members: 3,
+        max_members: 5,
+        visibility: 'Private',
+        invite_mode: 'InviteCodeAndDirect',
+        status: 'PendingApproval',
+        risk_level: 'Medium',
+        terms_version: 'phase2-v1',
+        agreement_required: true,
+        vesting_enabled: false,
+        vesting_disabled_by_creator: true,
+        risk_warning_accepted_at: nowIso(),
         expires_at: plusMinutes(60 * 24 * 3),
         submitted_at: nowIso(),
         reviewed_by: null,
@@ -259,6 +345,42 @@ export class MockBackend implements AppServices {
         removed_at: null,
         decision_by: 'user-ruth',
         decision_reason: 'Creator automatically added to the forming group.',
+      },
+      {
+        id: 'formation-demo-no-vesting-creator',
+        group_request_id: 'formation-demo-no-vesting-review',
+        user_id: 'user-saba',
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: 'user-saba',
+        decision_reason: 'Creator automatically added to the forming group.',
+      },
+      {
+        id: 'formation-demo-no-vesting-dawit',
+        group_request_id: 'formation-demo-no-vesting-review',
+        user_id: 'user-dawit',
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: 'user-saba',
+        decision_reason: 'Accepted participant for no-vesting demo review.',
+      },
+      {
+        id: 'formation-demo-no-vesting-miki',
+        group_request_id: 'formation-demo-no-vesting-review',
+        user_id: 'user-miki',
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: 'user-saba',
+        decision_reason: 'Accepted participant for no-vesting demo review.',
       },
       {
         id: 'formation-demo-private-creator',
@@ -1070,11 +1192,12 @@ export class MockBackend implements AppServices {
   reports = {
     getAdminOverview: async (): Promise<AdminOverview> => ({
       pendingKycCount: this.db.users.filter(user => user.Role === 'Member' && user.KYC_Status === 'Unverified').length,
-      pendingGroupCount: this.db.groups.filter(group => group.Status === 'Pending').length,
+      pendingGroupCount: this.db.groups.filter(group => group.Status === 'Pending').length + this.db.groupRequests.filter(request => request.status === 'PendingApproval').length,
       activeGroupCount: this.db.groups.filter(group => group.Status === 'Active').length,
-      exportsCount: 11,
+      exportsCount: 3,
       logs: clone(this.db.auditLogs),
       reminderQueue: clone(this.db.reminderQueue),
+      providerLogs: clone(this.db.providerLogs),
     }),
 
     listReports: async (): Promise<ReportSummary[]> => [

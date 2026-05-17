@@ -10,6 +10,9 @@
     "banner": "mobile/src/components/DemoModeBanner.tsx",
     "dashboard": "mobile/src/screens/member/DashboardScreen.tsx",
     "adminDashboard": "mobile/src/screens/admin/AdminDashboardScreen.tsx",
+    "adminKyc": "mobile/src/screens/admin/AdminKycScreen.tsx",
+    "adminGroups": "mobile/src/screens/admin/AdminGroupsScreen.tsx",
+    "adminReports": "mobile/src/screens/admin/AdminReportsScreen.tsx",
     "mockBackend": "mobile/src/services/mock/mockBackend.ts",
     "mockTests": "mobile/src/services/mock/mockBackend.test.ts",
     "packageJson": "package.json",
@@ -22,6 +25,7 @@
     "services provider can switch between live Supabase services and mock demo services",
     "mock backend reset restores repeatable final-draw, public/private formation, invite-code, and admin formation queues",
     "member and admin dashboards show a visible demo-mode banner",
+    "admin demo screens expose richer KYC, group, provider, reminder, and audit states",
     "demo docs and root npm script reference the in-app showcase path"
   ],
   "requiresSupabaseCredentials": false,
@@ -30,5 +34,5 @@
     "this validation is static/Jest-backed and does not replace screenshots or on-device UAT",
     "demo mode intentionally uses seeded local mock data and simulated payment rails"
   ],
-  "validatedAt": "2026-05-17T22:37:23.065Z"
+  "validatedAt": "2026-05-17T22:48:06.092Z"
 }
