@@ -212,7 +212,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | --- | --- | --- | --- | --- | --- | --- |
 | P2-901 | Agent | Expand Jest/service tests for Phase 2 helper logic and critical flows. | Not Started | Implemented phases | Tests cover formation, obligations, attempts, duplicate callbacks, payout maturity, restrictions, notifications, audit. | `npm test`/Jest output |
 | P2-902 | Agent | Add validation scripts for Phase 2 backend scenarios. | Not Started | Implemented phases | Scripts can generate evidence JSON for key scenarios. | `mobile/scripts/validate-phase2-*.js` |
-| P2-903 | Agent | Update UAT checklist for Phase 2 flows. | Not Started | Phase 2 UI/backend | Checklist includes user-only validation steps and expected evidence. | `Build/delivery/uat_checklist.md` |
+| P2-903 | Agent | Update UAT checklist for Phase 2 flows. | In Progress | Phase 2 UI/backend | Checklist includes user-only validation steps and expected evidence. | `Build/delivery/uat_checklist.md`; `Build/delivery/demo/phase2_completed_features_demo.md`; `Build/delivery/demo/phase2_demo_operator_checklist.md`; `Build/delivery/evidence/phase2-demo-readiness-validation.json`; final UAT evidence still pending |
 | P2-904 | User | Run emulator validation pass. | Blocked | P2-903, local Android setup | App installs and passes Phase 2 smoke/UAT on emulator. | `Build/delivery/evidence/phase2-emulator-uat.*` |
 | P2-905 | User | Run physical Android device validation pass. | Blocked | P2-903, device | App installs and passes Phase 2 smoke/UAT on physical device. | `Build/delivery/evidence/phase2-device-uat.*` |
 | P2-906 | Agent | Generate debug APK after Phase 2 implementation. | Not Started | Stable Phase 2 build | Debug APK path, size, and timestamp are recorded. | `Build/delivery/evidence/phase2-debug-apk-build.json` |
@@ -551,3 +551,13 @@ First repo-local Phase 7 default/restriction maintenance batch completed on 2026
 6. added `mobile/scripts/validate-phase2-default-restriction.js` and `Build/delivery/evidence/phase2-default-restriction-validation.json`
 7. ran `npm run qa:phase2-default-restriction`, `npm run qa:phase2-reliability-updates`, `npm run mobile:typecheck`, `npm run mobile:test`, `npm run mobile:lint`, and `git diff --check`; Deno remains unavailable locally
 8. left `group_freeze_events`, freeze decisioning, admin frozen-group resolution, durable notifications/audit, deployment scheduling, and user UAT pending under later Phase 7/6 tasks
+
+First repo-local Phase 2 demo package batch started on 2026-05-17:
+
+1. added `Build/delivery/demo/phase2_completed_features_demo.md` as the completed-feature demo runbook
+2. added `Build/delivery/demo/phase2_demo_operator_checklist.md` for setup, timing, account notes, commands, and claims to avoid
+3. added `mobile/scripts/validate-phase2-demo-readiness.js` and `npm run qa:phase2-demo-readiness`
+4. registered `default-maintenance` in `supabase/config.toml` so the newest default/restriction function is visible to Supabase tooling
+5. updated README and UAT checklist to point to the demo package
+6. ran `npm run qa:phase2-demo-readiness`, `npm run qa:phase2-default-restriction`, `npm run mobile:typecheck`, `npm run mobile:test`, `npm run mobile:lint`, and `git diff --check`
+7. left live OTP, deployed function verification, screenshots/video capture, emulator/physical UAT, and final defense report updates as user/Both delivery work

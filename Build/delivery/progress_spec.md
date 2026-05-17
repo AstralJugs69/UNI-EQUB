@@ -150,6 +150,7 @@ Overall Status: In Progress
 - Phase 2 active group limit validation: `supabase/functions/group-lifecycle/index.ts`, `supabase/functions/group-formation/index.ts`, `mobile/scripts/validate-phase2-active-group-limit.js`, `Build/delivery/evidence/phase2-active-group-limit-validation.json`
 - Phase 2 reliability update validation: `supabase/functions/_shared/reliability.ts`, `supabase/functions/_shared/obligations.ts`, `supabase/functions/_shared/roundLifecycle.ts`, `mobile/scripts/validate-phase2-reliability-updates.js`, `Build/delivery/evidence/phase2-reliability-update-validation.json`
 - Phase 2 default/restriction validation: `supabase/functions/default-maintenance/index.ts`, `supabase/functions/_shared/obligations.ts`, `supabase/functions/_shared/reliability.ts`, `mobile/scripts/validate-phase2-default-restriction.js`, `Build/delivery/evidence/phase2-default-restriction-validation.json`
+- Phase 2 completed-feature demo package: `Build/delivery/demo/phase2_completed_features_demo.md`, `Build/delivery/demo/phase2_demo_operator_checklist.md`, `mobile/scripts/validate-phase2-demo-readiness.js`, `Build/delivery/evidence/phase2-demo-readiness-validation.json`
 - UAT checklist: `Build/delivery/uat_checklist.md`
 - Delivery docs: `Build/delivery/implementation_plan.md`, `Build/delivery/implementation_traceability_matrix.md`, `Build/delivery/progress_spec.md`, `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, `Build/delivery/phase2_development_progress_tracker.md`
 

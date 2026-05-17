@@ -1,6 +1,6 @@
 # UniEqub UAT Checklist
 
-Last Updated: 2026-03-08
+Last Updated: 2026-05-17
 
 ## Auth and KYC
 - Register a new member account
@@ -51,4 +51,12 @@ Last Updated: 2026-03-08
 - Run basic smoke pass on splash, auth, dashboard, group, payment, wallet, admin
 
 ## Phase 2 UAT planning note
-Phase 2 UAT scenarios, user-only validation tasks, required evidence files, and final delivery gates are tracked in `Build/delivery/phase2_development_progress_tracker.md`. The checklist above remains valid for the original MVP baseline until Phase 2 screens and services are implemented.
+Phase 2 UAT scenarios, user-only validation tasks, required evidence files, and final delivery gates are tracked in `Build/delivery/phase2_development_progress_tracker.md`.
+
+For a demo of completed Phase 2 features, use:
+
+- `Build/delivery/demo/phase2_completed_features_demo.md`
+- `Build/delivery/demo/phase2_demo_operator_checklist.md`
+- `npm run qa:phase2-demo-readiness`
+
+The checklist above remains valid for the original MVP baseline. The Phase 2 demo runbook narrows the presentation to implemented features and explicitly calls out unfinished notification/audit, freeze/poll/refund, release, screenshot, and UAT evidence work.
