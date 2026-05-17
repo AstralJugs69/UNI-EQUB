@@ -24,7 +24,7 @@ export function PaymentSuccessScreen({ route }: any) {
         <Text style={memberStyles.mutedText}>Reference {receiptRef}</Text>
       </SectionCard>
       {route.params?.autoDrawTriggered ? (
-        <StatusBanner tone="success" title="This payment completed the round." body={`Winner selection happened automatically and ${payoutAmount.toLocaleString()} ETB is now ready for withdrawal.`} />
+        <StatusBanner tone="success" title="This payment completed the round." body={`Winner selection happened automatically. The payout total is ${payoutAmount.toLocaleString()} ETB; probationary winners may see part of it reserved until later contributions are completed.`} />
       ) : null}
       <PrimaryCTA label="View Wallet" onPress={() => navigation.navigate(routes.wallet)} />
       <SecondaryCTA label="Back To Group" onPress={() => navigation.navigate(routes.groupStatus)} />

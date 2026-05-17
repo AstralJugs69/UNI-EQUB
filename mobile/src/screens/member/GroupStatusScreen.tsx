@@ -34,7 +34,7 @@ export function GroupStatusScreen({ route }: any) {
         <View style={memberStyles.listGroup}>
           <ListRow title="All verified contributions lock the round" subtitle="The round closes only when every active member is paid." leadingIcon="lock-clock" />
           <ListRow title="Winner selection is automatic" subtitle="The draw runs server-side as soon as the round is complete." leadingIcon="casino" />
-          <ListRow title="Payout record is created immediately" subtitle="The winner sees a pending payout in the wallet after the draw." leadingIcon="account-balance-wallet" />
+          <ListRow title="Payout record is created immediately" subtitle="Released payout appears in the wallet; any reserve unlocks after later successful contributions." leadingIcon="account-balance-wallet" />
         </View>
       </SectionCard>
       <SectionCard variant="soft">

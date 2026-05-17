@@ -39,6 +39,7 @@
     "qa:phase2-attempt-ledger": "node .\\mobile\\scripts\\validate-phase2-attempt-ledger.js --output .\\Build\\delivery\\evidence\\phase2-attempt-ledger-validation.json",
     "qa:phase2-payout-maturity": "node .\\mobile\\scripts\\validate-phase2-payout-maturity.js --output .\\Build\\delivery\\evidence\\phase2-payout-maturity-validation.json",
     "qa:phase2-payout-request-flow": "node .\\mobile\\scripts\\validate-phase2-payout-request-flow.js --output .\\Build\\delivery\\evidence\\phase2-payout-request-flow-validation.json",
-    "qa:phase2-payout-idempotency-reserve-release": "node .\\mobile\\scripts\\validate-phase2-payout-idempotency-reserve-release.js --output .\\Build\\delivery\\evidence\\phase2-payout-idempotency-reserve-release-validation.json"
+    "qa:phase2-payout-idempotency-reserve-release": "node .\\mobile\\scripts\\validate-phase2-payout-idempotency-reserve-release.js --output .\\Build\\delivery\\evidence\\phase2-payout-idempotency-reserve-release-validation.json",
+    "qa:phase2-payout-reserve-ui": "node .\\mobile\\scripts\\validate-phase2-payout-reserve-ui.js --output .\\Build\\delivery\\evidence\\phase2-payout-reserve-ui-validation.json"
   }
 }

@@ -1,0 +1,28 @@
+{
+  "scenario": "phase2-payout-reserve-ui-validation",
+  "validatedFiles": {
+    "domain": "mobile/src/types/domain.ts",
+    "walletScreen": "mobile/src/screens/member/WalletScreen.tsx",
+    "withdrawScreen": "mobile/src/screens/member/WithdrawScreen.tsx",
+    "paymentSuccess": "mobile/src/screens/member/PaymentSuccessScreen.tsx",
+    "dashboard": "mobile/src/screens/member/DashboardScreen.tsx",
+    "groupStatus": "mobile/src/screens/member/GroupStatusScreen.tsx",
+    "groupDetail": "mobile/src/screens/member/GroupDetailScreen.tsx",
+    "mockBackend": "mobile/src/services/mock/mockBackend.ts",
+    "contributionReconcile": "supabase/functions/contribution-reconcile/index.ts"
+  },
+  "completedChecks": [
+    "wallet snapshot contract exposes ready payout, reserved payout, and pending reserve release count",
+    "live wallet endpoint derives reserve totals from payout_requests and payout_release_schedules",
+    "mock wallet service remains contract-compatible with zero reserve defaults",
+    "wallet screen distinguishes released payout from reserved payout",
+    "withdrawal screen warns that only released internal ledger balance is cleared",
+    "member payment, dashboard, group status, and group detail copy mention reserve behavior"
+  ],
+  "stillPending": [
+    "device screenshot evidence for payout reserve UI",
+    "durable notification copy for reserve creation/release"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-17T04:42:24.250Z"
+}

@@ -129,6 +129,8 @@ export interface DashboardSnapshot {
 export interface WalletSnapshot {
   balance: number;
   readyPayout: number;
+  reservedPayout: number;
+  pendingReserveReleases: number;
   defaultDestination: string;
 }
 

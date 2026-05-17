@@ -819,6 +819,8 @@ export class MockBackend implements AppServices {
     getWallet: async (userId: string): Promise<WalletSnapshot> => ({
       balance: this.readyPayout(userId),
       readyPayout: this.readyPayout(userId),
+      reservedPayout: 0,
+      pendingReserveReleases: 0,
       defaultDestination: 'Internal wallet clearance',
     }),
 

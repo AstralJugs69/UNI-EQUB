@@ -558,9 +558,33 @@ async function getWalletSnapshot(userId: string) {
   const readyPayout = transactions
     .filter(item => item.Type === 'Payout' && item.Status === 'Pending')
     .reduce((sum, item) => sum + Number(item.Amount), 0);
+  const { data: payoutRequests, error: payoutError } = await supabaseAdmin
+    .from('payout_requests')
+    .select('reserved_amount')
+    .eq('winner_user_id', userId)
+    .in('status', ['Pending', 'PartiallyReleased']);
+
+  if (payoutError) {
+    throw payoutError;
+  }
+
+  const { count: pendingReserveReleases, error: releaseError } = await supabaseAdmin
+    .from('payout_release_schedules')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('status', 'Pending');
+
+  if (releaseError) {
+    throw releaseError;
+  }
+
+  const reservedPayout = (payoutRequests ?? []).reduce((sum, item) => sum + Number((item as { reserved_amount: number }).reserved_amount ?? 0), 0);
+
   return {
     balance: readyPayout,
     readyPayout,
+    reservedPayout,
+    pendingReserveReleases: pendingReserveReleases ?? 0,
     defaultDestination: 'Internal wallet clearance',
   };
 }

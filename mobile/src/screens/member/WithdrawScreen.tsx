@@ -29,9 +29,12 @@ export function WithdrawScreen() {
     <ScreenScroll>
       <TopAppBar title="Withdraw Payout" onBack={() => navigation.goBack()} rightLabel="Winner" />
       <TitleBlock title={formatCurrency(data.readyPayout)} subtitle={`Destination • ${data.defaultDestination}`} />
-      <StatusBanner tone="warning" title="Internal clearance only" body="This MVP does not hit an external payout gateway yet. The action clears the approved payout from the wallet ledger until legal payout integration is available." />
+      <StatusBanner tone="warning" title="Internal clearance only" body="This capstone build does not send money through an external payout gateway. The action clears only the released payout amount from the internal ledger." />
+      {data.reservedPayout > 0 ? (
+        <StatusBanner tone="info" title="Reserve remains scheduled." body={`${formatCurrency(data.reservedPayout)} is still reserved across ${data.pendingReserveReleases} future release${data.pendingReserveReleases === 1 ? '' : 's'}. It is not part of this clearance.`} />
+      ) : null}
       <SectionCard>
-        <TitleBlock title="Before you continue" subtitle="Only use this when the payout is already visible in your wallet and approved by the system." />
+        <TitleBlock title="Before you continue" subtitle="Clear only amounts that are visible as ready payout. Reserved payout releases later after successful contribution obligations." />
       </SectionCard>
       <InlineError message={error} />
       <PrimaryCTA label="Clear Wallet Balance" onPress={handleWithdraw} loading={withdrawPayout.isPending} disabled={withdrawPayout.isPending || data.readyPayout <= 0} />

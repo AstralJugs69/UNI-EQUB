@@ -59,7 +59,7 @@ export function GroupDetailScreen({ route }: any) {
         <View style={memberStyles.listGroup}>
           <ListRow title="Verified payment required every round" subtitle="Only paid members are eligible for the draw." leadingIcon="verified" />
           <ListRow title="Winner cannot win twice in the same cycle" subtitle="Previous winners are excluded until the cycle resets." leadingIcon="casino" />
-          <ListRow title="Automatic payout creation" subtitle="The payout record is generated immediately after the draw completes." leadingIcon="payments" />
+          <ListRow title="Automatic payout creation" subtitle="The payout record is generated after the draw; trust-building winners may receive part now and part through scheduled reserve releases." leadingIcon="payments" />
         </View>
       </SectionCard>
       <InlineError message={error} />

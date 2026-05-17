@@ -70,14 +70,14 @@ export function DashboardScreen() {
       </HeroCard>
       <View style={memberStyles.metricsGrid}>
         <MetricTile label="Total Saved" value={formatCurrency(data.totalSaved)} helper="Successful contributions only" />
-        <MetricTile label="Ready Payout" value={formatCurrency(data.readyPayout)} tone={data.readyPayout > 0 ? 'good' : 'neutral'} helper={data.readyPayout > 0 ? 'Available in wallet' : 'No pending payout'} />
+        <MetricTile label="Ready Payout" value={formatCurrency(data.readyPayout)} tone={data.readyPayout > 0 ? 'good' : 'neutral'} helper={data.readyPayout > 0 ? 'Released wallet amount' : 'No released payout'} />
       </View>
       <SectionCard variant="soft">
         <Text style={memberStyles.sectionTitle}>Current cycle</Text>
         <View style={memberStyles.listGroup}>
           <ListRow title={group.Group_Name} subtitle={`${group.Frequency} contribution cycle`} right={<Text style={memberStyles.strongText}>Round {data.currentRound?.Round_Number ?? '-'}</Text>} leadingIcon="savings" />
           <ListRow title="Progress" subtitle={`${data.paidCount} of ${data.totalMembers} members verified this round`} leadingIcon="pie-chart" />
-          <ListRow title="Automation" subtitle="Winner selection and payout creation happen automatically when all verified payments are in." leadingIcon="auto-awesome" />
+          <ListRow title="Automation" subtitle="Winner selection, immediate release, and reserve scheduling happen automatically when all verified payments are in." leadingIcon="auto-awesome" />
         </View>
       </SectionCard>
       <SectionCard>
