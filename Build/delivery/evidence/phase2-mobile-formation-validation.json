@@ -19,5 +19,5 @@
     "Edge Function getRequest route returns usable formation detail instead of the pending stub"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-17T04:38:02.475Z"
+  "validatedAt": "2026-05-17T20:49:16.144Z"
 }

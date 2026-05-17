@@ -33,8 +33,9 @@
     "creator can create direct invitations and shareable invite-code invitations that members can accept into accepted participation",
     "creator can submit forming request for admin approval after accepted participants meet configured minimum",
     "admin can approve into canonical EqubGroup, GroupMembers, initial Round, obligations, notifications, and audit or reject in group_requests",
-    "Supabase function config registers group-formation with internal token verification pattern"
+    "Supabase function config registers group-formation with internal token verification pattern",
+    "expected validation failures return readable non-500 function responses"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-17T05:11:17.173Z"
+  "validatedAt": "2026-05-17T20:50:04.943Z"
 }

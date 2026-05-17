@@ -105,6 +105,20 @@ function buildVirtualRef(groupId: string) {
   return `UEQ-${groupId.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
 }
 
+function statusForError(message: string) {
+  const normalized = message.toLowerCase();
+  if (normalized.includes('required') || normalized.includes('not eligible') || normalized.includes('blocked') || normalized.includes('banned') || normalized.includes('kyc') || normalized.includes('only available') || normalized.includes('belongs to another user') || normalized.includes('can join only') || normalized.includes('would exceed active group')) {
+    return 403;
+  }
+  if (normalized.includes('not found')) {
+    return 404;
+  }
+  if (normalized.includes('missing') || normalized.includes('invalid') || normalized.includes('must') || normalized.includes('cannot') || normalized.includes('does not') || normalized.includes('not accepting') || normalized.includes('expired') || normalized.includes('no remaining slots') || normalized.includes('already') || normalized.includes('only') || normalized.includes('not visible') || normalized.includes('no longer pending')) {
+    return 400;
+  }
+  return 500;
+}
+
 function validateCreateRequestInput(input: CreateGroupFormationRequest | undefined, policy: Awaited<ReturnType<typeof loadFormationPolicySnapshot>>) {
   if (!input) {
     throw new Error('Missing group formation request details.');
@@ -1410,8 +1424,9 @@ Deno.serve(async request => {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected group formation error.';
+    console.error('group-formation failed', { message });
     return new Response(JSON.stringify({ ok: false, error: message }), {
-      status: 500,
+      status: statusForError(message),
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

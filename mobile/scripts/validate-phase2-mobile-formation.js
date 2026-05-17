@@ -80,6 +80,8 @@ function main() {
     "action: 'acceptInvite'",
     "action: 'submitForApproval'",
     'toDetail(response)',
+    'readFunctionError',
+    'context.clone().json()',
   ].forEach(token => assertIncludes(liveService, token, 'live mobile formation implementation token'));
 
   [
