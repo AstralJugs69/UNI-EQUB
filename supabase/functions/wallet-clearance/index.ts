@@ -1,6 +1,7 @@
 import { fail, json } from '../_shared/contracts.ts';
 import type { PayoutWithdrawPayload } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
+import { assertReliabilityAllowsNormalFlow } from '../_shared/reliability.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import type { TransactionRecord, UserRecord } from '../_shared/types.ts';
 
@@ -47,6 +48,7 @@ Deno.serve(async request => {
     }
 
     const actor = await requireActor(body.token);
+    await assertReliabilityAllowsNormalFlow(actor.User_ID);
     const { data, error } = await supabaseAdmin
       .from('Transaction')
       .select('*')

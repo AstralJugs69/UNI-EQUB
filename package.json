@@ -42,6 +42,7 @@
     "qa:phase2-payout-idempotency-reserve-release": "node .\\mobile\\scripts\\validate-phase2-payout-idempotency-reserve-release.js --output .\\Build\\delivery\\evidence\\phase2-payout-idempotency-reserve-release-validation.json",
     "qa:phase2-payout-reserve-ui": "node .\\mobile\\scripts\\validate-phase2-payout-reserve-ui.js --output .\\Build\\delivery\\evidence\\phase2-payout-reserve-ui-validation.json",
     "qa:phase2-active-group-limit": "node .\\mobile\\scripts\\validate-phase2-active-group-limit.js --output .\\Build\\delivery\\evidence\\phase2-active-group-limit-validation.json",
-    "qa:phase2-reliability-updates": "node .\\mobile\\scripts\\validate-phase2-reliability-updates.js --output .\\Build\\delivery\\evidence\\phase2-reliability-update-validation.json"
+    "qa:phase2-reliability-updates": "node .\\mobile\\scripts\\validate-phase2-reliability-updates.js --output .\\Build\\delivery\\evidence\\phase2-reliability-update-validation.json",
+    "qa:phase2-default-restriction": "node .\\mobile\\scripts\\validate-phase2-default-restriction.js --output .\\Build\\delivery\\evidence\\phase2-default-restriction-validation.json"
   }
 }

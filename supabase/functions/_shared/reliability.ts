@@ -250,6 +250,75 @@ export async function listActiveRestrictions(userId: string) {
   return (data ?? []) as UserRestrictionRecord[];
 }
 
+export async function ensureActiveRestriction(input: {
+  userId: string;
+  restrictionType: string;
+  reason: string;
+  createdBy?: string | null;
+  requiredRecoveryGroups?: number;
+}) {
+  const { data: existing, error: existingError } = await supabaseAdmin
+    .from('user_restrictions')
+    .select('*')
+    .eq('user_id', input.userId)
+    .eq('restriction_type', input.restrictionType)
+    .eq('status', 'Active')
+    .maybeSingle();
+
+  if (existingError) {
+    throw existingError;
+  }
+  if (existing) {
+    return { restriction: existing as UserRestrictionRecord, created: false };
+  }
+
+  const requiredRecoveryGroups = input.requiredRecoveryGroups
+    ?? await loadConfigValue<number>('required_perfect_groups_for_trusted_status', 3);
+  const { data, error } = await supabaseAdmin
+    .from('user_restrictions')
+    .insert({
+      user_id: input.userId,
+      restriction_type: input.restrictionType,
+      reason: input.reason,
+      created_by: input.createdBy ?? null,
+      required_recovery_groups: requiredRecoveryGroups,
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  await recordRestrictionReliability(input.userId);
+  return { restriction: data as UserRestrictionRecord, created: true };
+}
+
+export async function getReliabilityRestrictionGate(userId: string) {
+  const [profile, restrictions] = await Promise.all([
+    ensureReliabilityProfile(userId),
+    listActiveRestrictions(userId),
+  ]);
+  const blocked = restrictions.length > 0 || profile.public_status === 'Restricted' || profile.public_status === 'Banned';
+
+  return {
+    profile,
+    restrictions,
+    canUseNormalFlows: !blocked,
+    blockedReason: blocked
+      ? 'User has an active reliability restriction.'
+      : null,
+  };
+}
+
+export async function assertReliabilityAllowsNormalFlow(userId: string) {
+  const gate = await getReliabilityRestrictionGate(userId);
+  if (!gate.canUseNormalFlows) {
+    throw new Error(gate.blockedReason ?? 'User is not eligible for normal flows.');
+  }
+  return gate;
+}
+
 export async function countActiveGroupsForUser(userId: string) {
   const { count, error } = await supabaseAdmin
     .from('GroupMembers')

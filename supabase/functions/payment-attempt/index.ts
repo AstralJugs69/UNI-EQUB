@@ -6,6 +6,7 @@ import { getContributionObligationForUserRound, markContributionObligationPendin
 import { buildPaymentAttemptIdempotencyKey, ensurePaymentProviderAttempt, recordPaymentAttemptCallback } from '../_shared/paymentAttempts.ts';
 import { initiateSimulatedProvider } from '../_shared/paymentProviders.ts';
 import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
+import { assertReliabilityAllowsNormalFlow } from '../_shared/reliability.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import type { ContributionObligationRecord, GroupRecord, MembershipRecord, PaymentProviderAttemptRecord, PaymentProviderAttemptStatus, UserRecord } from '../_shared/types.ts';
 
@@ -88,6 +89,7 @@ async function initiateContributionAttempt(actor: UserRecord, body: PaymentAttem
   if (group.Status !== 'Active') {
     throw new Error('Only active groups can accept contributions.');
   }
+  await assertReliabilityAllowsNormalFlow(actor.User_ID);
   await requireActiveMembership(group.Group_ID, actor.User_ID);
   const round = await ensureOpenRoundForGroup(group);
   if (body.roundId && body.roundId !== round.Round_ID) {

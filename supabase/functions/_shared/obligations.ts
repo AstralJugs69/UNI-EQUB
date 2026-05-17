@@ -1,5 +1,5 @@
 import { supabaseAdmin } from './supabaseAdmin.ts';
-import { recordDefaultReliability, recordLatePaymentReliability } from './reliability.ts';
+import { ensureActiveRestriction, recordDefaultReliability, recordLatePaymentReliability } from './reliability.ts';
 import type { ContributionObligationRecord, ContributionObligationStatus, GroupRecord, MembershipRecord, RoundRecord, TransactionRecord } from './types.ts';
 
 const settledObligationStatuses: ContributionObligationStatus[] = ['Paid', 'Waived', 'RefundPending'];
@@ -147,7 +147,70 @@ export async function markContributionObligationDefaulted(obligationId: string, 
 
   const obligation = data as ContributionObligationRecord;
   await recordDefaultReliability(obligation.user_id);
+  await ensureActiveRestriction({
+    userId: obligation.user_id,
+    restrictionType: 'DefaultedContribution',
+    reason: `Contribution obligation ${obligation.id} defaulted after the configured grace period.`,
+  });
   return obligation;
+}
+
+function isPast(value: string | null | undefined, now: Date) {
+  return !!value && new Date(value).getTime() <= now.getTime();
+}
+
+export async function listDueContributionObligations(limit = 100) {
+  const { data, error } = await supabaseAdmin
+    .from('contribution_obligations')
+    .select('*')
+    .in('status', ['Unpaid', 'PendingPayment', 'Late'])
+    .order('due_at', { ascending: true, nullsFirst: false })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+  return (data ?? []) as ContributionObligationRecord[];
+}
+
+export async function processDueContributionObligations(input?: { now?: Date; limit?: number; dryRun?: boolean }) {
+  const now = input?.now ?? new Date();
+  const candidates = await listDueContributionObligations(input?.limit);
+  const dueCandidates = candidates.filter(obligation => (
+    isPast(obligation.due_at, now) || isPast(obligation.grace_ends_at, now)
+  ));
+  const late: ContributionObligationRecord[] = [];
+  const defaulted: ContributionObligationRecord[] = [];
+
+  for (const candidate of dueCandidates) {
+    let current = candidate;
+    if ((current.status === 'Unpaid' || current.status === 'PendingPayment') && isPast(current.due_at, now)) {
+      if (input?.dryRun) {
+        late.push(current);
+      } else {
+        current = await markContributionObligationLate(current.id, now.toISOString());
+        late.push(current);
+      }
+    }
+
+    if (current.status === 'Late' && isPast(current.grace_ends_at, now)) {
+      if (input?.dryRun) {
+        defaulted.push(current);
+      } else {
+        current = await markContributionObligationDefaulted(current.id, now.toISOString());
+        defaulted.push(current);
+      }
+    }
+  }
+
+  return {
+    checked: candidates.length,
+    due: dueCandidates.length,
+    late,
+    defaulted,
+    dryRun: input?.dryRun ?? false,
+    evaluatedAt: now.toISOString(),
+  };
 }
 
 export async function ensureContributionObligationsForRound(group: GroupRecord, round: RoundRecord, timing?: { dueAt?: string; graceEndsAt?: string }) {

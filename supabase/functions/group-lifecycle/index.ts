@@ -2,7 +2,7 @@ import { fail, json } from '../_shared/contracts.ts';
 import type { CreateGroupRequest, GroupLifecyclePayload } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
 import { getRoundObligationProgress } from '../_shared/obligations.ts';
-import { getReliabilityJoinGate } from '../_shared/reliability.ts';
+import { assertReliabilityAllowsNormalFlow, getReliabilityJoinGate } from '../_shared/reliability.ts';
 import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import type { GroupRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
@@ -317,6 +317,7 @@ Deno.serve(async request => {
           return fail('Missing create-group payload.', 400);
         }
         assertVerifiedMember(actor);
+        await assertReliabilityAllowsNormalFlow(actor.User_ID);
         validateCreateRequest(body.createRequest);
         const { data, error } = await supabaseAdmin
           .from('EqubGroup')

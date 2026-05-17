@@ -7,6 +7,7 @@ import { buildPaymentAttemptIdempotencyKey, ensurePaymentProviderAttempt, record
 import { initiateSimulatedProvider } from '../_shared/paymentProviders.ts';
 import { releaseNextReservedPayoutForContribution } from '../_shared/payoutReserves.ts';
 import { normalizePhone } from '../_shared/phone.ts';
+import { assertReliabilityAllowsNormalFlow } from '../_shared/reliability.ts';
 import { ensureOpenRoundForGroup, getOpenRound } from '../_shared/rounds.ts';
 import { finalizeRoundIfReady } from '../_shared/roundLifecycle.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
@@ -126,6 +127,7 @@ async function assertContributionReady(actor: UserRecord, groupId: string) {
   if (group.Status !== 'Active') {
     throw new Error('Only active groups can accept contributions.');
   }
+  await assertReliabilityAllowsNormalFlow(actor.User_ID);
   const membership = await getMembership(groupId, actor.User_ID);
   if (!membership || membership.Status !== 'Active') {
     throw new Error('You must have an active membership before contributing.');

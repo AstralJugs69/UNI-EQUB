@@ -94,7 +94,7 @@ function main() {
       'restriction reliability helper records public Restricted state for future restriction workflows',
     ],
     limitations: [
-      'scheduled late/default orchestration and admin restriction workflows are still separate Phase 2 tasks',
+      'default maintenance exists as an admin Edge Function but deployment/scheduling is still outside local validation',
       'device screenshots for reliability labels remain pending under later UI/UAT tasks',
     ],
     requiresSupabaseCredentials: false,

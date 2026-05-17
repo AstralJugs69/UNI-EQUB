@@ -52,7 +52,7 @@ function main() {
   ].forEach(token => assertIncludes(reliability, token, 'reliability gate token'));
 
   [
-    "import { getReliabilityJoinGate } from '../_shared/reliability.ts'",
+    'getReliabilityJoinGate',
     'const reliabilityGate = await getReliabilityJoinGate(actor.User_ID)',
     'if (!reliabilityGate.canJoinNormalGroup)',
     'User is not eligible to join another active group.',

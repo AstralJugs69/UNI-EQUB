@@ -1,0 +1,26 @@
+{
+  "scenario": "phase2-default-restriction-validation",
+  "validatedFiles": {
+    "obligations": "supabase/functions/_shared/obligations.ts",
+    "reliability": "supabase/functions/_shared/reliability.ts",
+    "defaultMaintenance": "supabase/functions/default-maintenance/index.ts",
+    "groupLifecycle": "supabase/functions/group-lifecycle/index.ts",
+    "paymentAttempt": "supabase/functions/payment-attempt/index.ts",
+    "contributionReconcile": "supabase/functions/contribution-reconcile/index.ts",
+    "walletClearance": "supabase/functions/wallet-clearance/index.ts",
+    "payoutWithdraw": "supabase/functions/payout-withdraw/index.ts"
+  },
+  "completedChecks": [
+    "admin-only default maintenance endpoint sweeps due obligations",
+    "due obligations can move to Late based on due_at",
+    "grace-expired late obligations can move to Defaulted",
+    "defaulted obligations create active DefaultedContribution restrictions",
+    "restricted users are blocked from legacy create, contribution, payment-attempt, and payout-clearance paths"
+  ],
+  "limitations": [
+    "group freeze events and frozen-group resolution remain pending under P2-701 and P2-704+",
+    "default-maintenance deployment/scheduling requires Supabase function deployment outside this local validation"
+  ],
+  "requiresSupabaseCredentials": false,
+  "validatedAt": "2026-05-17T05:03:40.288Z"
+}

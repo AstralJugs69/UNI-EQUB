@@ -13,5 +13,5 @@
     "approval fails before EqubGroup/GroupMembers writes when accepted participants exceed active group limits"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-17T04:46:09.119Z"
+  "validatedAt": "2026-05-17T05:03:40.241Z"
 }

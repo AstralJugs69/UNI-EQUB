@@ -1,8 +1,8 @@
 # UniEqub Phase 2 Development Progress Tracker
 
-Version: 1.23
+Version: 1.24
 Last Updated: 2026-05-17
-Status: Phase 1 database foundation complete in repo and applied remotely; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation/status/payment-attempt idempotency/outcome/reminder/readiness work started; Phase 5 payment-attempt ledger memo, payout maturity helper, payout request, immediate release, reserve ledger, release schedule, payout idempotency, reserve release, payout reserve UI copy, active-group-limit enforcement, and reliability profile update work started; Phase 1 existing-state backfill migration added; legacy group creation compatibility preserved
+Status: Phase 1 database foundation complete in repo and applied remotely; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation/status/payment-attempt idempotency/outcome/reminder/readiness work started; Phase 5 payment-attempt ledger memo, payout maturity helper, payout request, immediate release, reserve ledger, release schedule, payout idempotency, reserve release, payout reserve UI copy, active-group-limit enforcement, and reliability profile update work completed; Phase 7 default/restriction backend maintenance started; Phase 1 existing-state backfill migration added; legacy group creation compatibility preserved
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -157,7 +157,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-506 | Agent | Release reserved payout after later successful obligations. | Completed | P2-505, P2-410 | Successful later contribution triggers scheduled release and ledger entry. | `supabase/functions/_shared/payoutReserves.ts`; `supabase/functions/contribution-reconcile/index.ts`; `supabase/migrations/20260517100000_phase2_payout_round_idempotency.sql`; `Build/delivery/evidence/phase2-payout-idempotency-reserve-release-validation.json` |
 | P2-507 | Agent | Update wallet/payout screens to explain immediate release, reserve, and simulated wallet behavior. | Completed | P2-503-P2-506, P2-307 | User-facing UI is clear and defense-safe. | `mobile/src/screens/member/WalletScreen.tsx`; `mobile/src/screens/member/WithdrawScreen.tsx`; `mobile/src/screens/member/PaymentSuccessScreen.tsx`; `mobile/scripts/validate-phase2-payout-reserve-ui.js`; `Build/delivery/evidence/phase2-payout-reserve-ui-validation.json`; screenshots remain pending under P2-904/P2-905 |
 | P2-508 | Agent | Enforce new/probationary active group limit during join and formation approval. | Completed | P2-206, P2-310 | New user cannot exceed configured active group limit through direct join or formation approval. | `supabase/functions/group-lifecycle/index.ts`; `supabase/functions/group-formation/index.ts`; `mobile/scripts/validate-phase2-active-group-limit.js`; `Build/delivery/evidence/phase2-active-group-limit-validation.json` |
-| P2-509 | Agent | Update reliability metrics after group completion, late payment, default, and restriction events. | In Progress | P2-112, P2-113, P2-410 | Perfect completed group count and public status update correctly. | `supabase/functions/_shared/reliability.ts`; `supabase/functions/_shared/obligations.ts`; `supabase/functions/_shared/roundLifecycle.ts`; `mobile/scripts/validate-phase2-reliability-updates.js`; `Build/delivery/evidence/phase2-reliability-update-validation.json`; completed-group path live, late/default/restriction orchestration still pending future flows |
+| P2-509 | Agent | Update reliability metrics after group completion, late payment, default, and restriction events. | Completed | P2-112, P2-113, P2-410 | Perfect completed group count and public status update correctly. | `supabase/functions/_shared/reliability.ts`; `supabase/functions/_shared/obligations.ts`; `supabase/functions/_shared/roundLifecycle.ts`; `supabase/functions/default-maintenance/index.ts`; `mobile/scripts/validate-phase2-reliability-updates.js`; `Build/delivery/evidence/phase2-reliability-update-validation.json`; `Build/delivery/evidence/phase2-default-restriction-validation.json` |
 | P2-510 | Agent | Add admin/member UI for public reliability label without exposing detailed internal score. | Not Started | P2-509 | UI shows New/Building Trust/Trusted/Restricted/Banned appropriately. | Screenshots |
 | P2-511 | User | Validate early-winner payout maturity scenario using seeded final-draw data. | Blocked | P2-501-P2-510, test phone | Evidence shows immediate payout, reserve, later release, and trusted/final-round behavior. | `Build/delivery/evidence/payout-maturity-uat.*` |
 
@@ -184,8 +184,8 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | ID | Owner | Task | Status | Depends On | Acceptance Condition | Required Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | P2-701 | Agent | Add `group_freeze_events` migration. | Not Started | P2-009 | Freeze events can record unresolved default or insufficient reserve. | Migration |
-| P2-702 | Agent | Mark obligations late/defaulted based on due/grace rules. | Not Started | P2-107, P2-101 | Late/default statuses update from config-driven due/grace logic. | Tests |
-| P2-703 | Agent | Restrict defaulting user and block normal create/join/pay/payout. | Not Started | P2-113, P2-702 | Restricted user cannot perform blocked normal flows. | Tests |
+| P2-702 | Agent | Mark obligations late/defaulted based on due/grace rules. | Completed | P2-107, P2-101 | Late/default statuses update from config-driven due/grace logic. | `supabase/functions/default-maintenance/index.ts`; `supabase/functions/_shared/obligations.ts`; `mobile/scripts/validate-phase2-default-restriction.js`; `Build/delivery/evidence/phase2-default-restriction-validation.json` |
+| P2-703 | Agent | Restrict defaulting user and block normal create/join/pay/payout. | Completed | P2-113, P2-702 | Restricted user cannot perform blocked normal flows. | `supabase/functions/_shared/reliability.ts`; `supabase/functions/_shared/obligations.ts`; `supabase/functions/group-lifecycle/index.ts`; `supabase/functions/payment-attempt/index.ts`; `supabase/functions/contribution-reconcile/index.ts`; `supabase/functions/wallet-clearance/index.ts`; `supabase/functions/payout-withdraw/index.ts`; `Build/delivery/evidence/phase2-default-restriction-validation.json` |
 | P2-704 | Agent | Freeze group when reserve is insufficient and admin review is required. | Not Started | P2-701-P2-703 | Group freeze event is created and notifications/audit are written. | Tests/evidence |
 | P2-705 | Agent | Add admin manual resolution for frozen group without polls. | Not Started | P2-704 | Admin can resolve freeze in a controlled, audited manner. | Tests/screenshots |
 | P2-706 | Agent | Add `group_resolution_polls`, options, votes, and eligible voter snapshot. | Deferred | P2-705 stable | Poll tables and constraints exist. | Migration |
@@ -530,13 +530,24 @@ Sixth repo-local Phase 5 active-group-limit batch completed on 2026-05-17:
 4. preserved existing earlier formation create/request/invite eligibility gates
 5. added `mobile/scripts/validate-phase2-active-group-limit.js` and `Build/delivery/evidence/phase2-active-group-limit-validation.json`
 
-Seventh repo-local Phase 5 reliability update batch started on 2026-05-17:
+Seventh repo-local Phase 5 reliability update batch completed on 2026-05-17:
 
 1. added shared reliability status derivation using `required_perfect_groups_for_trusted_status` and current perfect-completion maturity
 2. updated final group-cycle completion to increment member reliability counters after `EqubGroup.Status` becomes `Completed`
 3. derived perfect group completion from `contribution_obligations`, excluding any group with `Late` or `Defaulted` obligations for that user
-4. added late/default obligation helper paths that record reliability events when future default orchestration calls them
-5. added a restriction reliability event helper for future admin/default restriction workflows
+4. added late/default obligation helper paths that record reliability events when default maintenance calls them
+5. added a restriction reliability event helper for admin/default restriction workflows
 6. added `mobile/scripts/validate-phase2-reliability-updates.js` and `Build/delivery/evidence/phase2-reliability-update-validation.json`
 7. ran `npm run qa:phase2-reliability-updates`, `npm run mobile:typecheck`, `npm run mobile:test`, `npm run mobile:lint`, and `git diff --check`; Deno was not installed locally, so Edge Function validation used focused source review plus the available repo checks
-8. left scheduled late/default detection, restriction workflow calls, UI screenshots, and device UAT pending under later Phase 2 tasks
+8. left reliability label UI screenshots and device UAT pending under later Phase 2 tasks
+
+First repo-local Phase 7 default/restriction maintenance batch completed on 2026-05-17:
+
+1. added the admin-only `default-maintenance` Edge Function action `sweepDueObligations`
+2. added config-time due/grace sweep logic for `contribution_obligations` to transition `Unpaid`/`PendingPayment` obligations to `Late` and grace-expired late obligations to `Defaulted`
+3. created active `DefaultedContribution` restrictions when obligations default, without overloading `User.KYC_Status`
+4. added a shared reliability restriction gate and applied it to legacy group create, payment-attempt initiation, direct contribution reconciliation, wallet clearance, and payout withdrawal paths
+5. preserved existing formation join/approval gates and canonical MVP table behavior
+6. added `mobile/scripts/validate-phase2-default-restriction.js` and `Build/delivery/evidence/phase2-default-restriction-validation.json`
+7. ran `npm run qa:phase2-default-restriction`, `npm run qa:phase2-reliability-updates`, `npm run mobile:typecheck`, `npm run mobile:test`, `npm run mobile:lint`, and `git diff --check`; Deno remains unavailable locally
+8. left `group_freeze_events`, freeze decisioning, admin frozen-group resolution, durable notifications/audit, deployment scheduling, and user UAT pending under later Phase 7/6 tasks
