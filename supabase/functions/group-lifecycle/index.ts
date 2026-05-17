@@ -2,6 +2,7 @@ import { fail, json } from '../_shared/contracts.ts';
 import type { CreateGroupRequest, GroupLifecyclePayload } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
 import { getRoundObligationProgress } from '../_shared/obligations.ts';
+import { getReliabilityJoinGate } from '../_shared/reliability.ts';
 import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import type { GroupRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
@@ -416,6 +417,10 @@ Deno.serve(async request => {
         const existingMembership = await getMembership(group.Group_ID, actor.User_ID);
         if (existingMembership?.Status === 'Active') {
           return fail('You are already a participant in this group.', 409);
+        }
+        const reliabilityGate = await getReliabilityJoinGate(actor.User_ID);
+        if (!reliabilityGate.canJoinNormalGroup) {
+          return fail(reliabilityGate.blockedReason ?? 'User is not eligible to join another active group.', 403);
         }
         const { data, error } = await supabaseAdmin
           .from('GroupMembers')

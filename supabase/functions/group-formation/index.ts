@@ -1089,6 +1089,26 @@ async function ensureCanonicalMemberships(group: GroupRecord, userIds: string[])
   return (data ?? []) as MembershipRecord[];
 }
 
+async function assertAcceptedParticipantsCanBecomeActive(userIds: string[]) {
+  const blockedParticipants = [];
+  for (const userId of [...new Set(userIds)]) {
+    const gate = await getReliabilityJoinGate(userId);
+    if (!gate.canJoinNormalGroup) {
+      blockedParticipants.push({
+        userId,
+        reason: gate.blockedReason ?? 'User is not eligible to join another active group.',
+        publicStatus: gate.profile.public_status,
+        activeGroupCount: gate.activeGroupCount,
+        activeGroupLimit: gate.activeGroupLimit,
+      });
+    }
+  }
+
+  if (blockedParticipants.length > 0) {
+    throw new Error(`Cannot approve this group because ${blockedParticipants.length} accepted participant${blockedParticipants.length === 1 ? '' : 's'} would exceed active group reliability limits.`);
+  }
+}
+
 async function notifyFormationApproval(request: GroupRequestRecord, group: GroupRecord, participantUserIds: string[]) {
   const notifications = [];
   for (const userId of [...new Set(participantUserIds)]) {
@@ -1126,6 +1146,7 @@ async function approveFormationRequest(actor: UserRecord, body: GroupFormationPa
   if (acceptedParticipantUserIds.length < requiredMinimum) {
     throw new Error(`At least ${requiredMinimum} accepted participants are required before approval.`);
   }
+  await assertAcceptedParticipantsCanBecomeActive(acceptedParticipantUserIds);
 
   const group = await ensureCanonicalGroupForRequest(request);
   const memberships = await ensureCanonicalMemberships(group, acceptedParticipantUserIds);

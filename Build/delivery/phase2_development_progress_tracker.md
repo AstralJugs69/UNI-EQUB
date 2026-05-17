@@ -2,7 +2,7 @@
 
 Version: 1.22
 Last Updated: 2026-05-16
-Status: Phase 1 database foundation complete in repo and applied remotely; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation/status/payment-attempt idempotency/outcome/reminder/readiness work started; Phase 5 payment-attempt ledger memo, payout maturity helper, payout request, immediate release, reserve ledger, release schedule, payout idempotency, reserve release, and payout reserve UI copy work started; Phase 1 existing-state backfill migration added; legacy group creation compatibility preserved
+Status: Phase 1 database foundation complete in repo and applied remotely; Phase 2 shared helper/type scaffolding complete; Phase 3 group-formation backend paths through admin/creator/member UI started; Phase 4 obligation generation/status/payment-attempt idempotency/outcome/reminder/readiness work started; Phase 5 payment-attempt ledger memo, payout maturity helper, payout request, immediate release, reserve ledger, release schedule, payout idempotency, reserve release, payout reserve UI copy, and active-group-limit enforcement work started; Phase 1 existing-state backfill migration added; legacy group creation compatibility preserved
 Primary Sources: `Build/delivery/phase2_expansion_spec.md`, `Build/delivery/phase2_edge_function_impact.md`, current mobile/Supabase codebase, delivery evidence, and MVP progress tracker
 
 ## 1. Purpose
@@ -156,7 +156,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-505 | Agent | Create reserve ledger entries and `payout_release_schedules` for withheld amount. | Completed | P2-503 | Reserved payout appears in ledger/schedule and is not immediately withdrawable. | `supabase/functions/_shared/roundLifecycle.ts`; `Build/delivery/evidence/phase2-payout-request-flow-validation.json` |
 | P2-506 | Agent | Release reserved payout after later successful obligations. | Completed | P2-505, P2-410 | Successful later contribution triggers scheduled release and ledger entry. | `supabase/functions/_shared/payoutReserves.ts`; `supabase/functions/contribution-reconcile/index.ts`; `supabase/migrations/20260517100000_phase2_payout_round_idempotency.sql`; `Build/delivery/evidence/phase2-payout-idempotency-reserve-release-validation.json` |
 | P2-507 | Agent | Update wallet/payout screens to explain immediate release, reserve, and simulated wallet behavior. | Completed | P2-503-P2-506, P2-307 | User-facing UI is clear and defense-safe. | `mobile/src/screens/member/WalletScreen.tsx`; `mobile/src/screens/member/WithdrawScreen.tsx`; `mobile/src/screens/member/PaymentSuccessScreen.tsx`; `mobile/scripts/validate-phase2-payout-reserve-ui.js`; `Build/delivery/evidence/phase2-payout-reserve-ui-validation.json`; screenshots remain pending under P2-904/P2-905 |
-| P2-508 | Agent | Enforce new/probationary active group limit during join and formation approval. | Not Started | P2-206, P2-310 | New user cannot exceed configured active group limit through direct join or formation approval. | Tests |
+| P2-508 | Agent | Enforce new/probationary active group limit during join and formation approval. | Completed | P2-206, P2-310 | New user cannot exceed configured active group limit through direct join or formation approval. | `supabase/functions/group-lifecycle/index.ts`; `supabase/functions/group-formation/index.ts`; `mobile/scripts/validate-phase2-active-group-limit.js`; `Build/delivery/evidence/phase2-active-group-limit-validation.json` |
 | P2-509 | Agent | Update reliability metrics after group completion, late payment, default, and restriction events. | Not Started | P2-112, P2-113, P2-410 | Perfect completed group count and public status update correctly. | Tests |
 | P2-510 | Agent | Add admin/member UI for public reliability label without exposing detailed internal score. | Not Started | P2-509 | UI shows New/Building Trust/Trusted/Restricted/Banned appropriately. | Screenshots |
 | P2-511 | User | Validate early-winner payout maturity scenario using seeded final-draw data. | Blocked | P2-501-P2-510, test phone | Evidence shows immediate payout, reserve, later release, and trusted/final-round behavior. | `Build/delivery/evidence/payout-maturity-uat.*` |
@@ -521,3 +521,11 @@ Fifth repo-local Phase 5 payout reserve UI copy batch completed on 2026-05-17:
 5. updated payment success, dashboard, group status, and group detail copy to explain reserve behavior without implying real external payout rails
 6. added `mobile/scripts/validate-phase2-payout-reserve-ui.js` and `Build/delivery/evidence/phase2-payout-reserve-ui-validation.json`
 7. left screenshot and device validation evidence pending under the Phase 2 UAT tasks
+
+Sixth repo-local Phase 5 active-group-limit batch completed on 2026-05-17:
+
+1. added the shared reliability join gate to legacy direct group joins before active `GroupMembers` writes
+2. rechecked all accepted formation participants at admin approval time before canonical `EqubGroup`/`GroupMembers` creation
+3. blocked approval when any accepted New/BuildingTrust participant would exceed the configured active group limit
+4. preserved existing earlier formation create/request/invite eligibility gates
+5. added `mobile/scripts/validate-phase2-active-group-limit.js` and `Build/delivery/evidence/phase2-active-group-limit-validation.json`
