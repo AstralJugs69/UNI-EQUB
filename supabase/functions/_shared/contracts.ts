@@ -64,7 +64,7 @@ export interface RegisterLoginPayload {
 export interface CreateGroupRequest {
   groupName: string;
   amount: number;
-  frequency: 'Weekly' | 'Bi-weekly' | 'Monthly';
+  frequency: 'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly';
   maxMembers: number;
   description: string;
 }
@@ -80,7 +80,7 @@ export interface CreateGroupFormationRequest {
   groupName: string;
   description?: string;
   amount: number;
-  frequency: 'Weekly' | 'Bi-weekly' | 'Monthly';
+  frequency: 'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly';
   minMembers?: number;
   maxMembers: number;
   visibility: 'Public' | 'Private';

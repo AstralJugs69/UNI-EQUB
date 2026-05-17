@@ -103,6 +103,8 @@ function main() {
     'formation-demo-public',
     'formation-demo-private',
     'UNI-DEMO',
+    "frequency: 'Daily'",
+    'vesting_disabled_by_creator: true',
     'Campus Demo Formation',
     'Laptop Repair Rotation',
     'Dorm Coffee Circle',

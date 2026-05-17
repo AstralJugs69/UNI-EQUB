@@ -53,7 +53,7 @@ export interface GroupRecord {
   Group_Name: string;
   Amount: number;
   Max_Members: number;
-  Frequency: 'Weekly' | 'Bi-weekly' | 'Monthly';
+  Frequency: 'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly';
   Virtual_Acc_Ref: string;
   Status: GroupStatus;
   Start_Date: string;

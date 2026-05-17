@@ -62,6 +62,7 @@ function main() {
   [
     'export interface GroupFormationRequestSummary',
     'export interface GroupFormationDetail',
+    "'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly'",
     'accepted_participant_count: number',
     'remaining_slots: number',
   ].forEach(token => assertIncludes(domain, token, 'mobile formation domain token'));

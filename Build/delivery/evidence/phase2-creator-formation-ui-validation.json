@@ -4,6 +4,7 @@
     "routes": "mobile/src/navigation/routes.ts",
     "navigator": "mobile/src/navigation/AppNavigator.tsx",
     "hooks": "mobile/src/hooks/useAppQueries.ts",
+    "basics": "mobile/src/screens/member/CreateGroupBasicsScreen.tsx",
     "rules": "mobile/src/screens/member/CreateGroupRulesScreen.tsx",
     "explore": "mobile/src/screens/member/ExploreScreen.tsx",
     "creator": "mobile/src/screens/member/FormationCreatorScreen.tsx",
@@ -11,6 +12,8 @@
   },
   "completedChecks": [
     "create-group flow creates Phase 2 formation requests and opens creator management",
+    "create basics screen supports Daily draw cadence",
+    "private-group selection shows a vesting risk warning before disabling vesting",
     "Explore screen lets creators return to their own formation requests",
     "creator management screen exposes invitation creation",
     "creator management screen exposes accept/remove participant actions",
@@ -19,5 +22,5 @@
   ],
   "requiresSupabaseCredentials": false,
   "requiresDeviceValidation": true,
-  "validatedAt": "2026-05-17T20:02:29.104Z"
+  "validatedAt": "2026-05-17T22:37:48.589Z"
 }

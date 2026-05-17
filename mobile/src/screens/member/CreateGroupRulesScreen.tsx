@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { InlineError, InputField, Pill, PrimaryCTA, ScreenScroll, SectionCard, SegmentedTabs, TopAppBar, TitleBlock } from '../../components/ui';
+import { InlineError, InputField, Pill, PrimaryCTA, ScreenScroll, SectionCard, SegmentedTabs, StatusBanner, TopAppBar, TitleBlock } from '../../components/ui';
 import { routes } from '../../navigation/routes';
 import { useMemberActions } from '../../hooks/useAppQueries';
 import { memberStyles } from './styles';
@@ -11,10 +11,35 @@ export function CreateGroupRulesScreen({ route }: any) {
   const { createFormation } = useMemberActions();
   const [description, setDescription] = useState('Weekly savings circle for verified AAU students with automatic draw and payout tracking.');
   const [visibility, setVisibility] = useState<'Public' | 'Private'>('Public');
+  const [privateRiskAccepted, setPrivateRiskAccepted] = useState(false);
   const [minMembers, setMinMembers] = useState(String(Math.min(5, route.params?.maxMembers ?? 5)));
   const [error, setError] = useState('');
   const parsedMinMembers = Number(minMembers || 0);
   const maxMembers = Number(route.params.maxMembers || 0);
+
+  function handleVisibilitySelect(key: string) {
+    if (key === 'Public') {
+      setVisibility('Public');
+      setPrivateRiskAccepted(false);
+      return;
+    }
+
+    Alert.alert(
+      'Private group risk',
+      'Payment vesting is not activated on private groups. Members can receive payouts without the standard reserve schedule, so only use this for trusted invite-only circles.',
+      [
+        { text: 'Keep Public', style: 'cancel', onPress: () => setVisibility('Public') },
+        {
+          text: 'Use Private',
+          style: 'destructive',
+          onPress: () => {
+            setVisibility('Private');
+            setPrivateRiskAccepted(true);
+          },
+        },
+      ],
+    );
+  }
 
   async function handleSubmit() {
     try {
@@ -28,7 +53,8 @@ export function CreateGroupRulesScreen({ route }: any) {
         maxMembers,
         visibility,
         inviteMode: visibility === 'Public' ? 'PublicRequest' : 'InviteCodeAndDirect',
-        vestingEnabled: true,
+        vestingEnabled: visibility === 'Public',
+        riskWarningAccepted: visibility === 'Private' ? privateRiskAccepted : undefined,
         termsVersion: 'phase2-v1',
       });
       navigation.navigate(routes.formationCreator, { requestId: detail.groupRequest.id });
@@ -53,8 +79,11 @@ export function CreateGroupRulesScreen({ route }: any) {
             { key: 'Private', label: 'Private' },
           ]}
           selectedKey={visibility}
-          onSelect={key => setVisibility(key as 'Public' | 'Private')}
+          onSelect={handleVisibilitySelect}
         />
+        {visibility === 'Private' ? (
+          <StatusBanner tone="warning" title="Vesting off for private groups" body="The admin will see this risk decision before approval." />
+        ) : null}
       </SectionCard>
       <SectionCard variant="soft">
         <TitleBlock title="Built-in automation" subtitle="These behaviors apply automatically after approval." />
@@ -75,7 +104,7 @@ export function CreateGroupRulesScreen({ route }: any) {
         label="Create Formation Request"
         onPress={handleSubmit}
         loading={createFormation.isPending}
-        disabled={!description || parsedMinMembers < 5 || parsedMinMembers > maxMembers || createFormation.isPending}
+        disabled={!description || parsedMinMembers < 5 || parsedMinMembers > maxMembers || (visibility === 'Private' && !privateRiskAccepted) || createFormation.isPending}
       />
     </ScreenScroll>
   );

@@ -121,6 +121,7 @@ function main() {
     'policy.maxMembers',
     'policy.expiryDays',
     'risk_warning_accepted_at',
+    "['Daily', 'Weekly', 'Bi-weekly', 'Monthly']",
     'Only private invite-based group requests can disable payout vesting.',
   ].forEach(token => assertIncludes(source, token, 'create request implementation token'));
 

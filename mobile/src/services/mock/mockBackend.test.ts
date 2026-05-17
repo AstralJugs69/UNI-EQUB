@@ -52,6 +52,8 @@ describe('MockBackend automatic draw flow', () => {
     const creatorRequests = await backend.formation.listMine('user-dawit');
     expect(creatorRequests.some(item => item.id === 'formation-demo-private')).toBe(true);
     const privateFormation = await backend.formation.getRequest('user-dawit', 'formation-demo-private');
+    expect(privateFormation.groupRequest.frequency).toBe('Daily');
+    expect(privateFormation.groupRequest.vesting_disabled_by_creator).toBe(true);
     expect(privateFormation.invitations.some(item => item.invite_code === 'UNI-DEMO')).toBe(true);
 
     const pendingBeforeApproval = await backend.formation.listPendingApproval();
@@ -107,13 +109,18 @@ describe('MockBackend automatic draw flow', () => {
     const created = await backend.formation.createRequest('user-dawit', {
       groupName: 'Private Formation Circle',
       amount: 600,
-      frequency: 'Monthly',
+      frequency: 'Daily',
       minMembers: 2,
       maxMembers: 4,
       visibility: 'Private',
       inviteMode: 'InviteCodeAndDirect',
+      vestingEnabled: false,
+      riskWarningAccepted: true,
       termsVersion: 'phase2-v1',
     });
+
+    expect(created.groupRequest.frequency).toBe('Daily');
+    expect(created.groupRequest.vesting_disabled_by_creator).toBe(true);
 
     const response = await backend.formation.invite('user-dawit', {
       requestId: created.groupRequest.id,

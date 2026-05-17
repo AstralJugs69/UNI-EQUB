@@ -5,6 +5,7 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 const routesPath = path.join(repoRoot, 'mobile/src/navigation/routes.ts');
 const navigatorPath = path.join(repoRoot, 'mobile/src/navigation/AppNavigator.tsx');
 const hooksPath = path.join(repoRoot, 'mobile/src/hooks/useAppQueries.ts');
+const basicsPath = path.join(repoRoot, 'mobile/src/screens/member/CreateGroupBasicsScreen.tsx');
 const rulesPath = path.join(repoRoot, 'mobile/src/screens/member/CreateGroupRulesScreen.tsx');
 const creatorPath = path.join(repoRoot, 'mobile/src/screens/member/FormationCreatorScreen.tsx');
 const mockTestPath = path.join(repoRoot, 'mobile/src/services/mock/mockBackend.test.ts');
@@ -39,6 +40,7 @@ function main() {
   const routes = read(routesPath);
   const navigator = read(navigatorPath);
   const hooks = read(hooksPath);
+  const basics = read(basicsPath);
   const rules = read(rulesPath);
   const creator = read(creatorPath);
   const explore = read(path.join(repoRoot, 'mobile/src/screens/member/ExploreScreen.tsx'));
@@ -65,10 +67,19 @@ function main() {
   ].forEach(token => assertIncludes(hooks, token, 'creator formation hook token'));
 
   [
+    "{ key: 'Daily', label: 'Daily' }",
+    "'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly'",
+  ].forEach(token => assertIncludes(basics, token, 'cadence basics formation token'));
+
+  [
     'createFormation.mutateAsync',
     'visibility === \'Public\' ? \'PublicRequest\' : \'InviteCodeAndDirect\'',
     'navigation.navigate(routes.formationCreator',
     'Create Formation Request',
+    'Alert.alert',
+    'Payment vesting is not activated on private groups.',
+    "vestingEnabled: visibility === 'Public'",
+    "riskWarningAccepted: visibility === 'Private' ? privateRiskAccepted : undefined",
   ].forEach(token => assertIncludes(rules, token, 'create flow formation token'));
 
   [
@@ -107,6 +118,7 @@ function main() {
       routes: 'mobile/src/navigation/routes.ts',
       navigator: 'mobile/src/navigation/AppNavigator.tsx',
       hooks: 'mobile/src/hooks/useAppQueries.ts',
+      basics: 'mobile/src/screens/member/CreateGroupBasicsScreen.tsx',
       rules: 'mobile/src/screens/member/CreateGroupRulesScreen.tsx',
       explore: 'mobile/src/screens/member/ExploreScreen.tsx',
       creator: 'mobile/src/screens/member/FormationCreatorScreen.tsx',
@@ -114,6 +126,8 @@ function main() {
     },
     completedChecks: [
       'create-group flow creates Phase 2 formation requests and opens creator management',
+      'create basics screen supports Daily draw cadence',
+      'private-group selection shows a vesting risk warning before disabling vesting',
       'Explore screen lets creators return to their own formation requests',
       'creator management screen exposes invitation creation',
       'creator management screen exposes accept/remove participant actions',

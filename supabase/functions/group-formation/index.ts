@@ -150,7 +150,7 @@ function validateCreateRequestInput(input: CreateGroupFormationRequest | undefin
     'DirectInvite',
     'InviteCodeAndDirect',
   ], 'invite mode');
-  const frequency = assertAllowedValue(input.frequency, ['Weekly', 'Bi-weekly', 'Monthly'], 'frequency');
+  const frequency = assertAllowedValue(input.frequency, ['Daily', 'Weekly', 'Bi-weekly', 'Monthly'], 'frequency');
 
   const vestingEnabled = input.vestingEnabled ?? true;
   if (!vestingEnabled && visibility !== 'Private') {

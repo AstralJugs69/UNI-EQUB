@@ -82,7 +82,7 @@ function validateCreateRequest(input: CreateGroupRequest) {
   if (input.amount <= 0) {
     throw new Error('Contribution amount must be positive.');
   }
-  if (!['Weekly', 'Bi-weekly', 'Monthly'].includes(input.frequency)) {
+  if (!['Daily', 'Weekly', 'Bi-weekly', 'Monthly'].includes(input.frequency)) {
     throw new Error('Invalid group frequency.');
   }
   if (input.maxMembers <= 1) {

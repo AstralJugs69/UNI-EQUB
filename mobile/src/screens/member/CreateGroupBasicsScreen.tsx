@@ -10,7 +10,7 @@ export function CreateGroupBasicsScreen() {
   const navigation = useNavigation<any>();
   const [groupName, setGroupName] = useState('Dorm A Savings Group');
   const [amount, setAmount] = useState('500');
-  const [frequency, setFrequency] = useState<'Weekly' | 'Bi-weekly' | 'Monthly'>('Weekly');
+  const [frequency, setFrequency] = useState<'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly'>('Weekly');
   const [maxMembers, setMaxMembers] = useState('10');
 
   const parsedAmount = Number(amount || 0);
@@ -30,12 +30,13 @@ export function CreateGroupBasicsScreen() {
         <TitleBlock title="Choose the cadence" subtitle="Keep this simple and consistent for members." />
         <SegmentedTabs
           options={[
+            { key: 'Daily', label: 'Daily' },
             { key: 'Weekly', label: 'Weekly' },
             { key: 'Bi-weekly', label: 'Bi-weekly' },
             { key: 'Monthly', label: 'Monthly' },
           ]}
           selectedKey={frequency}
-          onSelect={key => setFrequency(key as 'Weekly' | 'Bi-weekly' | 'Monthly')}
+          onSelect={key => setFrequency(key as 'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly')}
         />
       </SectionCard>
       <View style={memberStyles.metricsGrid}>

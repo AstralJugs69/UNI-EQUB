@@ -71,7 +71,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-101 | Agent | Add SQL migration for `app_config` with JSONB value, type, description, updater, and timestamp columns. | Completed | Phase 2 spec; P2-006 still required for approved production values | Migration creates table, checks, indexes, and seed values. | `supabase/migrations/20260513090000_phase2_foundation_companion_tables.sql`; `Build/delivery/evidence/phase2-foundation-validation.json` |
 | P2-102 | Agent | Add SQL migration for append-oriented `audit_events`. | Completed | None | Table exists with actor/entity metadata and update/delete prevention strategy documented or enforced. | Migration creates table comment and `audit_events_prevent_update_delete` trigger |
 | P2-103 | Agent | Add SQL migration for durable `notifications`. | Completed | None | Table supports user inbox, severity, action route, related entity, metadata, read timestamp, expiry, and delivery timestamp. | Migration creates table and inbox/related-entity indexes |
-| P2-104 | Agent | Add SQL migration for `group_requests`. | Completed | P2-101 | Table supports draft/forming/pending/approved/rejected/expired/cancelled lifecycle and links to approved `EqubGroup`. | Migration creates table with status checks, approval link, and workflow indexes |
+| P2-104 | Agent | Add SQL migration for `group_requests`. | Completed | P2-101 | Table supports draft/forming/pending/approved/rejected/expired/cancelled lifecycle and links to approved `EqubGroup`. | Migration creates table with status checks, approval link, and workflow indexes; `supabase/migrations/20260518093000_phase2_daily_group_frequency.sql` adds Daily cadence |
 | P2-105 | Agent | Add SQL migration for `group_join_requests`. | Completed | P2-104 | Table stores public/private pre-membership interest with decision metadata. | Migration creates table with status checks and unique request-per-user guardrail |
 | P2-106 | Agent | Add SQL migration for `group_invitations`. | Completed | P2-104 | Table supports invite code/link and direct phone/student-ID invitation. | Migration creates table with target check and unique non-null invite-code index |
 | P2-107 | Agent | Add SQL migration for `contribution_obligations`. | Completed | Core schema | Table has one expected payment row per user/round with statuses and paid transaction link. | Migration creates table with `contribution_obligations_round_user_unique` |
@@ -117,8 +117,8 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-304 | Agent | Implement request-to-join forming group. | Completed | P2-303 | Eligible users can request join after accepting group terms. | `supabase/functions/group-formation/index.ts`; `supabase/functions/_shared/contracts.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
 | P2-305 | Agent | Implement creator accept/reject/remove participant. | Completed | P2-304 | Creator can manage pending/accepted formation participants with audit events. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
 | P2-306 | Agent | Implement invite code/direct invitation and accept invite. | Completed | P2-301 | Private invite flow can add accepted participants without public discovery. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
-| P2-307 | User | Decide final wording for payout vesting risk warning and mandatory join agreement. | Not Started | P2-006 | Wording is approved for UI and defense. | `Build/delivery/evidence/vesting-warning-copy.md` |
-| P2-308 | Agent | Implement private vesting override with creator warning acceptance. | Not Started | P2-306, P2-307 | Creator can disable vesting only for private invite-based request and audit event is written. | Function test/evidence |
+| P2-307 | User | Decide final wording for payout vesting risk warning and mandatory join agreement. | In Progress | P2-006 | Wording is approved for UI and defense. | User supplied private-group warning wording on 2026-05-18; broader join-agreement copy still pending |
+| P2-308 | Agent | Implement private vesting override with creator warning acceptance. | In Progress | P2-306, P2-307 | Creator can disable vesting only for private invite-based request and audit event is written. | Edge validation already requires warning acceptance; `mobile/src/screens/member/CreateGroupRulesScreen.tsx`; audit evidence still pending |
 | P2-309 | Agent | Implement submit-for-approval when accepted participants meet configured minimum. | Completed | P2-305/P2-306 | Request moves to `PendingApproval`; notifications/audit are written. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
 | P2-310 | Agent | Implement admin approve/reject group request. | Completed | P2-309 | Approve creates canonical `EqubGroup`, `GroupMembers`, initial round, obligations, notifications, audit; reject stays in `group_requests.status = Rejected`. | `supabase/functions/group-formation/index.ts`; `Build/delivery/evidence/phase2-formation-validation.json`; `npm run qa:phase2-formation` |
 | P2-311 | Agent | Keep legacy `group-lifecycle.createRequest` compatible during migration. | Completed | P2-301-P2-310 | Existing mobile group creation does not break before UI migration is complete. | `mobile/scripts/validate-phase2-legacy-group-compat.js`; `Build/delivery/evidence/phase2-legacy-group-compatibility.json`; Jest regression in `mobile/src/services/mock/mockBackend.test.ts`; `npm test` |
@@ -412,6 +412,15 @@ Phase 3 creator invitation share polish batch completed on 2026-05-17:
 3. seeded the in-app demo with a creator-owned private formation request and `UNI-DEMO` shareable invite code so demo mode mirrors the live creator path more closely
 4. refreshed `Build/delivery/evidence/phase2-creator-formation-ui-validation.json` and kept device screenshot/UAT evidence blocked under P2-316/P2-909
 
+Phase 3 private-risk and daily cadence batch completed on 2026-05-18:
+
+1. added Daily cadence to mobile domain types, shared Edge contracts/types, `group-formation`, and legacy `group-lifecycle` validators
+2. added `supabase/migrations/20260518093000_phase2_daily_group_frequency.sql` to extend the Phase 2 `group_requests` frequency check without replacing MVP tables
+3. updated the member create-flow cadence control to include Daily
+4. updated Private gathering mode to show the user-supplied risk dialog and submit private requests with vesting disabled plus warning acceptance
+5. seeded demo mode with a private Daily request, vesting disabled, pending participant request, and shareable `UNI-DEMO` invite code
+6. refreshed formation, mobile formation, creator UI, and in-app demo validation evidence; device screenshots/UAT remain blocked under P2-316/P2-904/P2-905/P2-909
+
 Thirteenth repo-local Phase 3 admin UI batch completed on 2026-05-16:
 
 1. added admin-only `listPendingApproval` support to the `group-formation` Edge Function and mobile formation service
@@ -596,3 +605,10 @@ Third repo-local Phase 2 in-app demo polish batch completed on 2026-05-17:
 2. seeded private creator formation, a pending participant request, and a shareable invite code for the member demo account
 3. refreshed `Build/delivery/evidence/phase2-in-app-demo-validation.json` and `Build/delivery/evidence/phase2-demo-readiness-validation.json`
 4. still requires physical/emulator walkthrough evidence before user-only demo validation tasks can move out of Blocked
+
+Fourth repo-local Phase 2 in-app demo polish batch completed on 2026-05-18:
+
+1. mirrored Daily cadence and private no-vesting warning behavior in the seeded member demo data
+2. kept demo mode on the same create/manage/invite screens as live mode rather than adding a separate showcase-only route
+3. refreshed `Build/delivery/evidence/phase2-in-app-demo-validation.json` and `Build/delivery/evidence/phase2-demo-readiness-validation.json`
+4. final screenshots/video and physical/emulator proof remain user/Both evidence work

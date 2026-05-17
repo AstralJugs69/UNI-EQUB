@@ -37,5 +37,5 @@
     "expected validation failures return readable non-500 function responses"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-17T20:50:04.943Z"
+  "validatedAt": "2026-05-17T22:37:23.057Z"
 }
