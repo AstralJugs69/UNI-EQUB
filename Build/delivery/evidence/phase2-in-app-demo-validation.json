@@ -23,7 +23,7 @@
     "splash screen exposes a phone-ready demo entry point",
     "auth provider can start seeded member and admin demo sessions without persisted live tokens",
     "services provider can switch between live Supabase services and mock demo services",
-    "mock backend reset restores repeatable final-draw, public/private formation, invite-code, and admin formation queues",
+    "mock backend reset restores repeatable final-draw, public/private formation, invite-code, and public admin formation queues",
     "member and admin dashboards show a visible demo-mode banner",
     "admin demo screens expose richer KYC, group, provider, reminder, and audit states",
     "demo docs and root npm script reference the in-app showcase path"
@@ -34,5 +34,5 @@
     "this validation is static/Jest-backed and does not replace screenshots or on-device UAT",
     "demo mode intentionally uses seeded local mock data and simulated payment rails"
   ],
-  "validatedAt": "2026-05-17T22:48:06.092Z"
+  "validatedAt": "2026-05-17T23:09:46.261Z"
 }

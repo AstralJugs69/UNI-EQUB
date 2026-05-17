@@ -1,6 +1,9 @@
 {
   "scenario": "phase2-foundation-static-validation",
   "migration": "supabase/migrations/20260513090000_phase2_foundation_companion_tables.sql",
+  "followUpMigrations": [
+    "supabase/migrations/20260518100000_phase2_private_formation_policy_text.sql"
+  ],
   "companionTables": [
     "app_config",
     "audit_events",
@@ -47,5 +50,5 @@
   ],
   "destructiveCoreTableCheck": "passed",
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-16T12:31:17.437Z"
+  "validatedAt": "2026-05-17T23:12:39.587Z"
 }

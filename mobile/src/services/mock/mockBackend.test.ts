@@ -62,7 +62,8 @@ describe('MockBackend automatic draw flow', () => {
 
     const pendingBeforeApproval = await backend.formation.listPendingApproval();
     expect(pendingBeforeApproval.some(item => item.id === 'formation-demo-review')).toBe(true);
-    expect(pendingBeforeApproval.some(item => item.id === 'formation-demo-no-vesting-review')).toBe(true);
+    expect(pendingBeforeApproval.some(item => item.id === 'formation-demo-public-review-2')).toBe(true);
+    expect(pendingBeforeApproval.some(item => item.visibility === 'Private')).toBe(false);
 
     await backend.formation.adminApprove('formation-demo-review');
     const pendingAfterApproval = await backend.formation.listPendingApproval();
@@ -134,6 +135,20 @@ describe('MockBackend automatic draw flow', () => {
 
     expect(response.invitation.status).toBe('Pending');
     expect(response.detail.invitations.some(item => item.id === response.invitation.id)).toBe(true);
+
+    const accepted = await backend.formation.acceptInvite('user-miki', {
+      inviteCode: response.invitation.invite_code ?? undefined,
+      groupTermsAccepted: true,
+      acceptedTermsVersion: 'phase2-v1',
+    });
+    const mikiJoin = accepted.joinRequests.find(item => item.user_id === 'user-miki');
+    await backend.formation.acceptJoin('user-dawit', mikiJoin!.id);
+
+    const started = await backend.formation.submitForApproval('user-dawit', created.groupRequest.id);
+    expect(started.groupRequest.status).toBe('Approved');
+    expect(started.groupRequest.approved_group_id).toBeTruthy();
+    const pending = await backend.formation.listPendingApproval();
+    expect(pending.some(item => item.id === created.groupRequest.id)).toBe(false);
   });
 
   it('allows private invite codes to be shared and redeemed by code', async () => {

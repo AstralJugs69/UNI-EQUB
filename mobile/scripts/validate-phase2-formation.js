@@ -103,6 +103,7 @@ function main() {
     'listPendingApprovalFormationRequests',
     'listMyFormationRequests',
     ".eq('status', 'PendingApproval')",
+    ".neq('visibility', 'Private')",
     'adminReviewQueue',
   ].forEach(token => assertIncludes(source, token, 'admin pending approval list token'));
 
@@ -193,9 +194,10 @@ function main() {
 
   [
     "status: 'PendingApproval'",
+    'group_formation_private_started',
     'submitted_by: actor.User_ID',
     'submitted_at: now',
-    'At least ${requiredMinimum} accepted participants are required before admin approval submission.',
+    'At least ${requiredMinimum} accepted participants are required before this group can start.',
     'GroupFormationSubmitted',
     'Group request ready for review',
     'Group request submitted',
@@ -225,7 +227,7 @@ function main() {
   assertIncludes(config, 'verify_jwt = false', 'function JWT config style');
 
   const result = {
-    scenario: 'phase2-group-formation-admin-approval-validation',
+    scenario: 'phase2-group-formation-activation-validation',
     function: 'supabase/functions/group-formation/index.ts',
     contracts: 'supabase/functions/_shared/contracts.ts',
     config: 'supabase/config.toml',
@@ -238,12 +240,12 @@ function main() {
       'createRequest inserts a Forming group_requests row with config-driven min/max/expiry validation',
       'createRequest inserts the creator as an Accepted formation participant',
       'listPublic returns only Public Forming requests that are not expired with accepted participant counts without applying join eligibility gates',
-      'listPendingApproval returns the admin review queue for submitted formation requests',
+      'listPendingApproval returns the public admin review queue for submitted formation requests',
       'getRequest returns formation detail with participants, creator/admin invitations, accepted count, and remaining slots',
       'requestJoin requires current terms acceptance and creates or reuses a Requested join row',
       'creator can accept requested participants and reject/remove participants with audit events',
       'creator can create direct invitations and shareable invite-code invitations that members can accept into accepted participation',
-      'creator can submit forming request for admin approval after accepted participants meet configured minimum',
+      'creator can submit public forming requests for admin approval and start private invite-based requests after accepted participants meet configured minimum',
       'admin can approve into canonical EqubGroup, GroupMembers, initial Round, obligations, notifications, and audit or reject in group_requests',
       'Supabase function config registers group-formation with internal token verification pattern',
       'expected validation failures return readable non-500 function responses',

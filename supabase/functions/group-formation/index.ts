@@ -341,6 +341,7 @@ async function listPendingApprovalFormationRequests() {
     .from('group_requests')
     .select('*')
     .eq('status', 'PendingApproval')
+    .neq('visibility', 'Private')
     .order('submitted_at', { ascending: true })
     .limit(50);
 
@@ -950,10 +951,10 @@ async function loadCreatorOwnedFormingRequest(actor: UserRecord, requestId: stri
 
   const request = data as GroupRequestRecord;
   if (request.creator_id !== actor.User_ID) {
-    throw new Error('Only the group request creator can submit for approval.');
+    throw new Error('Only the group request creator can activate this request.');
   }
   if (request.status !== 'Forming') {
-    throw new Error('Only forming group requests can be submitted for approval.');
+    throw new Error('Only forming group requests can be activated.');
   }
   if (request.expires_at && new Date(request.expires_at).getTime() <= Date.now()) {
     throw new Error('This group request has expired.');
@@ -1003,7 +1004,18 @@ async function submitFormationForApproval(actor: UserRecord, body: GroupFormatio
   const requiredMinimum = Math.max(request.min_members, policy.minMembers);
 
   if (acceptedParticipantUserIds.length < requiredMinimum) {
-    throw new Error(`At least ${requiredMinimum} accepted participants are required before admin approval submission.`);
+    throw new Error(`At least ${requiredMinimum} accepted participants are required before this group can start.`);
+  }
+
+  if (request.visibility === 'Private') {
+    return activateFormationRequest({
+      actor,
+      request,
+      acceptedParticipantUserIds,
+      decisionReason: 'Private invite-based group started by creator.',
+      eventType: 'group_formation_private_started',
+      reviewedBy: null,
+    });
   }
 
   const now = new Date().toISOString();
@@ -1090,14 +1102,6 @@ async function getGroupById(groupId: string) {
 
   if (error) {
     throw error;
-  }
-  const { error: linkError } = await supabaseAdmin
-    .from('group_requests')
-    .update({ approved_group_id: groupId })
-    .eq('id', request.id);
-
-  if (linkError) {
-    throw linkError;
   }
   return data as GroupRecord;
 }
@@ -1194,6 +1198,69 @@ async function notifyFormationApproval(request: GroupRequestRecord, group: Group
   return notifications;
 }
 
+async function activateFormationRequest(input: {
+  actor: UserRecord;
+  request: GroupRequestRecord;
+  acceptedParticipantUserIds: string[];
+  decisionReason: string;
+  eventType: string;
+  reviewedBy: string | null;
+}) {
+  await assertAcceptedParticipantsCanBecomeActive(input.acceptedParticipantUserIds);
+
+  const group = await ensureCanonicalGroupForRequest(input.request);
+  const memberships = await ensureCanonicalMemberships(group, input.acceptedParticipantUserIds);
+  const round = await ensureOpenRoundForGroup(group) as RoundRecord;
+  const obligations = await ensureContributionObligationsForRound(group, round);
+  const now = new Date().toISOString();
+  const { data: updatedRequest, error: updateError } = await supabaseAdmin
+    .from('group_requests')
+    .update({
+      status: 'Approved',
+      reviewed_by: input.reviewedBy,
+      reviewed_at: now,
+      approval_decision_note: input.decisionReason,
+      approved_group_id: group.Group_ID,
+      created_group_at: now,
+    })
+    .eq('id', input.request.id)
+    .select('*')
+    .single();
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  const participantNotifications = await notifyFormationApproval(updatedRequest as GroupRequestRecord, group, input.acceptedParticipantUserIds);
+  await writeAuditEvent({
+    actor: input.actor,
+    eventType: input.eventType,
+    entityType: 'group_requests',
+    entityId: input.request.id,
+    metadata: {
+      group_id: group.Group_ID,
+      round_id: round.Round_ID,
+      accepted_participant_count: input.acceptedParticipantUserIds.length,
+      membership_count: memberships.length,
+      obligation_count: obligations.length,
+      visibility: input.request.visibility,
+    },
+  });
+
+  return json({
+    groupRequest: updatedRequest as GroupRequestRecord,
+    group,
+    memberships,
+    round,
+    obligations: obligations as ContributionObligationRecord[],
+    accepted_participant_count: input.acceptedParticipantUserIds.length,
+    remaining_slots: Math.max(input.request.max_members - input.acceptedParticipantUserIds.length, 0),
+    notifications: {
+      participants: participantNotifications.length,
+    },
+  });
+}
+
 async function approveFormationRequest(actor: UserRecord, body: GroupFormationPayload) {
   const request = await loadAdminReviewRequest(body.requestId);
   if (request.status === 'Approved' && request.approved_group_id) {
@@ -1210,55 +1277,14 @@ async function approveFormationRequest(actor: UserRecord, body: GroupFormationPa
   if (acceptedParticipantUserIds.length < requiredMinimum) {
     throw new Error(`At least ${requiredMinimum} accepted participants are required before approval.`);
   }
-  await assertAcceptedParticipantsCanBecomeActive(acceptedParticipantUserIds);
 
-  const group = await ensureCanonicalGroupForRequest(request);
-  const memberships = await ensureCanonicalMemberships(group, acceptedParticipantUserIds);
-  const round = await ensureOpenRoundForGroup(group) as RoundRecord;
-  const obligations = await ensureContributionObligationsForRound(group, round);
-  const now = new Date().toISOString();
-  const { data: updatedRequest, error: updateError } = await supabaseAdmin
-    .from('group_requests')
-    .update({
-      status: 'Approved',
-      reviewed_by: actor.User_ID,
-      reviewed_at: now,
-      approval_decision_note: cleanText(body.decisionReason) || 'Approved by admin.',
-      approved_group_id: group.Group_ID,
-      created_group_at: now,
-    })
-    .eq('id', request.id)
-    .select('*')
-    .single();
-
-  if (updateError) {
-    throw updateError;
-  }
-
-  const participantNotifications = await notifyFormationApproval(updatedRequest as GroupRequestRecord, group, acceptedParticipantUserIds);
-  await writeAuditEvent({
+  return activateFormationRequest({
     actor,
     eventType: 'group_formation_approved',
-    entityType: 'group_requests',
-    entityId: request.id,
-    metadata: {
-      group_id: group.Group_ID,
-      round_id: round.Round_ID,
-      accepted_participant_count: acceptedParticipantUserIds.length,
-      membership_count: memberships.length,
-      obligation_count: obligations.length,
-    },
-  });
-
-  return json({
-    groupRequest: updatedRequest as GroupRequestRecord,
-    group,
-    memberships,
-    round,
-    obligations: obligations as ContributionObligationRecord[],
-    notifications: {
-      participants: participantNotifications.length,
-    },
+    request,
+    acceptedParticipantUserIds,
+    decisionReason: cleanText(body.decisionReason) || 'Approved by admin.',
+    reviewedBy: actor.User_ID,
   });
 }
 

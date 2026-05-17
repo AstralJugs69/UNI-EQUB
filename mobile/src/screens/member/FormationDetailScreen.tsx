@@ -25,6 +25,7 @@ export function FormationDetailScreen({ route }: any) {
   }
 
   const request = data.groupRequest;
+  const isPrivate = request.visibility === 'Private';
   const canRequestJoin = request.status === 'Forming'
     && request.visibility === 'Public'
     && !currentUserJoin
@@ -46,14 +47,21 @@ export function FormationDetailScreen({ route }: any) {
   return (
     <ScreenScroll>
       <TopAppBar title="Forming Group" subtitle="Phase 2 request" onBack={() => navigation.goBack()} />
-      <TitleBlock title={request.proposed_group_name} subtitle={request.description ?? 'Public group request gathering members before admin approval.'} />
+      <TitleBlock
+        title={request.proposed_group_name}
+        subtitle={request.description ?? (isPrivate ? 'Private invite group gathering accepted members before it starts.' : 'Public group request gathering members before admin approval.')}
+      />
       <View style={memberStyles.rowWrap}>
         <Pill label={request.status} tone={request.status === 'Forming' ? 'good' : 'warn'} />
         <Pill label={request.frequency} tone="active" />
         <Pill label={request.visibility} tone="neutral" />
       </View>
       {currentUserJoin ? (
-        <StatusBanner tone={currentUserJoin.status === 'Accepted' ? 'success' : 'info'} title={`Your request is ${currentUserJoin.status.toLowerCase()}`} body="The creator manages participant approval before submitting the group for admin review." />
+        <StatusBanner
+          tone={currentUserJoin.status === 'Accepted' ? 'success' : 'info'}
+          title={`Your request is ${currentUserJoin.status.toLowerCase()}`}
+          body={isPrivate ? 'The creator manages accepted members before starting this invite-only group.' : 'The creator manages participant approval before submitting the group for admin review.'}
+        />
       ) : null}
       {request.vesting_disabled_by_creator ? (
         <StatusBanner tone="warning" title="Join request paused" body="This request uses a private vesting override that still needs approved warning copy before member self-service is enabled." />
@@ -66,8 +74,16 @@ export function FormationDetailScreen({ route }: any) {
         <Text style={memberStyles.sectionTitle}>Before you request to join</Text>
         <View style={memberStyles.listGroup}>
           <ListRow title="Current terms version" subtitle={request.terms_version} leadingIcon="rule" />
-          <ListRow title="Creator accepts members first" subtitle="A join request does not create a canonical group membership until approval is complete." leadingIcon="how-to-reg" />
-          <ListRow title="Admin approval still required" subtitle="The group becomes active only after admin review creates the canonical Equb group." leadingIcon="admin-panel-settings" />
+          <ListRow
+            title="Creator accepts members first"
+            subtitle={isPrivate ? 'An invite or accepted request is needed before the group starts.' : 'A join request does not create a canonical group membership until approval is complete.'}
+            leadingIcon="how-to-reg"
+          />
+          <ListRow
+            title={isPrivate ? 'No admin approval' : 'Admin approval still required'}
+            subtitle={isPrivate ? 'Private invite groups start once the accepted-member minimum is met.' : 'The group becomes active only after admin review creates the canonical Equb group.'}
+            leadingIcon={isPrivate ? 'lock-open' : 'admin-panel-settings'}
+          />
         </View>
       </SectionCard>
       <SectionCard variant="soft">

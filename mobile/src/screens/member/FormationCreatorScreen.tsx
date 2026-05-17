@@ -31,6 +31,7 @@ export function FormationCreatorScreen({ route }: any) {
   }
 
   const request = data.groupRequest;
+  const isPrivate = request.visibility === 'Private';
   const canInvite = request.status === 'Forming' && request.invite_mode !== 'PublicRequest';
   const canSubmit = request.status === 'Forming' && data.accepted_participant_count >= request.min_members;
   const acceptedRemaining = Math.max(request.min_members - data.accepted_participant_count, 0);
@@ -71,7 +72,7 @@ export function FormationCreatorScreen({ route }: any) {
       setError('');
       await submitFormationForApproval.mutateAsync(request.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to submit for approval.');
+      setError(err instanceof Error ? err.message : (isPrivate ? 'Unable to start private group.' : 'Unable to submit for approval.'));
     }
   }
 
@@ -101,10 +102,10 @@ export function FormationCreatorScreen({ route }: any) {
         <MetricTile label="Accepted" value={`${data.accepted_participant_count}/${request.min_members}`} helper={`${data.remaining_slots} slots left`} tone={canSubmit ? 'good' : 'neutral'} />
       </View>
       {request.status === 'PendingApproval' ? (
-        <StatusBanner tone="success" title="Submitted for admin approval" />
+        <StatusBanner tone="success" title={isPrivate ? 'Starting private group' : 'Submitted for admin approval'} />
       ) : null}
       {request.status === 'Approved' ? (
-        <StatusBanner tone="success" title="Approved" />
+        <StatusBanner tone="success" title={isPrivate ? 'Private group started' : 'Approved'} />
       ) : null}
       {request.status === 'Rejected' ? (
         <StatusBanner tone="danger" title="Request was not approved" body={request.rejection_reason ?? 'Review the reason and create a revised request when ready.'} />
@@ -176,7 +177,7 @@ export function FormationCreatorScreen({ route }: any) {
       </SectionCard>
       <InlineError message={error} />
       <PrimaryCTA
-        label={request.status === 'PendingApproval' ? 'Waiting For Admin' : request.status === 'Approved' ? 'Approved' : 'Submit For Approval'}
+        label={request.status === 'PendingApproval' ? 'Waiting For Admin' : request.status === 'Approved' ? (isPrivate ? 'Started' : 'Approved') : isPrivate ? 'Start Private Group' : 'Submit For Approval'}
         onPress={handleSubmit}
         loading={submitFormationForApproval.isPending}
         disabled={!canSubmit || submitFormationForApproval.isPending || request.status !== 'Forming'}

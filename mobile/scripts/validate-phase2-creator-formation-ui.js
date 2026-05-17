@@ -78,6 +78,7 @@ function main() {
     'Create Formation Request',
     'Alert.alert',
     'Payment vesting is not activated on private groups.',
+    'Private invite groups start without admin review',
     "vestingEnabled: visibility === 'Public'",
     "riskWarningAccepted: visibility === 'Private' ? privateRiskAccepted : undefined",
   ].forEach(token => assertIncludes(rules, token, 'create flow formation token'));
@@ -131,7 +132,7 @@ function main() {
       'Explore screen lets creators return to their own formation requests',
       'creator management screen exposes invitation creation',
       'creator management screen exposes accept/remove participant actions',
-      'creator management screen exposes submit-for-approval action',
+      'creator management screen exposes public submit-for-approval and private start actions',
       'mock backend regression covers private creator invitation behavior',
     ],
     requiresSupabaseCredentials: false,

@@ -8,6 +8,12 @@ const migrationPath = path.join(
   'migrations',
   '20260513090000_phase2_foundation_companion_tables.sql',
 );
+const privateFormationPolicyTextMigrationPath = path.join(
+  repoRoot,
+  'supabase',
+  'migrations',
+  '20260518100000_phase2_private_formation_policy_text.sql',
+);
 
 const requiredTables = [
   'app_config',
@@ -109,6 +115,8 @@ function main() {
 
   const sql = fs.readFileSync(migrationPath, 'utf8');
   assertNoDestructiveCoreChanges(sql);
+  const privatePolicySql = fs.readFileSync(privateFormationPolicyTextMigrationPath, 'utf8');
+  assertNoDestructiveCoreChanges(privatePolicySql);
 
   requiredTables.forEach(table => {
     assertRegex(
@@ -140,9 +148,15 @@ function main() {
     assertIncludes(sql, triggerName, `append-only trigger ${triggerName}`);
   });
 
+  assertIncludes(privatePolicySql, 'Private invite groups start without admin review', 'private formation policy text correction');
+  assertIncludes(privatePolicySql, "where key = 'enable_private_vesting_override'", 'private formation policy update target');
+
   const result = {
     scenario: 'phase2-foundation-static-validation',
     migration: path.relative(repoRoot, migrationPath).replace(/\\/g, '/'),
+    followUpMigrations: [
+      path.relative(repoRoot, privateFormationPolicyTextMigrationPath).replace(/\\/g, '/'),
+    ],
     companionTables: requiredTables,
     appConfigKeys: requiredConfigKeys,
     guardrails: requiredGuardrails,

@@ -68,7 +68,7 @@ export function CreateGroupRulesScreen({ route }: any) {
       <TopAppBar title="Create New Equb" subtitle="Step 2 of 2" onBack={() => navigation.goBack()} />
       <TitleBlock title="Finalize the request" subtitle="Add member-facing terms, gathering mode, and the minimum group size before inviting participants." />
       <SectionCard>
-        <InputField label="Short Description" value={description} onChangeText={setDescription} multiline helper="This appears while gathering members and remains visible after approval." />
+        <InputField label="Short Description" value={description} onChangeText={setDescription} multiline helper="This appears while gathering members and remains visible once the group starts." />
         <InputField label="Minimum Members" value={minMembers} onChangeText={setMinMembers} keyboardType="number-pad" leadingIcon="group" />
       </SectionCard>
       <SectionCard variant="soft">
@@ -82,15 +82,15 @@ export function CreateGroupRulesScreen({ route }: any) {
           onSelect={handleVisibilitySelect}
         />
         {visibility === 'Private' ? (
-          <StatusBanner tone="warning" title="Vesting off for private groups" body="The admin will see this risk decision before approval." />
+          <StatusBanner tone="warning" title="Vesting off for private groups" body="Private invite groups start without admin review after the accepted-member minimum is met." />
         ) : null}
       </SectionCard>
       <SectionCard variant="soft">
-        <TitleBlock title="Built-in automation" subtitle="These behaviors apply automatically after approval." />
+        <TitleBlock title="Built-in automation" subtitle={visibility === 'Private' ? 'Private groups start as soon as the creator has enough accepted members.' : 'Public groups go through admin approval before they start.'} />
         <View style={memberStyles.rowWrap}>
           <Pill label="Creator review" tone="active" />
-          <Pill label="Admin approval" tone="active" />
-          <Pill label="Canonical group on approval" tone="neutral" />
+          {visibility === 'Public' ? <Pill label="Admin approval" tone="active" /> : <Pill label="Invite-only start" tone="active" />}
+          <Pill label={visibility === 'Private' ? 'Canonical group on start' : 'Canonical group on approval'} tone="neutral" />
           <Pill label="Simulated payout reserve" tone="neutral" />
         </View>
       </SectionCard>

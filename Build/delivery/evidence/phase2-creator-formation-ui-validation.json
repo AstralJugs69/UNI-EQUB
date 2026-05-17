@@ -17,10 +17,10 @@
     "Explore screen lets creators return to their own formation requests",
     "creator management screen exposes invitation creation",
     "creator management screen exposes accept/remove participant actions",
-    "creator management screen exposes submit-for-approval action",
+    "creator management screen exposes public submit-for-approval and private start actions",
     "mock backend regression covers private creator invitation behavior"
   ],
   "requiresSupabaseCredentials": false,
   "requiresDeviceValidation": true,
-  "validatedAt": "2026-05-17T22:37:48.589Z"
+  "validatedAt": "2026-05-17T23:09:46.245Z"
 }

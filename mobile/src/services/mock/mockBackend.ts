@@ -107,7 +107,7 @@ export class MockBackend implements AppServices {
       ussdSessions: {},
       auditLogs: [
         'Phase 2 formation submitted: Campus Demo Formation • 09:42 AM',
-        'Private daily formation flagged for no-vesting review • 09:36 AM',
+        'Public daily formation queued for admin review • 09:36 AM',
         'KYC approved for Dawit Abebe • 09:15 AM',
         'Cycle frozen for suspicious mismatch • 08:47 AM',
       ],
@@ -204,24 +204,24 @@ export class MockBackend implements AppServices {
         updated_at: nowIso(),
       },
       {
-        id: 'formation-demo-no-vesting-review',
+        id: 'formation-demo-public-review-2',
         creator_id: 'user-saba',
         submitted_by: 'user-saba',
-        proposed_group_name: 'Private Lab Supplies',
-        description: 'Private daily request with creator-accepted no-vesting risk.',
+        proposed_group_name: 'Campus Lab Supplies',
+        description: 'Public daily request queued for admin approval.',
         contribution_amount: 250,
         frequency: 'Daily',
         min_members: 3,
         max_members: 5,
-        visibility: 'Private',
-        invite_mode: 'InviteCodeAndDirect',
+        visibility: 'Public',
+        invite_mode: 'PublicRequest',
         status: 'PendingApproval',
-        risk_level: 'Medium',
+        risk_level: 'Low',
         terms_version: 'phase2-v1',
         agreement_required: true,
-        vesting_enabled: false,
-        vesting_disabled_by_creator: true,
-        risk_warning_accepted_at: nowIso(),
+        vesting_enabled: true,
+        vesting_disabled_by_creator: false,
+        risk_warning_accepted_at: null,
         expires_at: plusMinutes(60 * 24 * 3),
         submitted_at: nowIso(),
         reviewed_by: null,
@@ -347,8 +347,8 @@ export class MockBackend implements AppServices {
         decision_reason: 'Creator automatically added to the forming group.',
       },
       {
-        id: 'formation-demo-no-vesting-creator',
-        group_request_id: 'formation-demo-no-vesting-review',
+        id: 'formation-demo-public-review-2-creator',
+        group_request_id: 'formation-demo-public-review-2',
         user_id: 'user-saba',
         status: 'Accepted',
         requested_at: nowIso(),
@@ -359,8 +359,8 @@ export class MockBackend implements AppServices {
         decision_reason: 'Creator automatically added to the forming group.',
       },
       {
-        id: 'formation-demo-no-vesting-dawit',
-        group_request_id: 'formation-demo-no-vesting-review',
+        id: 'formation-demo-public-review-2-dawit',
+        group_request_id: 'formation-demo-public-review-2',
         user_id: 'user-dawit',
         status: 'Accepted',
         requested_at: nowIso(),
@@ -368,11 +368,11 @@ export class MockBackend implements AppServices {
         rejected_at: null,
         removed_at: null,
         decision_by: 'user-saba',
-        decision_reason: 'Accepted participant for no-vesting demo review.',
+        decision_reason: 'Accepted participant for admin review demo.',
       },
       {
-        id: 'formation-demo-no-vesting-miki',
-        group_request_id: 'formation-demo-no-vesting-review',
+        id: 'formation-demo-public-review-2-miki',
+        group_request_id: 'formation-demo-public-review-2',
         user_id: 'user-miki',
         status: 'Accepted',
         requested_at: nowIso(),
@@ -380,7 +380,7 @@ export class MockBackend implements AppServices {
         rejected_at: null,
         removed_at: null,
         decision_by: 'user-saba',
-        decision_reason: 'Accepted participant for no-vesting demo review.',
+        decision_reason: 'Accepted participant for admin review demo.',
       },
       {
         id: 'formation-demo-private-creator',
@@ -835,7 +835,7 @@ export class MockBackend implements AppServices {
 
     listPendingApproval: async (): Promise<GroupFormationRequestSummary[]> => {
       return this.db.groupRequests
-        .filter(request => request.status === 'PendingApproval')
+        .filter(request => request.status === 'PendingApproval' && request.visibility !== 'Private')
         .map(request => this.toFormationSummary(request));
     },
 
@@ -1001,10 +1001,15 @@ export class MockBackend implements AppServices {
     submitForApproval: async (userId: string, requestId: string): Promise<GroupFormationDetail> => {
       const request = this.requireFormationRequest(requestId);
       if (request.creator_id !== userId) {
-        throw new Error('Only the group request creator can submit for approval.');
+        throw new Error('Only the group request creator can activate this request.');
       }
       if (this.acceptedFormationCount(requestId) < request.min_members) {
-        throw new Error(`At least ${request.min_members} accepted participants are required before admin approval submission.`);
+        throw new Error(`At least ${request.min_members} accepted participants are required before this group can start.`);
+      }
+      if (request.visibility === 'Private') {
+        const group = this.activateFormationRequest(request, 'Private invite-based group started by creator.');
+        this.db.auditLogs.unshift(`Private formation started: ${group.Group_Name}`);
+        return this.toFormationDetail(request);
       }
       request.status = 'PendingApproval';
       request.submitted_by = userId;
@@ -1015,25 +1020,7 @@ export class MockBackend implements AppServices {
 
     adminApprove: async (requestId: string, decisionReason?: string): Promise<GroupRecord> => {
       const request = this.requireFormationRequest(requestId);
-      request.status = 'Approved';
-      request.approval_decision_note = decisionReason ?? 'Approved by admin.';
-      request.reviewed_at = nowIso();
-      const group: GroupRecord = {
-        Group_ID: makeId('group'),
-        Creator_ID: request.creator_id,
-        Group_Name: request.proposed_group_name,
-        Amount: request.contribution_amount,
-        Max_Members: request.max_members,
-        Frequency: request.frequency,
-        Virtual_Acc_Ref: `UEQ-${Math.floor(1000 + Math.random() * 9000)}`,
-        Status: 'Active',
-        Start_Date: new Date().toISOString().slice(0, 10),
-        Description: request.description ?? '',
-      };
-      request.approved_group_id = group.Group_ID;
-      request.created_group_at = nowIso();
-      this.db.groups.unshift(group);
-      return clone(group);
+      return clone(this.activateFormationRequest(request, decisionReason ?? 'Approved by admin.'));
     },
 
     adminReject: async (requestId: string, decisionReason?: string): Promise<GroupFormationDetail> => {
@@ -1192,7 +1179,7 @@ export class MockBackend implements AppServices {
   reports = {
     getAdminOverview: async (): Promise<AdminOverview> => ({
       pendingKycCount: this.db.users.filter(user => user.Role === 'Member' && user.KYC_Status === 'Unverified').length,
-      pendingGroupCount: this.db.groups.filter(group => group.Status === 'Pending').length + this.db.groupRequests.filter(request => request.status === 'PendingApproval').length,
+      pendingGroupCount: this.db.groups.filter(group => group.Status === 'Pending').length + this.db.groupRequests.filter(request => request.status === 'PendingApproval' && request.visibility !== 'Private').length,
       activeGroupCount: this.db.groups.filter(group => group.Status === 'Active').length,
       exportsCount: 3,
       logs: clone(this.db.auditLogs),
@@ -1236,6 +1223,44 @@ export class MockBackend implements AppServices {
 
   private acceptedFormationCount(requestId: string) {
     return this.db.groupJoinRequests.filter(item => item.group_request_id === requestId && item.status === 'Accepted').length;
+  }
+
+  private activateFormationRequest(request: GroupRequestRecord, decisionReason: string): GroupRecord {
+    if (request.status === 'Approved' && request.approved_group_id) {
+      return this.requireGroup(request.approved_group_id);
+    }
+    request.status = 'Approved';
+    request.approval_decision_note = decisionReason;
+    request.reviewed_at = nowIso();
+    const group: GroupRecord = {
+      Group_ID: makeId('group'),
+      Creator_ID: request.creator_id,
+      Group_Name: request.proposed_group_name,
+      Amount: request.contribution_amount,
+      Max_Members: request.max_members,
+      Frequency: request.frequency,
+      Virtual_Acc_Ref: `UEQ-${Math.floor(1000 + Math.random() * 9000)}`,
+      Status: 'Active',
+      Start_Date: new Date().toISOString().slice(0, 10),
+      Description: request.description ?? '',
+    };
+    request.approved_group_id = group.Group_ID;
+    request.created_group_at = nowIso();
+    this.db.groups.unshift(group);
+    this.db.groupJoinRequests
+      .filter(join => join.group_request_id === request.id && join.status === 'Accepted')
+      .forEach(join => {
+        if (!this.db.memberships.some(membership => membership.Group_ID === group.Group_ID && membership.User_ID === join.user_id)) {
+          this.db.memberships.push({
+            Membership_ID: makeId('membership'),
+            Group_ID: group.Group_ID,
+            User_ID: join.user_id,
+            Joined_At: nowIso(),
+            Status: 'Active',
+          });
+        }
+      });
+    return group;
   }
 
   private toFormationSummary(request: GroupRequestRecord): GroupFormationRequestSummary {

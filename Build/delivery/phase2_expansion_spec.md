@@ -194,9 +194,9 @@ The long-term user-facing flow should create a `group_requests` row first, not a
    - payout maturity/vesting setting where applicable
 3. System creates a formation lobby.
 4. Students gather through public or private paths.
-5. When the configured minimum number of accepted participants is reached, the creator can submit the request for admin approval.
-6. Admin reviews the request.
-7. If approved, the system creates the canonical `EqubGroup`.
+5. When the configured minimum number of accepted participants is reached, the creator can either submit a public request for admin approval or start a private invite-based request directly.
+6. Admin reviews public requests only.
+7. If a public request is approved, or a private invite-based request is started by the creator, the system creates the canonical `EqubGroup`.
 8. The system creates `GroupMembers` rows for accepted participants.
 9. `group_requests.approved_group_id` links to the created `EqubGroup`.
 10. The group moves to active or pending-start state.
@@ -244,15 +244,13 @@ Private invite-based group creators may disable new-user payout vesting, but onl
 
 Creator-only override applies. Member vote is not required for disabling vesting during private group formation.
 
-### 4.8 Admin Approval Requirement
+### 4.8 Activation Requirement
 
-All group creation requests require admin approval, regardless of whether the group is:
+Public group creation requests require admin approval.
 
-- public
-- private
-- invite-only
+Private invite-based group requests do not go to the admin approval queue. They become active when the creator starts the group after the accepted-member minimum is met.
 
-Admin reviews:
+For public requests, admin reviews:
 
 - proposed members
 - contribution amount
@@ -555,7 +553,8 @@ Exception:
 - private invite-based groups may disable it
 - only the group creator can disable it
 - creator must see a clear warning explaining the default risk
-- all group requests still require admin approval
+- private invite-based groups start without admin approval once the accepted-member minimum is met
+- public group requests still require admin approval
 
 ### 9.8 Strict Payout Release Rule
 
@@ -1656,9 +1655,10 @@ Capabilities:
 - accept/reject join
 - invite
 - accept invite
-- submit for admin approval
-- admin approve/reject request
-- on approval create `EqubGroup` and `GroupMembers`
+- submit public requests for admin approval
+- start private invite-based requests without admin approval once the accepted-member minimum is met
+- admin approve/reject public request
+- on approval/start create `EqubGroup` and `GroupMembers`
 
 ### Phase 4 — Contribution Obligations and Mock Provider Attempts
 

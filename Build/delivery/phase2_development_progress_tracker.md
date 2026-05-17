@@ -126,7 +126,7 @@ The tracker should be updated after every implementation batch. A row is `Comple
 | P2-313 | Agent | Add member UI for forming groups discovery and detail. | Completed | P2-312 | Member can browse public forming requests and request to join. | `mobile/src/screens/member/ExploreScreen.tsx`; `mobile/src/screens/member/FormationDetailScreen.tsx`; `Build/delivery/evidence/phase2-member-formation-ui-validation.json`; typecheck/lint passing |
 | P2-314 | Agent | Add creator UI for draft request setup and participant management. | Completed | P2-312 | Creator can create request, invite, accept/remove, and submit for approval. | `mobile/src/screens/member/CreateGroupBasicsScreen.tsx`; `mobile/src/screens/member/CreateGroupRulesScreen.tsx`; `mobile/src/screens/member/ExploreScreen.tsx`; `mobile/src/screens/member/FormationCreatorScreen.tsx`; `Build/delivery/evidence/phase2-creator-formation-ui-validation.json`; Jest invitation/listMine regression; typecheck/lint passing |
 | P2-315 | Agent | Add admin UI for Phase 2 group request review. | Completed | P2-310 | Admin sees proposed terms, participants, risk, vesting setting, and can approve/reject. | `mobile/src/screens/admin/AdminGroupsScreen.tsx`; `mobile/scripts/validate-phase2-admin-formation-ui.js`; `Build/delivery/evidence/phase2-admin-formation-ui-validation.json`; Jest admin approval regression; typecheck/lint passing |
-| P2-316 | User | Validate group formation flows on emulator/physical device with at least two test accounts. | Blocked | P2-313-P2-315, device access | UAT evidence proves public/private formation and admin approval work. | `Build/delivery/evidence/group-formation-uat.*` |
+| P2-316 | User | Validate group formation flows on emulator/physical device with at least two test accounts. | Blocked | P2-313-P2-315, device access | UAT evidence proves public formation/admin approval and private invite-based auto-start work. | `Build/delivery/evidence/group-formation-uat.*` |
 
 ### Phase 4 — Contribution Obligations and Mock Provider Attempts
 
@@ -621,3 +621,12 @@ Fifth repo-local Phase 2 in-app demo polish batch completed on 2026-05-18:
 4. updated `AdminGroupsScreen` to preview additional Phase 2 and legacy requests below the primary actionable review item
 5. updated `AdminReportsScreen` with an operations snapshot, provider activity, and audit timeline while preserving report export/reminder actions
 6. refreshed `Build/delivery/evidence/phase2-in-app-demo-validation.json` and `Build/delivery/evidence/phase2-demo-readiness-validation.json`; final device screenshots/video remain user/Both evidence work
+
+Sixth repo-local Phase 2 formation behavior batch completed on 2026-05-18:
+
+1. changed private invite-based formation so creator start activates the canonical `EqubGroup`, memberships, initial round, and obligations without entering the admin approval queue
+2. kept public formation on the existing submit-for-approval and admin approval/rejection path
+3. excluded private requests from admin pending-approval lists in live and seeded demo services
+4. removed private admin-review wording from member create/detail/creator UI and mirrored the same behavior in demo mode
+5. added `supabase/migrations/20260518100000_phase2_private_formation_policy_text.sql` to correct the private vesting override policy description in `app_config`
+6. refreshed Phase 2 formation, creator UI, member UI, in-app demo, and demo readiness validation evidence; device screenshots/video and deployed function verification remain user/Both evidence work
