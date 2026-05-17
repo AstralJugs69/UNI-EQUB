@@ -14,6 +14,19 @@ Do not claim that real payment processing, real wallet custody, durable notifica
 
 ## Demo Modes
 
+### In-App Demo Mode
+
+Use this as the preferred phone-ready showcase when you want completed flows connected neatly without depending on OTP or live Supabase availability.
+
+1. Install/run the app with `npm run android:dev` or open an already installed debug build.
+2. On the splash screen, tap **Try Demo Mode**.
+3. Tap **Launch Member Demo** to enter Dawit's seeded member workspace.
+4. Show Dashboard -> Pay This Round -> direct mock payment or USSD -> Payment Success -> Wallet -> History/Notifications.
+5. Return with logout, tap **Try Demo Mode**, then tap **Launch Admin Demo** for Saba Admin.
+6. Show Admin Dashboard -> Review KYC -> Approve Groups -> Reports.
+
+The in-app demo uses the mock service layer intentionally. It is repeatable, resets seeded state on each launch, and keeps live Supabase behavior available through the normal sign-in path.
+
 ### Live Mobile Demo
 
 Use this when a connected Android device or emulator, Supabase environment, OTP phone, and deployed functions are ready.
@@ -38,6 +51,7 @@ Use this when live device or OTP access is not available. Run and show the repo 
 
 ```powershell
 npm run qa:phase2-demo-readiness
+npm run qa:phase2-in-app-demo
 npm run qa:phase2-formation
 npm run qa:phase2-mobile-formation
 npm run qa:phase2-member-formation-ui
@@ -63,6 +77,7 @@ npm run qa:phase2-default-restriction
 
 Show:
 
+- In-app splash screen with **Try Demo Mode**
 - README Phase 2 notes
 - Phase 2 tracker status
 - Supabase foundation migration evidence
@@ -100,10 +115,11 @@ Evidence:
 
 Show:
 
+- Member opens the in-app demo and sees a public forming request in Explore
 - Member explores forming groups
 - Creator creates a forming request
 - Creator manages participants or invitations
-- Admin reviews the request
+- Admin demo reviews the seeded `Campus Demo Formation` request
 - Admin approval creates canonical `EqubGroup`, `GroupMembers`, initial `Round`, and obligations
 
 Important narration:
@@ -123,6 +139,7 @@ Evidence:
 
 Show:
 
+- Member demo dashboard starts with one remaining contribution in `Dorm A Savings Group`
 - Current round obligation progress
 - Initiate a contribution attempt
 - Mock/USSD payment path
@@ -148,7 +165,7 @@ Evidence:
 
 Show:
 
-- Final contribution completes the round
+- In-app member demo final contribution completes the round
 - Winner selection and payout request creation
 - Immediate payout amount vs reserved payout amount
 - Wallet screen language distinguishing released internal wallet clearance from reserve

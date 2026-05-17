@@ -1,5 +1,6 @@
 ﻿export const routes = {
   splash: 'Splash',
+  demoTour: 'DemoTour',
   login: 'Login',
   signup: 'Signup',
   otp: 'Otp',

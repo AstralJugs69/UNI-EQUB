@@ -198,11 +198,11 @@ The tracker should be updated after every implementation batch. A row is `Comple
 
 | ID | Owner | Task | Status | Depends On | Acceptance Condition | Required Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| P2-801 | Agent | Update navigation routes for formation, requests, invitations, payout reserve, reliability, audit/admin views. | Not Started | Relevant backend services | Navigation supports Phase 2 screens without breaking MVP routes. | Typecheck/screenshots |
-| P2-802 | Agent | Add loading/empty/error/retry states for all new Phase 2 screens. | Not Started | P2-801 | No new screen relies on blank/error-prone states. | Screenshots |
+| P2-801 | Agent | Update navigation routes for formation, requests, invitations, payout reserve, reliability, audit/admin views. | In Progress | Relevant backend services | Navigation supports Phase 2 screens without breaking MVP routes. | Formation routes and in-app demo route exist in `mobile/src/navigation/routes.ts` and `mobile/src/navigation/AppNavigator.tsx`; reliability/audit-specific views still pending |
+| P2-802 | Agent | Add loading/empty/error/retry states for all new Phase 2 screens. | In Progress | P2-801 | No new screen relies on blank/error-prone states. | Formation screens and `DemoTourScreen` include loading/error/empty handling where currently applicable; final screenshot evidence still pending |
 | P2-803 | Agent | Add member onboarding explanations for forming groups, vesting, simulated wallet, reliability, and restrictions. | Not Started | P2-307 | Users can understand the new rules before joining/paying. | Screenshots/copy review |
 | P2-804 | Agent | Add admin dashboard sections for formation queue, KYC queue, payment attempts, defaults, restrictions, audit, and reports. | Not Started | Backend services | Admin can operate Phase 2 without raw database access. | Screenshots |
-| P2-805 | Agent | Replace or annotate any misleading real-money wording with defense-stage simulation wording. | Not Started | P2-002 | UI clearly states wallet/payment behavior is simulated/mock. | Copy review/screenshots |
+| P2-805 | Agent | Replace or annotate any misleading real-money wording with defense-stage simulation wording. | In Progress | P2-002 | UI clearly states wallet/payment behavior is simulated/mock. | Payout reserve copy and `DemoModeBanner`/demo tour state mock-sandbox behavior; user wallet terminology approval and screenshots still pending |
 | P2-806 | User | Review all Phase 2 user-facing copy for academic defense clarity. | Not Started | P2-803-P2-805 | User approves final wording. | `Build/delivery/evidence/phase2-copy-approval.md` |
 | P2-807 | User | Validate screen fit and readability on the target Android phone/emulator. | Blocked | P2-801-P2-805 | Evidence confirms key screens fit target device. | Screenshots/video |
 
@@ -210,16 +210,16 @@ The tracker should be updated after every implementation batch. A row is `Comple
 
 | ID | Owner | Task | Status | Depends On | Acceptance Condition | Required Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| P2-901 | Agent | Expand Jest/service tests for Phase 2 helper logic and critical flows. | Not Started | Implemented phases | Tests cover formation, obligations, attempts, duplicate callbacks, payout maturity, restrictions, notifications, audit. | `npm test`/Jest output |
-| P2-902 | Agent | Add validation scripts for Phase 2 backend scenarios. | Not Started | Implemented phases | Scripts can generate evidence JSON for key scenarios. | `mobile/scripts/validate-phase2-*.js` |
-| P2-903 | Agent | Update UAT checklist for Phase 2 flows. | In Progress | Phase 2 UI/backend | Checklist includes user-only validation steps and expected evidence. | `Build/delivery/uat_checklist.md`; `Build/delivery/demo/phase2_completed_features_demo.md`; `Build/delivery/demo/phase2_demo_operator_checklist.md`; `Build/delivery/evidence/phase2-demo-readiness-validation.json`; final UAT evidence still pending |
+| P2-901 | Agent | Expand Jest/service tests for Phase 2 helper logic and critical flows. | In Progress | Implemented phases | Tests cover formation, obligations, attempts, duplicate callbacks, payout maturity, restrictions, notifications, audit. | `mobile/src/services/mock/mockBackend.test.ts` covers formation, admin approval, legacy compatibility, auto-draw, USSD, and seeded demo reset; deeper Edge helper behavior tests still pending |
+| P2-902 | Agent | Add validation scripts for Phase 2 backend scenarios. | In Progress | Implemented phases | Scripts can generate evidence JSON for key scenarios. | `mobile/scripts/validate-phase2-*.js`; `mobile/scripts/validate-phase2-in-app-demo.js`; evidence JSON files under `Build/delivery/evidence/`; final screenshot/UAT scripts still pending |
+| P2-903 | Agent | Update UAT checklist for Phase 2 flows. | In Progress | Phase 2 UI/backend | Checklist includes user-only validation steps and expected evidence. | `Build/delivery/uat_checklist.md`; `Build/delivery/demo/phase2_completed_features_demo.md`; `Build/delivery/demo/phase2_demo_operator_checklist.md`; `Build/delivery/evidence/phase2-demo-readiness-validation.json`; `Build/delivery/evidence/phase2-in-app-demo-validation.json`; final UAT evidence still pending |
 | P2-904 | User | Run emulator validation pass. | Blocked | P2-903, local Android setup | App installs and passes Phase 2 smoke/UAT on emulator. | `Build/delivery/evidence/phase2-emulator-uat.*` |
 | P2-905 | User | Run physical Android device validation pass. | Blocked | P2-903, device | App installs and passes Phase 2 smoke/UAT on physical device. | `Build/delivery/evidence/phase2-device-uat.*` |
 | P2-906 | Agent | Generate debug APK after Phase 2 implementation. | Not Started | Stable Phase 2 build | Debug APK path, size, and timestamp are recorded. | `Build/delivery/evidence/phase2-debug-apk-build.json` |
 | P2-907 | User | Provide Android release signing decision and keystore if release APK is required. | Not Started | Stable Phase 2 build | Signing material/decision is available outside git. | `Build/delivery/evidence/release-signing-decision.md` |
 | P2-908 | Agent | Generate release APK/AAB if signing material and environment are available. | Blocked | P2-907 | Release artifact builds without Metro. | `Build/delivery/evidence/phase2-release-build.json` |
 | P2-909 | User | Capture final screenshots/videos for defense/demo. | Blocked | P2-904/P2-905 | Evidence pack includes critical member/admin flows. | `Build/delivery/evidence/screenshots/` or video links |
-| P2-910 | Agent | Update README and delivery docs with final Phase 2 run/test/deploy instructions. | Not Started | Stable Phase 2 implementation | Docs match actual commands and evidence. | Updated docs |
+| P2-910 | Agent | Update README and delivery docs with final Phase 2 run/test/deploy instructions. | In Progress | Stable Phase 2 implementation | Docs match actual commands and evidence. | README and demo/UAT docs include current in-app demo and validation commands; final deploy/release instructions remain pending |
 | P2-911 | User | Update capstone report diagrams: use case, sequence, activity, class, ERD, relational mapping. | Not Started | Stable Phase 2 design | Academic document diagrams match implementation. | Updated report/docx or exported diagrams |
 | P2-912 | User | Update capstone prose: scope, limitations, requirements, security, testing, conclusion. | Not Started | Stable Phase 2 design | Written report no longer contradicts Phase 2 implementation. | Updated report/docx |
 | P2-913 | User | Obtain supervisor/instructor approval for final Phase 2 scope and defense wording. | Not Started | P2-911/P2-912 | Approval or feedback is recorded. | `Build/delivery/evidence/supervisor-approval.md` |
@@ -561,3 +561,14 @@ First repo-local Phase 2 demo package batch started on 2026-05-17:
 5. updated README and UAT checklist to point to the demo package
 6. ran `npm run qa:phase2-demo-readiness`, `npm run qa:phase2-default-restriction`, `npm run mobile:typecheck`, `npm run mobile:test`, `npm run mobile:lint`, and `git diff --check`
 7. left live OTP, deployed function verification, screenshots/video capture, emulator/physical UAT, and final defense report updates as user/Both delivery work
+
+Second repo-local Phase 2 in-app demo batch completed on 2026-05-17:
+
+1. added a splash-launched `DemoTourScreen` so a device can open a seeded member or admin showcase without live OTP
+2. added demo-mode service switching that preserves normal live Supabase login while routing demo sessions through the seeded mock backend
+3. added repeatable mock demo state reset plus seeded public formation and admin-review formation requests
+4. added a visible demo-mode banner on member/admin dashboards so screenshots and live walkthroughs do not imply real payment rails
+5. added `mobile/scripts/validate-phase2-in-app-demo.js`, `npm run qa:phase2-in-app-demo`, and `Build/delivery/evidence/phase2-in-app-demo-validation.json`
+6. updated README, UAT checklist, demo runbook, operator checklist, progress spec, and traceability matrix with the in-app demo path
+7. ran `npm run qa:phase2-in-app-demo`, `npm run qa:phase2-demo-readiness`, `npm run mobile:typecheck`, `npm run mobile:test`, `npm run mobile:lint`, and `git diff --check`
+8. still requires user/device validation, screenshots/video capture, and any release APK evidence before P2-904/P2-905/P2-909 can move out of Blocked

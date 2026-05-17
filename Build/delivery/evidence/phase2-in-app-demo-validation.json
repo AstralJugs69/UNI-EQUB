@@ -1,0 +1,34 @@
+{
+  "scenario": "phase2-in-app-demo-validation",
+  "validatedFiles": {
+    "routes": "mobile/src/navigation/routes.ts",
+    "navigator": "mobile/src/navigation/AppNavigator.tsx",
+    "splash": "mobile/src/screens/auth/SplashScreen.tsx",
+    "demoScreen": "mobile/src/screens/auth/DemoTourScreen.tsx",
+    "authProvider": "mobile/src/providers/AuthProvider.tsx",
+    "servicesProvider": "mobile/src/providers/ServicesProvider.tsx",
+    "banner": "mobile/src/components/DemoModeBanner.tsx",
+    "dashboard": "mobile/src/screens/member/DashboardScreen.tsx",
+    "adminDashboard": "mobile/src/screens/admin/AdminDashboardScreen.tsx",
+    "mockBackend": "mobile/src/services/mock/mockBackend.ts",
+    "mockTests": "mobile/src/services/mock/mockBackend.test.ts",
+    "packageJson": "package.json",
+    "demoRunbook": "Build/delivery/demo/phase2_completed_features_demo.md",
+    "operatorChecklist": "Build/delivery/demo/phase2_demo_operator_checklist.md"
+  },
+  "completedChecks": [
+    "splash screen exposes a phone-ready demo entry point",
+    "auth provider can start seeded member and admin demo sessions without persisted live tokens",
+    "services provider can switch between live Supabase services and mock demo services",
+    "mock backend reset restores repeatable final-draw, public formation, and admin formation queues",
+    "member and admin dashboards show a visible demo-mode banner",
+    "demo docs and root npm script reference the in-app showcase path"
+  ],
+  "requiresSupabaseCredentials": false,
+  "requiresDeviceValidation": true,
+  "limitations": [
+    "this validation is static/Jest-backed and does not replace screenshots or on-device UAT",
+    "demo mode intentionally uses seeded local mock data and simulated payment rails"
+  ],
+  "validatedAt": "2026-05-17T02:17:55.772Z"
+}

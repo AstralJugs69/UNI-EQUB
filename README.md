@@ -66,12 +66,15 @@ This repository is organized as an implementation workspace around the original 
 - `npm run qa:phase2-reliability-updates`
 - `npm run qa:phase2-default-restriction`
 - `npm run qa:phase2-demo-readiness`
+- `npm run qa:phase2-in-app-demo`
 - `node .\mobile\scripts\seed-final-draw.js --phone 09XXXXXXXX --name "Your Name"`
 
 ## Phase 2 demo
 - Demo runbook: [phase2_completed_features_demo.md](C:/dev/projects/UNI-EQUB/Build/delivery/demo/phase2_completed_features_demo.md)
 - Operator checklist: [phase2_demo_operator_checklist.md](C:/dev/projects/UNI-EQUB/Build/delivery/demo/phase2_demo_operator_checklist.md)
 - Readiness validation: `npm run qa:phase2-demo-readiness`
+- In-app demo validation: `npm run qa:phase2-in-app-demo`
+- Device path: run/install the app, tap **Try Demo Mode**, then launch the seeded member or admin showcase. This uses local mock data and leaves normal Supabase login untouched.
 
 ## Hosted USSD simulator
 - Edge Function endpoint: `supabase/functions/ussd-simulator/`

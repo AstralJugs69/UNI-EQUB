@@ -38,6 +38,30 @@ describe('MockBackend auth flow', () => {
 });
 
 describe('MockBackend automatic draw flow', () => {
+  it('seeds the in-app demo queues and restores them after reset', async () => {
+    const backend = new MockBackend();
+
+    const memberSession = await backend.auth.login({ phoneNumber: '0911000000', password: 'demo1234' }, 'Member');
+    expect(memberSession.user.userId).toBe('user-dawit');
+
+    const adminSession = await backend.auth.login({ phoneNumber: '0999000000', password: 'admin1234' }, 'Admin');
+    expect(adminSession.user.userId).toBe('user-admin');
+
+    const publicRequests = await backend.formation.listPublic('user-dawit');
+    expect(publicRequests.some(item => item.id === 'formation-demo-public')).toBe(true);
+
+    const pendingBeforeApproval = await backend.formation.listPendingApproval();
+    expect(pendingBeforeApproval.some(item => item.id === 'formation-demo-review')).toBe(true);
+
+    await backend.formation.adminApprove('formation-demo-review');
+    const pendingAfterApproval = await backend.formation.listPendingApproval();
+    expect(pendingAfterApproval.some(item => item.id === 'formation-demo-review')).toBe(false);
+
+    backend.reset();
+    const pendingAfterReset = await backend.formation.listPendingApproval();
+    expect(pendingAfterReset.some(item => item.id === 'formation-demo-review')).toBe(true);
+  });
+
   it('supports the Phase 2 formation service contract before UI migration', async () => {
     const backend = new MockBackend();
     const created = await backend.formation.createRequest('user-dawit', {

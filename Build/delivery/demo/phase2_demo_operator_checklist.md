@@ -4,7 +4,7 @@ Last Updated: 2026-05-17
 
 ## Pre-Demo Setup
 
-- Confirm whether the demo is live mobile, evidence-backed, or hybrid.
+- Confirm whether the demo is in-app demo mode, live mobile, evidence-backed, or hybrid.
 - Confirm the target Supabase project is linked.
 - Confirm current migrations have been pushed.
 - Confirm the newest Edge Functions are deployed if doing live backend paths:
@@ -24,12 +24,23 @@ Last Updated: 2026-05-17
 - Confirm an OTP-capable phone is available if demonstrating real auth.
 - Confirm the user understands payments/wallets are simulated.
 
+## In-App Demo Mode
+
+Use this path when the goal is to show the working app flows on a device without relying on OTP delivery or remote state.
+
+1. Start/install the debug app with `npm run android:dev`.
+2. On the splash screen, tap **Try Demo Mode**.
+3. Tap **Launch Member Demo** to show final contribution, mock/USSD payment, auto draw, wallet, history, notifications, and Explore.
+4. Log out, return to **Try Demo Mode**, and tap **Launch Admin Demo** to show KYC, legacy group approval, Phase 2 formation approval, reminders, and reports.
+5. Tell the audience this path uses seeded local mock data and simulated payment rails.
+
 ## Quick Validation Commands
 
 Run before presenting:
 
 ```powershell
 npm run qa:phase2-demo-readiness
+npm run qa:phase2-in-app-demo
 npm run mobile:typecheck
 npm run mobile:test
 npm run mobile:lint

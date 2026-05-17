@@ -6,6 +6,7 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 const requiredFiles = [
   'Build/delivery/demo/phase2_completed_features_demo.md',
   'Build/delivery/demo/phase2_demo_operator_checklist.md',
+  'mobile/scripts/validate-phase2-in-app-demo.js',
   'Build/delivery/phase2_development_progress_tracker.md',
   'Build/delivery/evidence/phase2-db-migration.json',
   'Build/delivery/evidence/phase2-foundation-validation.json',
@@ -38,6 +39,7 @@ const requiredDemoTokens = [
   'UniEqub is demonstrated as a capstone-safe Equb simulation platform',
   'Do not claim that real payment processing',
   'Live Demo Storyboard',
+  'In-App Demo Mode',
   'Evidence-Backed Demo',
   'Reliability And Restrictions',
   'Demo Close',
@@ -45,6 +47,7 @@ const requiredDemoTokens = [
 
 const requiredChecklistTokens = [
   'Pre-Demo Setup',
+  'Try Demo Mode',
   'Quick Validation Commands',
   'Live Final-Draw Shortcut',
   'Things To Avoid Saying',
@@ -99,6 +102,7 @@ function main() {
     },
     completedChecks: [
       'demo runbook exists with live and evidence-backed modes',
+      'in-app demo mode and validation script are documented',
       'operator checklist exists with setup, commands, accounts, and what-not-to-claim guardrails',
       'completed Phase 2 evidence files referenced by the demo are present',
       'seeded final-draw script and USSD harness are present for live/demo shortcuts',

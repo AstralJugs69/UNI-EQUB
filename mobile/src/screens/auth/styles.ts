@@ -79,6 +79,24 @@ export const authStyles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.xs,
   },
+  demoHeroEyebrow: {
+    color: palette.accentSoft,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  demoHeroTitle: {
+    color: palette.white,
+    fontSize: 25,
+    fontWeight: '800',
+    lineHeight: 31,
+  },
+  demoHeroBody: {
+    color: '#DDEBFF',
+    lineHeight: 21,
+  },
+  demoList: {
+    gap: spacing.xs,
+  },
   segmentedWrap: {
     gap: spacing.xs,
   },

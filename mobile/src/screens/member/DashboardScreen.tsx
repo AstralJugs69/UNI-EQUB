@@ -1,6 +1,7 @@
 ﻿import React from 'react';
 import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { DemoModeBanner } from '../../components/DemoModeBanner';
 import { AppScreen, EmptyState, HeroCard, ListRow, LoadingState, MetricTile, PrimaryCTA, SecondaryCTA, SectionCard, StatusBanner, TopAppBar } from '../../components/ui';
 import { useDashboardQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
@@ -24,6 +25,7 @@ export function DashboardScreen() {
   if (!group) {
     return (
       <AppScreen footer={<MemberNav active={routes.dashboard} />} footerFlush>
+        <DemoModeBanner />
         {session.user.kycStatus !== 'Verified' ? (
           <StatusBanner tone="warning" title="KYC review is still pending." body="Group creation and payout withdrawal stay locked until an admin approves your ID review." />
         ) : null}
@@ -59,6 +61,7 @@ export function DashboardScreen() {
 
   return (
     <AppScreen footer={<MemberNav active={routes.dashboard} />} footerFlush>
+      <DemoModeBanner />
       {session.user.kycStatus !== 'Verified' ? (
         <StatusBanner tone="warning" title="KYC review is still pending." body="You can view your cycle, but group creation and payout withdrawal remain restricted until approval." />
       ) : null}

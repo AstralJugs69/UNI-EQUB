@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { LoadingState } from '../components/ui';
 import { useAuth } from '../providers/AuthProvider';
 import { routes } from './routes';
-import { KycScreen, LoginScreen, OtpScreen, ResetPasswordScreen, SignupScreen, SplashScreen } from '../screens/auth';
+import { DemoTourScreen, KycScreen, LoginScreen, OtpScreen, ResetPasswordScreen, SignupScreen, SplashScreen } from '../screens/auth';
 import {
   CreateGroupBasicsScreen,
   CreateGroupRulesScreen,
@@ -35,6 +35,7 @@ function AuthStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={routes.splash}>
       <Stack.Screen name={routes.splash} component={SplashScreen} />
+      <Stack.Screen name={routes.demoTour} component={DemoTourScreen} />
       <Stack.Screen name={routes.login} component={LoginScreen} />
       <Stack.Screen name={routes.signup} component={SignupScreen} />
       <Stack.Screen name={routes.otp} component={OtpScreen} />

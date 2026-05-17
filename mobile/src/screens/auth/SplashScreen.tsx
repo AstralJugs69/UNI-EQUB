@@ -35,6 +35,7 @@ export function SplashScreen() {
           </Text>
         </SectionCard>
         <View style={authStyles.heroActions}>
+          <PrimaryCTA label="Try Demo Mode" onPress={() => navigation.navigate(routes.demoTour)} />
           <PrimaryCTA label="Get Started" onPress={() => navigation.navigate(routes.login)} />
           <SecondaryCTA label="Admin Sign In" onPress={() => navigation.navigate(routes.login, { roleHint: 'Admin' })} />
         </View>

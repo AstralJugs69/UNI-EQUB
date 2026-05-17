@@ -53,10 +53,21 @@ Last Updated: 2026-05-17
 ## Phase 2 UAT planning note
 Phase 2 UAT scenarios, user-only validation tasks, required evidence files, and final delivery gates are tracked in `Build/delivery/phase2_development_progress_tracker.md`.
 
+## Phase 2 in-app demo smoke pass
+- Launch the app and tap **Try Demo Mode** on the splash screen.
+- Launch Member Demo and confirm the dashboard shows the demo banner.
+- Pay the current round through direct mock payment or the USSD simulator.
+- Confirm payment success, wallet, history, and notification state update.
+- Log out, return to **Try Demo Mode**, and launch Admin Demo.
+- Confirm admin dashboard shows the demo banner.
+- Open group review and confirm the seeded Phase 2 formation request is available for approval.
+- Open reports and confirm export actions remain accessible.
+
 For a demo of completed Phase 2 features, use:
 
 - `Build/delivery/demo/phase2_completed_features_demo.md`
 - `Build/delivery/demo/phase2_demo_operator_checklist.md`
 - `npm run qa:phase2-demo-readiness`
+- `npm run qa:phase2-in-app-demo`
 
 The checklist above remains valid for the original MVP baseline. The Phase 2 demo runbook narrows the presentation to implemented features and explicitly calls out unfinished notification/audit, freeze/poll/refund, release, screenshot, and UAT evidence work.

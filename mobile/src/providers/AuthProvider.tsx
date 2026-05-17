@@ -3,8 +3,9 @@ import { AppState } from 'react-native';
 import type { AppStateStatus } from 'react-native';
 import type { AuthSession, SessionUser } from '../types/domain';
 import type { KycSubmissionInput } from '../services/contracts';
+import { mockBackend } from '../services/mock/mockBackend';
 import { clearSessionToken, loadLastActiveAt, loadSessionToken, saveLastActiveAt, saveSessionToken } from '../services/storage';
-import { useServices } from './ServicesProvider';
+import { useDemoMode, useServices } from './ServicesProvider';
 
 const INACTIVITY_LIMIT_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -24,6 +25,7 @@ interface AuthContextValue {
   requestOtp: (phoneNumber: string) => Promise<void>;
   verifyOtp: (phoneNumber: string, otp: string) => Promise<void>;
   submitPendingKyc: (input: KycSubmissionInput) => Promise<void>;
+  startDemo: (role: 'Member' | 'Admin') => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -31,6 +33,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const services = useServices();
+  const { disableDemoMode, enableDemoMode } = useDemoMode();
   const [authReady, setAuthReady] = useState(false);
   const [session, setSession] = useState<AuthSession | null>(null);
   const [pendingUser, setPendingUser] = useState<SessionUser | null>(null);
@@ -137,15 +140,32 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setPendingKycToken(null);
       setPendingLogin(null);
     },
+    startDemo: async role => {
+      await clearSessionToken();
+      mockBackend.reset();
+      enableDemoMode();
+      const nextSession = await mockBackend.auth.login(
+        role === 'Admin'
+          ? { phoneNumber: '0999000000', password: 'admin1234' }
+          : { phoneNumber: '0911000000', password: 'demo1234' },
+        role,
+      );
+      setSession(nextSession);
+      setPendingUser(null);
+      setPendingKycToken(null);
+      setPendingLogin(null);
+      setAuthReady(true);
+    },
     logout: async () => {
       await services.auth.logout();
       await clearSessionToken();
+      disableDemoMode();
       setSession(null);
       setPendingUser(null);
       setPendingKycToken(null);
       setPendingLogin(null);
     },
-  }), [authReady, pendingKycToken, pendingLogin, pendingUser, services, session]);
+  }), [authReady, disableDemoMode, enableDemoMode, pendingKycToken, pendingLogin, pendingUser, services, session]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

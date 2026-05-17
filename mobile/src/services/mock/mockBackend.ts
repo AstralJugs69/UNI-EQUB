@@ -87,7 +87,15 @@ export class MockBackend implements AppServices {
   private db: DatabaseState;
 
   constructor() {
-    this.db = {
+    this.db = this.createInitialState();
+  }
+
+  reset() {
+    this.db = this.createInitialState();
+  }
+
+  private createInitialState(): DatabaseState {
+    return {
       users: clone(seedUsers),
       groups: clone(seedGroups),
       memberships: clone(seedMemberships),
@@ -101,10 +109,128 @@ export class MockBackend implements AppServices {
       reminderQueue: ['Dorm A Savings Group • 1 unpaid member • automatic reminder queued', 'AAU Coders Circle • 2 unpaid members • automatic reminder queued'],
       providerLogs: [],
       rejectedGroupIds: [],
-      groupRequests: [],
-      groupJoinRequests: [],
+      groupRequests: this.createDemoGroupRequests(),
+      groupJoinRequests: this.createDemoJoinRequests(),
       groupInvitations: [],
     };
+  }
+
+  private createDemoGroupRequests(): GroupRequestRecord[] {
+    return [
+      {
+        id: 'formation-demo-review',
+        creator_id: 'user-dawit',
+        submitted_by: 'user-dawit',
+        proposed_group_name: 'Campus Demo Formation',
+        description: 'Prepared Phase 2 request for admin approval during the phone demo.',
+        contribution_amount: 700,
+        frequency: 'Weekly',
+        min_members: 3,
+        max_members: 6,
+        visibility: 'Public',
+        invite_mode: 'PublicRequest',
+        status: 'PendingApproval',
+        risk_level: 'Low',
+        terms_version: 'phase2-v1',
+        agreement_required: true,
+        vesting_enabled: true,
+        vesting_disabled_by_creator: false,
+        risk_warning_accepted_at: null,
+        expires_at: plusMinutes(60 * 24 * 3),
+        submitted_at: nowIso(),
+        reviewed_by: null,
+        reviewed_at: null,
+        approval_decision_note: null,
+        rejection_reason: null,
+        approved_group_id: null,
+        created_group_at: null,
+        created_at: nowIso(),
+        updated_at: nowIso(),
+      },
+      {
+        id: 'formation-demo-public',
+        creator_id: 'user-ruth',
+        submitted_by: null,
+        proposed_group_name: 'Laptop Repair Rotation',
+        description: 'Public forming request for members to inspect and request to join.',
+        contribution_amount: 450,
+        frequency: 'Monthly',
+        min_members: 3,
+        max_members: 7,
+        visibility: 'Public',
+        invite_mode: 'PublicRequest',
+        status: 'Forming',
+        risk_level: 'Low',
+        terms_version: 'phase2-v1',
+        agreement_required: true,
+        vesting_enabled: true,
+        vesting_disabled_by_creator: false,
+        risk_warning_accepted_at: null,
+        expires_at: plusMinutes(60 * 24 * 5),
+        submitted_at: null,
+        reviewed_by: null,
+        reviewed_at: null,
+        approval_decision_note: null,
+        rejection_reason: null,
+        approved_group_id: null,
+        created_group_at: null,
+        created_at: nowIso(),
+        updated_at: nowIso(),
+      },
+    ];
+  }
+
+  private createDemoJoinRequests(): GroupJoinRequestRecord[] {
+    return [
+      {
+        id: 'formation-demo-review-creator',
+        group_request_id: 'formation-demo-review',
+        user_id: 'user-dawit',
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: 'user-dawit',
+        decision_reason: 'Creator automatically added to the forming group.',
+      },
+      {
+        id: 'formation-demo-review-miki',
+        group_request_id: 'formation-demo-review',
+        user_id: 'user-miki',
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: 'user-dawit',
+        decision_reason: 'Accepted participant for demo approval readiness.',
+      },
+      {
+        id: 'formation-demo-review-ruth',
+        group_request_id: 'formation-demo-review',
+        user_id: 'user-ruth',
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: 'user-dawit',
+        decision_reason: 'Accepted participant for demo approval readiness.',
+      },
+      {
+        id: 'formation-demo-public-creator',
+        group_request_id: 'formation-demo-public',
+        user_id: 'user-ruth',
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: 'user-ruth',
+        decision_reason: 'Creator automatically added to the forming group.',
+      },
+    ];
   }
 
   auth = {
