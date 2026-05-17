@@ -120,6 +120,33 @@ describe('MockBackend automatic draw flow', () => {
     expect(response.detail.invitations.some(item => item.id === response.invitation.id)).toBe(true);
   });
 
+  it('allows private invite codes to be shared and redeemed by code', async () => {
+    const backend = new MockBackend();
+    const created = await backend.formation.createRequest('user-dawit', {
+      groupName: 'Shareable Invite Circle',
+      amount: 600,
+      frequency: 'Monthly',
+      minMembers: 2,
+      maxMembers: 4,
+      visibility: 'Private',
+      inviteMode: 'InviteCodeAndDirect',
+      termsVersion: 'phase2-v1',
+    });
+
+    const response = await backend.formation.invite('user-dawit', {
+      requestId: created.groupRequest.id,
+      invitedPhoneOrStudentId: '0911000099',
+    });
+
+    const accepted = await backend.formation.acceptInvite('user-miki', {
+      inviteCode: response.invitation.invite_code ?? undefined,
+      groupTermsAccepted: true,
+      acceptedTermsVersion: 'phase2-v1',
+    });
+
+    expect(accepted.joinRequests.some(item => item.user_id === 'user-miki' && item.status === 'Accepted')).toBe(true);
+  });
+
   it('exposes pending Phase 2 formation requests for admin approval', async () => {
     const backend = new MockBackend();
     const created = await backend.formation.createRequest('user-dawit', {

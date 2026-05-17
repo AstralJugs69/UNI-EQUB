@@ -225,7 +225,7 @@ async function createFormationRequest(actor: UserRecord, createRequest: CreateGr
 }
 
 async function listPublicFormationRequests(actor: UserRecord) {
-  await assertNormalFormationEligibility(actor);
+  assertVerifiedMember(actor);
   const now = new Date().toISOString();
   const { data, error } = await supabaseAdmin
     .from('group_requests')
@@ -804,7 +804,9 @@ function assertInvitationMatchesActor(invitation: GroupInvitationRecord, actor: 
   if (invitation.invited_user_id && invitation.invited_user_id !== actor.User_ID) {
     throw new Error('This invitation belongs to another user.');
   }
-  if (invitation.invited_phone_or_student_id) {
+  const requestedInviteCode = body.inviteCode ? cleanText(body.inviteCode).toUpperCase() : null;
+  const redeemingByCode = Boolean(requestedInviteCode && invitation.invite_code && requestedInviteCode === invitation.invite_code);
+  if (invitation.invited_phone_or_student_id && !redeemingByCode) {
     const actorPhone = normalizeInviteTarget(actor.Phone_Number);
     const target = normalizeInviteTarget(invitation.invited_phone_or_student_id);
     if (actorPhone !== target) {

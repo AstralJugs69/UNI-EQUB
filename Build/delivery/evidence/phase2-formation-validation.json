@@ -25,16 +25,16 @@
     "all planned Phase 2 formation actions are routed",
     "createRequest inserts a Forming group_requests row with config-driven min/max/expiry validation",
     "createRequest inserts the creator as an Accepted formation participant",
-    "listPublic returns only Public Forming requests that are not expired with accepted participant counts",
+    "listPublic returns only Public Forming requests that are not expired with accepted participant counts without applying join eligibility gates",
     "listPendingApproval returns the admin review queue for submitted formation requests",
     "getRequest returns formation detail with participants, creator/admin invitations, accepted count, and remaining slots",
     "requestJoin requires current terms acceptance and creates or reuses a Requested join row",
     "creator can accept requested participants and reject/remove participants with audit events",
-    "creator can create invitations and invited members can accept them into accepted participation",
+    "creator can create direct invitations and shareable invite-code invitations that members can accept into accepted participation",
     "creator can submit forming request for admin approval after accepted participants meet configured minimum",
     "admin can approve into canonical EqubGroup, GroupMembers, initial Round, obligations, notifications, and audit or reject in group_requests",
     "Supabase function config registers group-formation with internal token verification pattern"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-17T04:38:02.310Z"
+  "validatedAt": "2026-05-17T05:11:17.173Z"
 }

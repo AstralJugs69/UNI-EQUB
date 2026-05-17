@@ -318,7 +318,7 @@ Second repo-local Phase 3 group-formation batch completed on 2026-05-13:
 Third repo-local Phase 3 group-formation batch completed on 2026-05-13:
 
 1. implemented the `listPublic` branch in `supabase/functions/group-formation/index.ts`
-2. kept member verification and reliability eligibility checks before listing public forming requests
+2. kept member verification before listing public forming requests, with join/reliability eligibility left to join and invite-accept commands
 3. filtered discovery to `visibility = 'Public'`, `status = 'Forming'`, and non-expired requests only
 4. added accepted participant counts and remaining slot values for read-friendly mobile consumption
 5. refreshed `Build/delivery/evidence/phase2-formation-validation.json` with static evidence for public discovery
@@ -343,7 +343,7 @@ Sixth repo-local Phase 3 group-formation batch completed on 2026-05-13:
 
 1. implemented the `invite` and `acceptInvite` branches in `supabase/functions/group-formation/index.ts`
 2. allowed creators to create invite-code and direct invitations for invite-enabled forming requests
-3. required pending, non-expired invitation state and actor/user or phone target matching before invite acceptance
+3. required pending, non-expired invitation state; direct user invitations remain user-bound, while valid invite-code redemption is shareable and does not require phone/student target matching
 4. required current group terms acceptance before an invited member is added as an `Accepted` formation participant
 5. wrote audit events for invitation creation and acceptance and refreshed `Build/delivery/evidence/phase2-formation-validation.json`
 
