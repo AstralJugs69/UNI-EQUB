@@ -405,6 +405,13 @@ Phase 3 creator group-creation demo polish batch completed on 2026-05-17:
 6. refreshed `phase2-formation`, `phase2-mobile-formation`, and `phase2-creator-formation-ui` validation evidence and ran typecheck, Jest, lint, and diff checks
 7. emulator/physical UAT evidence for the group-creation flow remains blocked under P2-316 until the user captures device evidence
 
+Phase 3 creator invitation share polish batch completed on 2026-05-17:
+
+1. added a native share action for pending invite codes in `mobile/src/screens/member/FormationCreatorScreen.tsx`
+2. reduced obvious creator-management helper copy while preserving status, participant, and approval signals
+3. seeded the in-app demo with a creator-owned private formation request and `UNI-DEMO` shareable invite code so demo mode mirrors the live creator path more closely
+4. refreshed `Build/delivery/evidence/phase2-creator-formation-ui-validation.json` and kept device screenshot/UAT evidence blocked under P2-316/P2-909
+
 Thirteenth repo-local Phase 3 admin UI batch completed on 2026-05-16:
 
 1. added admin-only `listPendingApproval` support to the `group-formation` Edge Function and mobile formation service
@@ -582,3 +589,10 @@ Second repo-local Phase 2 in-app demo batch completed on 2026-05-17:
 6. updated README, UAT checklist, demo runbook, operator checklist, progress spec, and traceability matrix with the in-app demo path
 7. ran `npm run qa:phase2-in-app-demo`, `npm run qa:phase2-demo-readiness`, `npm run mobile:typecheck`, `npm run mobile:test`, `npm run mobile:lint`, and `git diff --check`
 8. still requires user/device validation, screenshots/video capture, and any release APK evidence before P2-904/P2-905/P2-909 can move out of Blocked
+
+Third repo-local Phase 2 in-app demo polish batch completed on 2026-05-17:
+
+1. updated demo copy to emphasize that seeded mode uses the same app screens and service contracts as live mode
+2. seeded private creator formation, a pending participant request, and a shareable invite code for the member demo account
+3. refreshed `Build/delivery/evidence/phase2-in-app-demo-validation.json` and `Build/delivery/evidence/phase2-demo-readiness-validation.json`
+4. still requires physical/emulator walkthrough evidence before user-only demo validation tasks can move out of Blocked

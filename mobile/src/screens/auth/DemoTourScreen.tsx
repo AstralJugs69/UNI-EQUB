@@ -28,28 +28,28 @@ export function DemoTourScreen() {
     <AppScreen>
       <TopAppBar title="Demo Tour" subtitle="Phone-ready showcase" onBack={() => navigation.goBack()} />
       <HeroCard>
-        <Text style={authStyles.demoHeroEyebrow}>Seeded sandbox</Text>
-        <Text style={authStyles.demoHeroTitle}>Show the completed flows directly in the app.</Text>
+        <Text style={authStyles.demoHeroEyebrow}>Same screens, seeded data</Text>
+        <Text style={authStyles.demoHeroTitle}>Open the app exactly where the live flow would go.</Text>
         <Text style={authStyles.demoHeroBody}>
-          Launch a prepared member or admin session with local demo data, simulated payments, final draw behavior, and Phase 2 formation queues.
+          Member and admin demos use the normal navigation, service contracts, and mock-safe payment paths.
         </Text>
       </HeroCard>
       {error ? <StatusBanner tone="danger" title="Demo launch failed" body={error} /> : null}
       <SectionCard>
-        <TitleBlock title="Member showcase" subtitle="Starts as Dawit with a savings cycle ready for the final contribution." />
+        <TitleBlock title="Member demo" subtitle="Dawit with active groups, final contribution, and creator formation data." />
         <View style={authStyles.demoList}>
           <ListRow title="Pay the current round" subtitle="Use direct mock payment or the USSD simulator to finish the open round." leadingIcon="payments" />
-          <ListRow title="See payout readiness" subtitle="Wallet, history, notifications, and success screens update from the same mock state." leadingIcon="account-balance-wallet" />
-          <ListRow title="Browse Phase 2 formation" subtitle="Public forming requests and creator setup screens remain available from Explore." leadingIcon="groups" />
+          <ListRow title="Manage formation" subtitle="Create, invite, share invite code, accept members, and submit for approval." leadingIcon="groups" />
+          <ListRow title="See payout readiness" subtitle="Wallet, history, notifications, and success screens update from mock state." leadingIcon="account-balance-wallet" />
         </View>
         <PrimaryCTA label="Launch Member Demo" onPress={() => launch('Member')} loading={launching === 'Member'} disabled={launching !== null} />
       </SectionCard>
       <SectionCard>
-        <TitleBlock title="Admin showcase" subtitle="Starts as Saba Admin with pending KYC, legacy group review, and Phase 2 approval data." />
+        <TitleBlock title="Admin demo" subtitle="Saba Admin with pending KYC, legacy group review, and Phase 2 approval data." />
         <View style={authStyles.demoList}>
           <ListRow title="Review approvals" subtitle="Admin Groups includes the preserved MVP queue and Phase 2 group_requests queue." leadingIcon="fact-check" />
-          <ListRow title="Check operations" subtitle="Dashboard metrics, reminder logs, report export, freeze, and KYC actions are ready to tap through." leadingIcon="admin-panel-settings" />
-          <ListRow title="Keep claims clean" subtitle="Provider and payout behavior remains mock/sandbox for the capstone demo." leadingIcon="verified-user" />
+          <ListRow title="Check operations" subtitle="Dashboard metrics, reminder logs, report export, freeze, and KYC actions are ready." leadingIcon="admin-panel-settings" />
+          <ListRow title="Mock-safe" subtitle="Provider and payout behavior remains sandboxed for the capstone." leadingIcon="verified-user" />
         </View>
         <SecondaryCTA label="Launch Admin Demo" onPress={() => launch('Admin')} loading={launching === 'Admin'} disabled={launching !== null} />
       </SectionCard>

@@ -69,6 +69,20 @@ export const memberStyles = StyleSheet.create({
   actionGroup: {
     gap: spacing.xs,
   },
+  inviteActions: {
+    alignItems: 'flex-end',
+    gap: spacing.xs,
+  },
+  iconAction: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.pill,
+    backgroundColor: palette.surfaceSoft,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
   listGroup: {
     gap: spacing.xs,
   },

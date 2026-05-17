@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Share, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { InlineError, InputField, ListRow, LoadingState, MetricTile, Pill, PrimaryCTA, ScreenScroll, SecondaryCTA, SectionCard, StatusBanner, TopAppBar, TitleBlock } from '../../components/ui';
+import { Icon } from '../../components/Icon';
 import { useFormationGroupQuery, useMemberActions } from '../../hooks/useAppQueries';
+import { iconSize, palette } from '../../theme/tokens';
 import { formatCurrency } from './shared';
 import { memberStyles } from './styles';
 
@@ -73,10 +75,22 @@ export function FormationCreatorScreen({ route }: any) {
     }
   }
 
+  async function handleShareInvite(inviteCode: string) {
+    try {
+      setError('');
+      await Share.share({
+        title: 'UniEqub invite code',
+        message: `Join ${request.proposed_group_name} on UniEqub with invite code ${inviteCode}.`,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to share invite code.');
+    }
+  }
+
   return (
     <ScreenScroll>
-      <TopAppBar title="Manage Request" subtitle="Creator setup" onBack={() => navigation.goBack()} />
-      <TitleBlock title={request.proposed_group_name} subtitle={request.description ?? 'Review participants before admin submission.'} />
+      <TopAppBar title="Manage Request" onBack={() => navigation.goBack()} />
+      <TitleBlock title={request.proposed_group_name} subtitle={request.description ?? undefined} />
       <View style={memberStyles.rowWrap}>
         <Pill label={request.status} tone={request.status === 'Forming' ? 'good' : request.status === 'PendingApproval' ? 'warn' : 'neutral'} />
         <Pill label={request.visibility} tone="active" />
@@ -87,16 +101,16 @@ export function FormationCreatorScreen({ route }: any) {
         <MetricTile label="Accepted" value={`${data.accepted_participant_count}/${request.min_members}`} helper={`${data.remaining_slots} slots left`} tone={canSubmit ? 'good' : 'neutral'} />
       </View>
       {request.status === 'PendingApproval' ? (
-        <StatusBanner tone="success" title="Submitted for admin approval" body="An admin can now review the request and create the canonical Equb group." />
+        <StatusBanner tone="success" title="Submitted for admin approval" />
       ) : null}
       {request.status === 'Approved' ? (
-        <StatusBanner tone="success" title="Approved" body="Admin approval created the canonical Equb group. It is now available as an active cycle." />
+        <StatusBanner tone="success" title="Approved" />
       ) : null}
       {request.status === 'Rejected' ? (
         <StatusBanner tone="danger" title="Request was not approved" body={request.rejection_reason ?? 'Review the reason and create a revised request when ready.'} />
       ) : null}
       {request.status === 'Forming' && acceptedRemaining > 0 ? (
-        <StatusBanner tone="info" title={`${acceptedRemaining} more accepted member${acceptedRemaining === 1 ? '' : 's'} needed`} body="Invite participants or accept public join requests before submitting this group for admin approval." />
+        <StatusBanner tone="info" title={`${acceptedRemaining} more accepted member${acceptedRemaining === 1 ? '' : 's'} needed`} />
       ) : null}
       {canInvite ? (
         <SectionCard>
@@ -128,9 +142,24 @@ export function FormationCreatorScreen({ route }: any) {
             {data.invitations.map(invitation => (
               <ListRow
                 key={invitation.id}
-                title={invitation.invited_phone_or_student_id ?? invitation.invite_code ?? 'Invitation'}
-                subtitle={invitation.invite_code ? `Code ${invitation.invite_code}` : 'Direct invitation'}
-                right={<Pill label={invitation.status} tone={invitation.status === 'Accepted' ? 'good' : invitation.status === 'Pending' ? 'warn' : 'neutral'} />}
+                title={invitation.invite_code ?? invitation.invited_phone_or_student_id ?? 'Invitation'}
+                subtitle={invitation.invite_code && invitation.invited_phone_or_student_id ? invitation.invited_phone_or_student_id : undefined}
+                right={(
+                  <View style={memberStyles.inviteActions}>
+                    <Pill label={invitation.status} tone={invitation.status === 'Accepted' ? 'good' : invitation.status === 'Pending' ? 'warn' : 'neutral'} />
+                    {invitation.invite_code ? (
+                      <Pressable
+                        onPress={() => handleShareInvite(invitation.invite_code!)}
+                        android_ripple={{ color: '#dce6f3', borderless: true }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Share invite code ${invitation.invite_code}`}
+                        style={memberStyles.iconAction}
+                      >
+                        <Icon name="share" size={iconSize.sm} color={palette.primaryDark} />
+                      </Pressable>
+                    ) : null}
+                  </View>
+                )}
                 leadingIcon="mail"
               />
             ))}

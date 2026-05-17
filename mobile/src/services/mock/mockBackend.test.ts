@@ -49,6 +49,10 @@ describe('MockBackend automatic draw flow', () => {
 
     const publicRequests = await backend.formation.listPublic('user-dawit');
     expect(publicRequests.some(item => item.id === 'formation-demo-public')).toBe(true);
+    const creatorRequests = await backend.formation.listMine('user-dawit');
+    expect(creatorRequests.some(item => item.id === 'formation-demo-private')).toBe(true);
+    const privateFormation = await backend.formation.getRequest('user-dawit', 'formation-demo-private');
+    expect(privateFormation.invitations.some(item => item.invite_code === 'UNI-DEMO')).toBe(true);
 
     const pendingBeforeApproval = await backend.formation.listPendingApproval();
     expect(pendingBeforeApproval.some(item => item.id === 'formation-demo-review')).toBe(true);

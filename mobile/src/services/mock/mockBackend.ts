@@ -111,7 +111,7 @@ export class MockBackend implements AppServices {
       rejectedGroupIds: [],
       groupRequests: this.createDemoGroupRequests(),
       groupJoinRequests: this.createDemoJoinRequests(),
-      groupInvitations: [],
+      groupInvitations: this.createDemoGroupInvitations(),
     };
   }
 
@@ -177,6 +177,36 @@ export class MockBackend implements AppServices {
         created_at: nowIso(),
         updated_at: nowIso(),
       },
+      {
+        id: 'formation-demo-private',
+        creator_id: 'user-dawit',
+        submitted_by: null,
+        proposed_group_name: 'Dorm Coffee Circle',
+        description: 'Private creator-owned request with a shareable invite code.',
+        contribution_amount: 350,
+        frequency: 'Weekly',
+        min_members: 3,
+        max_members: 5,
+        visibility: 'Private',
+        invite_mode: 'InviteCodeAndDirect',
+        status: 'Forming',
+        risk_level: 'Low',
+        terms_version: 'phase2-v1',
+        agreement_required: true,
+        vesting_enabled: true,
+        vesting_disabled_by_creator: false,
+        risk_warning_accepted_at: null,
+        expires_at: plusMinutes(60 * 24 * 4),
+        submitted_at: null,
+        reviewed_by: null,
+        reviewed_at: null,
+        approval_decision_note: null,
+        rejection_reason: null,
+        approved_group_id: null,
+        created_group_at: null,
+        created_at: nowIso(),
+        updated_at: nowIso(),
+      },
     ];
   }
 
@@ -229,6 +259,48 @@ export class MockBackend implements AppServices {
         removed_at: null,
         decision_by: 'user-ruth',
         decision_reason: 'Creator automatically added to the forming group.',
+      },
+      {
+        id: 'formation-demo-private-creator',
+        group_request_id: 'formation-demo-private',
+        user_id: 'user-dawit',
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: 'user-dawit',
+        decision_reason: 'Creator automatically added to the forming group.',
+      },
+      {
+        id: 'formation-demo-private-miki',
+        group_request_id: 'formation-demo-private',
+        user_id: 'user-miki',
+        status: 'Requested',
+        requested_at: nowIso(),
+        accepted_at: null,
+        rejected_at: null,
+        removed_at: null,
+        decision_by: null,
+        decision_reason: 'Accepted group terms phase2-v1',
+      },
+    ];
+  }
+
+  private createDemoGroupInvitations(): GroupInvitationRecord[] {
+    return [
+      {
+        id: 'formation-demo-private-invite',
+        group_request_id: 'formation-demo-private',
+        invited_user_id: null,
+        invited_phone_or_student_id: '0911999999',
+        invite_code: 'UNI-DEMO',
+        status: 'Pending',
+        expires_at: plusMinutes(60 * 24 * 4),
+        created_by: 'user-dawit',
+        accepted_at: null,
+        declined_at: null,
+        created_at: nowIso(),
       },
     ];
   }

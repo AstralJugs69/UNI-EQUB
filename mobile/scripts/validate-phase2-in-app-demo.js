@@ -70,7 +70,7 @@ function main() {
     'await startDemo(role)',
     "launch('Member')",
     "launch('Admin')",
-    'Seeded sandbox',
+    'Same screens, seeded data',
   ].forEach(token => assertIncludes(content.demoScreen, token, 'demo tour screen'));
 
   [
@@ -90,8 +90,8 @@ function main() {
   ].forEach(token => assertIncludes(content.servicesProvider, token, 'service demo mode switch'));
 
   [
-    'Demo mode is running.',
-    'seeded local data',
+    'Demo mode',
+    'Seeded data, same screens.',
   ].forEach(token => assertIncludes(content.banner, token, 'demo banner copy'));
 
   assertIncludes(content.dashboard, 'DemoModeBanner', 'member demo banner');
@@ -101,13 +101,17 @@ function main() {
     'reset()',
     'formation-demo-review',
     'formation-demo-public',
+    'formation-demo-private',
+    'UNI-DEMO',
     'Campus Demo Formation',
     'Laptop Repair Rotation',
+    'Dorm Coffee Circle',
   ].forEach(token => assertIncludes(content.mockBackend, token, 'seeded mock demo state'));
 
   [
     'seeds the in-app demo queues',
     'formation-demo-review',
+    'formation-demo-private',
     'backend.reset()',
   ].forEach(token => assertIncludes(content.mockTests, token, 'Jest demo regression'));
 
@@ -122,7 +126,7 @@ function main() {
       'splash screen exposes a phone-ready demo entry point',
       'auth provider can start seeded member and admin demo sessions without persisted live tokens',
       'services provider can switch between live Supabase services and mock demo services',
-      'mock backend reset restores repeatable final-draw, public formation, and admin formation queues',
+      'mock backend reset restores repeatable final-draw, public/private formation, invite-code, and admin formation queues',
       'member and admin dashboards show a visible demo-mode banner',
       'demo docs and root npm script reference the in-app showcase path',
     ],

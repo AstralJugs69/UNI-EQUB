@@ -82,12 +82,15 @@ function main() {
   [
     'FormationCreatorScreen',
     'inviteFormation.mutateAsync',
+    'Share.share',
+    'handleShareInvite',
     'acceptFormationJoin.mutateAsync',
     'removeFormationParticipant.mutateAsync',
     'submitFormationForApproval.mutateAsync',
     'pendingRequests.map',
     'Accepted participants',
     'Invitations',
+    'accessibilityLabel={`Share invite code ${invitation.invite_code}`}',
     'more accepted member',
     'Waiting For Admin',
   ].forEach(token => assertIncludes(creator, token, 'creator management screen token'));

@@ -12,8 +12,8 @@ export function DemoModeBanner() {
   return (
     <StatusBanner
       tone="info"
-      title="Demo mode is running."
-      body="This phone is using seeded local data and mock payment rails so the completed member and admin flows can be shown safely."
+      title="Demo mode"
+      body="Seeded data, same screens."
     />
   );
 }
