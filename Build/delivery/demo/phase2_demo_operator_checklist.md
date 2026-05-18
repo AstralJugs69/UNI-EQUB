@@ -22,7 +22,7 @@ Last Updated: 2026-05-18
   - `UNIEQUB_SUPABASE_URL`
   - `UNIEQUB_SUPABASE_ANON_KEY`
 - Confirm whether you are installing the standalone signed APK or using the Metro development flow.
-- Confirm an OTP-capable phone is available if demonstrating real auth.
+- Confirm an OTP-capable phone is available if demonstrating registration/KYC phone verification.
 - Confirm the user understands payments/wallets are simulated.
 
 ## In-App Demo Mode
@@ -31,7 +31,7 @@ Use this path when the goal is to show the working app flows on a device without
 
 1. Install `mobile/android/app/build/outputs/apk/release/app-release.apk` for a standalone demo, or start/install the debug app with `npm run android:dev` for development.
 2. On the splash screen, tap **Try Demo Mode**.
-3. Tap **Launch Member Demo** to show final contribution, mock/USSD payment, auto draw, wallet, history, notifications, Explore, and member-side group creation.
+3. Tap **Launch Member Demo** to show final contribution, mock/USSD payment, auto draw, wallet, history, notifications, Explore, Join With Code using `FORM-2026`, and member-side group creation.
 4. Log out, return to **Try Demo Mode**, and tap **Launch Admin Demo** to show KYC, legacy group approval, Phase 2 formation approval, reminders, and reports.
 5. Tell the audience this path uses seeded local mock data and simulated payment rails.
 
@@ -42,6 +42,7 @@ Run before presenting:
 ```powershell
 npm run qa:phase2-demo-readiness
 npm run qa:phase2-in-app-demo
+npm run qa:direct-login
 npm run mobile:typecheck
 npm run mobile:test
 npm run mobile:lint
@@ -73,8 +74,8 @@ Record locally before the demo. Do not commit private credentials.
 | Segment | Target time | Live action | Fallback evidence |
 | --- | ---: | --- | --- |
 | Scope/safety | 1 min | README/tracker | `phase2-foundation-validation.json` |
-| Auth/KYC | 2 min | Login/KYC/admin approve | `kyc-upload-validation.json` |
-| Formation | 4 min | Create/join/submit/admin approve | `phase2-formation-validation.json` |
+| Auth/KYC | 2 min | Direct login/KYC/admin approve | `direct-login-validation.json`, `kyc-upload-validation.json` |
+| Formation | 4 min | Join with code/create/join/submit/admin approve | `phase2-formation-validation.json` |
 | Obligations/payment | 4 min | Pay current obligation | payment-attempt evidence files |
 | Draw/payout/reserve | 4 min | Seed final draw or show wallet | payout evidence files |
 | Reliability/default | 3 min | Run/show default maintenance | `phase2-default-restriction-validation.json` |

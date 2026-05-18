@@ -131,6 +131,16 @@ export class MockBackend implements AppServices {
   private createDemoAdminUsers(): UserRecord[] {
     return [
       {
+        User_ID: 'user-noah',
+        Full_Name: 'Noah Girma',
+        Phone_Number: '0911000007',
+        Password_Hash: 'hash:noah1234',
+        Student_ID_Img: 'storage://students/noah-id.png',
+        KYC_Status: 'Verified',
+        Role: 'Member',
+        Created_At: nowIso(),
+      },
+      {
         User_ID: 'user-hana',
         Full_Name: 'Hana Bekele',
         Phone_Number: '0911000005',
@@ -147,6 +157,16 @@ export class MockBackend implements AppServices {
         Password_Hash: 'hash:yared1234',
         Student_ID_Img: 'storage://students/yared-id.png',
         KYC_Status: 'Unverified',
+        Role: 'Member',
+        Created_At: nowIso(),
+      },
+      {
+        User_ID: 'user-banned',
+        Full_Name: 'Banned Member',
+        Phone_Number: '0911000008',
+        Password_Hash: 'hash:banned1234',
+        Student_ID_Img: 'storage://students/banned-id.png',
+        KYC_Status: 'Banned',
         Role: 'Member',
         Created_At: nowIso(),
       },
@@ -181,7 +201,7 @@ export class MockBackend implements AppServices {
         description: 'Prepared Phase 2 request for admin approval during the phone demo.',
         contribution_amount: 700,
         frequency: 'Weekly',
-        min_members: 3,
+        min_members: 5,
         max_members: 6,
         visibility: 'Public',
         invite_mode: 'PublicRequest',
@@ -211,7 +231,7 @@ export class MockBackend implements AppServices {
         description: 'Public daily request queued for admin approval.',
         contribution_amount: 250,
         frequency: 'Daily',
-        min_members: 3,
+        min_members: 5,
         max_members: 5,
         visibility: 'Public',
         invite_mode: 'PublicRequest',
@@ -241,7 +261,7 @@ export class MockBackend implements AppServices {
         description: 'Public forming request for members to inspect and request to join.',
         contribution_amount: 450,
         frequency: 'Monthly',
-        min_members: 3,
+        min_members: 5,
         max_members: 7,
         visibility: 'Public',
         invite_mode: 'PublicRequest',
@@ -271,7 +291,7 @@ export class MockBackend implements AppServices {
         description: 'Private daily draw request with a shareable invite code.',
         contribution_amount: 350,
         frequency: 'Daily',
-        min_members: 3,
+        min_members: 5,
         max_members: 5,
         visibility: 'Private',
         invite_mode: 'InviteCodeAndDirect',
@@ -335,6 +355,30 @@ export class MockBackend implements AppServices {
         decision_reason: 'Accepted participant for demo approval readiness.',
       },
       {
+        id: 'formation-demo-review-saba',
+        group_request_id: 'formation-demo-review',
+        user_id: 'user-saba',
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: 'user-dawit',
+        decision_reason: 'Accepted participant for demo approval readiness.',
+      },
+      {
+        id: 'formation-demo-review-noah',
+        group_request_id: 'formation-demo-review',
+        user_id: 'user-noah',
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: 'user-dawit',
+        decision_reason: 'Accepted participant for demo approval readiness.',
+      },
+      {
         id: 'formation-demo-public-creator',
         group_request_id: 'formation-demo-public',
         user_id: 'user-ruth',
@@ -383,6 +427,30 @@ export class MockBackend implements AppServices {
         decision_reason: 'Accepted participant for admin review demo.',
       },
       {
+        id: 'formation-demo-public-review-2-ruth',
+        group_request_id: 'formation-demo-public-review-2',
+        user_id: 'user-ruth',
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: 'user-saba',
+        decision_reason: 'Accepted participant for admin review demo.',
+      },
+      {
+        id: 'formation-demo-public-review-2-noah',
+        group_request_id: 'formation-demo-public-review-2',
+        user_id: 'user-noah',
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: 'user-saba',
+        decision_reason: 'Accepted participant for admin review demo.',
+      },
+      {
         id: 'formation-demo-private-creator',
         group_request_id: 'formation-demo-private',
         user_id: 'user-dawit',
@@ -398,6 +466,18 @@ export class MockBackend implements AppServices {
         id: 'formation-demo-private-miki',
         group_request_id: 'formation-demo-private',
         user_id: 'user-miki',
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: 'user-dawit',
+        decision_reason: 'Accepted invite code for private demo readiness.',
+      },
+      {
+        id: 'formation-demo-private-hana',
+        group_request_id: 'formation-demo-private',
+        user_id: 'user-hana',
         status: 'Requested',
         requested_at: nowIso(),
         accepted_at: null,
@@ -406,11 +486,60 @@ export class MockBackend implements AppServices {
         decision_by: null,
         decision_reason: 'Accepted group terms phase2-v1',
       },
+      {
+        id: 'formation-demo-private-ruth',
+        group_request_id: 'formation-demo-private',
+        user_id: 'user-ruth',
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: 'user-dawit',
+        decision_reason: 'Accepted invite code for private demo readiness.',
+      },
+      {
+        id: 'formation-demo-private-saba',
+        group_request_id: 'formation-demo-private',
+        user_id: 'user-saba',
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: 'user-dawit',
+        decision_reason: 'Accepted invite code for private demo readiness.',
+      },
+      {
+        id: 'formation-demo-private-noah',
+        group_request_id: 'formation-demo-private',
+        user_id: 'user-noah',
+        status: 'Accepted',
+        requested_at: nowIso(),
+        accepted_at: nowIso(),
+        rejected_at: null,
+        removed_at: null,
+        decision_by: 'user-dawit',
+        decision_reason: 'Accepted invite code for private demo readiness.',
+      },
     ];
   }
 
   private createDemoGroupInvitations(): GroupInvitationRecord[] {
     return [
+      {
+        id: 'formation-demo-public-invite',
+        group_request_id: 'formation-demo-public',
+        invited_user_id: null,
+        invited_phone_or_student_id: null,
+        invite_code: 'FORM-2026',
+        status: 'Pending',
+        expires_at: plusMinutes(60 * 24 * 5),
+        created_by: 'user-ruth',
+        accepted_at: null,
+        declined_at: null,
+        created_at: nowIso(),
+      },
       {
         id: 'formation-demo-private-invite',
         group_request_id: 'formation-demo-private',
@@ -496,23 +625,18 @@ export class MockBackend implements AppServices {
       if (user.KYC_Status === 'Banned') {
         throw new Error('This account has been banned and cannot log in.');
       }
-      const challengeToken = `login-challenge-${user.User_ID}-${Date.now()}`;
-      this.db.sessions[challengeToken] = { userId: user.User_ID, expiresAt: plusMinutes(10) };
-      await this.auth.requestOtp(user.Phone_Number);
-      return { challengeToken, phoneNumber: user.Phone_Number };
+      const token = `session-${user.User_ID}-${Date.now()}`;
+      this.db.sessions[token] = { userId: user.User_ID, expiresAt: plusMinutes(60 * 24 * 7) };
+      return { challengeToken: token, phoneNumber: user.Phone_Number };
     },
 
-    completeLogin: async (challengeToken: string, otp: string): Promise<AuthSession> => {
+    completeLogin: async (challengeToken: string, _otp: string): Promise<AuthSession> => {
       const challenge = this.db.sessions[challengeToken];
       if (!challenge || challenge.expiresAt < nowIso()) {
         throw new Error('Login challenge expired. Start login again.');
       }
       const user = this.requireUser(challenge.userId);
-      await this.auth.verifyOtp(user.Phone_Number, otp);
-      delete this.db.sessions[challengeToken];
-      const token = `session-${user.User_ID}-${Date.now()}`;
-      this.db.sessions[token] = { userId: user.User_ID, expiresAt: plusMinutes(60 * 24 * 7) };
-      return { token, user: this.toSessionUser(user) };
+      return { token: challengeToken, user: this.toSessionUser(user) };
     },
 
     login: async (input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<AuthSession> => {
@@ -843,9 +967,39 @@ export class MockBackend implements AppServices {
       return this.toFormationDetail(this.requireFormationRequest(requestId));
     },
 
+    lookupInviteCode: async (userId: string, inviteCode: string): Promise<GroupFormationDetail> => {
+      const user = this.requireUser(userId);
+      this.assertVerifiedMember(user);
+      const normalizedCode = inviteCode.trim().toUpperCase();
+      const invitation = this.db.groupInvitations.find(item => item.invite_code?.toUpperCase() === normalizedCode && item.status === 'Pending');
+      if (!invitation) {
+        throw new Error('Invitation was not found.');
+      }
+      const request = this.requireFormationRequest(invitation.group_request_id);
+      if (request.status !== 'Forming') {
+        throw new Error('This group request is not accepting invitations.');
+      }
+      if (request.expires_at && request.expires_at <= nowIso()) {
+        throw new Error('This group request has expired.');
+      }
+      return {
+        ...this.toFormationDetail(request),
+        joinRequests: this.db.groupJoinRequests
+          .filter(item => item.group_request_id === request.id && item.user_id === userId)
+          .map(clone),
+      };
+    },
+
     createRequest: async (userId: string, input: CreateGroupFormationInput): Promise<GroupFormationDetail> => {
       const user = this.requireUser(userId);
       this.assertVerifiedMember(user);
+      const minMembers = input.minMembers ?? 5;
+      if (!Number.isInteger(minMembers) || minMembers < 5) {
+        throw new Error('Minimum members must be at least 5.');
+      }
+      if (!Number.isInteger(input.maxMembers) || input.maxMembers < minMembers) {
+        throw new Error('Maximum members must be greater than or equal to minimum members.');
+      }
       const request: GroupRequestRecord = {
         id: makeId('formation'),
         creator_id: user.User_ID,
@@ -854,7 +1008,7 @@ export class MockBackend implements AppServices {
         description: input.description ?? null,
         contribution_amount: input.amount,
         frequency: input.frequency,
-        min_members: input.minMembers ?? 5,
+        min_members: minMembers,
         max_members: input.maxMembers,
         visibility: input.visibility,
         invite_mode: input.inviteMode ?? (input.visibility === 'Public' ? 'PublicRequest' : 'InviteCodeAndDirect'),
@@ -955,12 +1109,19 @@ export class MockBackend implements AppServices {
       if (request.creator_id !== userId) {
         throw new Error('Only the group request creator can create invitations.');
       }
+      if (request.status !== 'Forming') {
+        throw new Error('Only forming group requests can create invitations.');
+      }
+      const target = input.targetUserId || input.invitedPhoneOrStudentId?.trim();
+      if (request.invite_mode === 'PublicRequest' && target) {
+        throw new Error('Public forming groups only support shareable invite codes.');
+      }
       const invitation: GroupInvitationRecord = {
         id: makeId('invite'),
         group_request_id: request.id,
         invited_user_id: input.targetUserId ?? null,
-        invited_phone_or_student_id: input.invitedPhoneOrStudentId ?? null,
-        invite_code: input.inviteCode ?? makeId('code').toUpperCase(),
+        invited_phone_or_student_id: input.invitedPhoneOrStudentId?.trim() || null,
+        invite_code: input.inviteCode?.trim().toUpperCase() ?? makeId('code').toUpperCase(),
         status: 'Pending',
         expires_at: request.expires_at,
         created_by: userId,
@@ -973,28 +1134,67 @@ export class MockBackend implements AppServices {
     },
 
     acceptInvite: async (userId: string, input: FormationTermsAcceptance & { invitationId?: string; inviteCode?: string }): Promise<GroupFormationDetail> => {
-      const invitation = this.db.groupInvitations.find(item => (input.invitationId && item.id === input.invitationId) || (input.inviteCode && item.invite_code === input.inviteCode));
+      const user = this.requireUser(userId);
+      this.assertVerifiedMember(user);
+      const normalizedCode = input.inviteCode?.trim().toUpperCase();
+      const invitation = this.db.groupInvitations.find(item => (input.invitationId && item.id === input.invitationId) || (normalizedCode && item.invite_code?.toUpperCase() === normalizedCode));
       if (!invitation) {
         throw new Error('Invitation was not found.');
       }
       const request = this.requireFormationRequest(invitation.group_request_id);
+      if (request.status !== 'Forming') {
+        throw new Error('This group request is not accepting invitations.');
+      }
+      if (request.expires_at && request.expires_at <= nowIso()) {
+        throw new Error('This group request has expired.');
+      }
       if (!input.groupTermsAccepted || input.acceptedTermsVersion !== request.terms_version) {
         throw new Error('The current group terms must be accepted before accepting an invite.');
       }
-      invitation.status = 'Accepted';
-      invitation.accepted_at = nowIso();
-      this.db.groupJoinRequests.unshift({
-        id: makeId('join'),
-        group_request_id: request.id,
-        user_id: userId,
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: invitation.created_by,
-        decision_reason: `Accepted invite ${invitation.id} with group terms ${request.terms_version}`,
-      });
+      const reusableInviteCode = Boolean(input.inviteCode && invitation.invite_code && !invitation.invited_user_id && !invitation.invited_phone_or_student_id);
+      if (!reusableInviteCode && invitation.status !== 'Pending') {
+        throw new Error('Invitation is no longer pending.');
+      }
+      if (invitation.invited_user_id && invitation.invited_user_id !== userId) {
+        throw new Error('This invitation belongs to a different member.');
+      }
+      if (invitation.invited_phone_or_student_id && invitation.invited_phone_or_student_id !== user.Phone_Number && invitation.invited_phone_or_student_id !== user.User_ID) {
+        throw new Error('This invitation belongs to a different member.');
+      }
+
+      let joinRequest = this.db.groupJoinRequests.find(item => item.group_request_id === request.id && item.user_id === userId);
+      if (joinRequest?.status === 'Accepted') {
+        return this.toFormationDetail(request);
+      }
+      if (this.acceptedFormationCount(request.id) >= request.max_members) {
+        throw new Error('This group request is already full.');
+      }
+      if (!reusableInviteCode) {
+        invitation.status = 'Accepted';
+        invitation.accepted_at = nowIso();
+      }
+      if (!joinRequest) {
+        joinRequest = {
+          id: makeId('join'),
+          group_request_id: request.id,
+          user_id: userId,
+          status: 'Accepted',
+          requested_at: nowIso(),
+          accepted_at: nowIso(),
+          rejected_at: null,
+          removed_at: null,
+          decision_by: invitation.created_by,
+          decision_reason: `Accepted invite ${invitation.id} with group terms ${request.terms_version}`,
+        };
+        this.db.groupJoinRequests.unshift(joinRequest);
+      } else {
+        joinRequest.status = 'Accepted';
+        joinRequest.accepted_at = nowIso();
+        joinRequest.rejected_at = null;
+        joinRequest.removed_at = null;
+        joinRequest.decision_by = invitation.created_by;
+        joinRequest.decision_reason = `Accepted invite ${invitation.id} with group terms ${request.terms_version}`;
+      }
       return this.toFormationDetail(request);
     },
 

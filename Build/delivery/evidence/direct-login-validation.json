@@ -1,0 +1,20 @@
+{
+  "scenario": "direct-login-validation",
+  "validatedFiles": {
+    "edge": "supabase/functions/register-login/index.ts",
+    "loginScreen": "mobile/src/screens/auth/LoginScreen.tsx",
+    "otpScreen": "mobile/src/screens/auth/OtpScreen.tsx",
+    "authProvider": "mobile/src/providers/AuthProvider.tsx",
+    "mockBackend": "mobile/src/services/mock/mockBackend.ts",
+    "mockTests": "mobile/src/services/mock/mockBackend.test.ts"
+  },
+  "completedChecks": [
+    "register-login action login returns a signed session after phone/password/role validation",
+    "member and admin login screens call direct auth login without navigating to OTP",
+    "OTP screen remains available for registration/KYC phone verification",
+    "mock backend tests cover direct login failures and signup OTP success"
+  ],
+  "requiresSupabaseCredentials": false,
+  "requiresDeviceValidation": true,
+  "validatedAt": "2026-05-18T06:26:53.830Z"
+}

@@ -36,17 +36,21 @@ export const liveAuthService: AuthService = {
   },
 
   async beginLogin(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<LoginChallenge> {
-    return invoke<LoginChallenge>({ action: 'beginLogin', beginLogin: { ...input, roleHint } });
+    const session = await invoke<AuthSession>({ action: 'beginLogin', beginLogin: { ...input, roleHint } });
+    mockBackend.syncExternalUser(session.user);
+    return { challengeToken: session.token, phoneNumber: session.user.phoneNumber };
   },
 
-  async completeLogin(challengeToken: string, otp: string): Promise<AuthSession> {
-    const session = await invoke<AuthSession>({ action: 'completeLogin', completeLogin: { challengeToken, otp } });
+  async completeLogin(challengeToken: string, _otp: string): Promise<AuthSession> {
+    const session = await invoke<AuthSession>({ action: 'restore', restore: { token: challengeToken } });
     mockBackend.syncExternalUser(session.user);
     return session;
   },
 
-  async login(_input: LoginInput, _roleHint?: 'Member' | 'Admin'): Promise<AuthSession> {
-    throw new Error('Direct login is disabled. Use the OTP login flow.');
+  async login(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<AuthSession> {
+    const session = await invoke<AuthSession>({ action: 'login', login: { ...input, roleHint } });
+    mockBackend.syncExternalUser(session.user);
+    return session;
   },
 
   async restore(token: string): Promise<AuthSession | null> {

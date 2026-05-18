@@ -20,6 +20,7 @@ const routedActions: GroupFormationAction[] = [
   'listMine',
   'listPendingApproval',
   'getRequest',
+  'lookupInviteCode',
   'createRequest',
   'requestJoin',
   'acceptJoin',
@@ -442,6 +443,52 @@ async function getFormationRequestDetail(actor: UserRecord, body: GroupFormation
   });
 }
 
+async function lookupFormationInviteCode(actor: UserRecord, body: GroupFormationPayload) {
+  if (!body.inviteCode) {
+    throw new Error('Missing invite code.');
+  }
+  const invitation = await loadPendingInvitation(body);
+  const { data, error } = await supabaseAdmin
+    .from('group_requests')
+    .select('*')
+    .eq('id', invitation.group_request_id)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const groupRequest = data as GroupRequestRecord;
+  if (groupRequest.status !== 'Forming') {
+    throw new Error('This group request is not accepting invitations.');
+  }
+  if (groupRequest.expires_at && new Date(groupRequest.expires_at).getTime() <= Date.now()) {
+    throw new Error('This group request has expired.');
+  }
+
+  const { data: joinRows, error: joinError } = await supabaseAdmin
+    .from('group_join_requests')
+    .select('*')
+    .eq('group_request_id', groupRequest.id)
+    .order('requested_at', { ascending: true });
+
+  if (joinError) {
+    throw joinError;
+  }
+
+  const joinRequests = (joinRows ?? []) as GroupJoinRequestRecord[];
+  const acceptedCount = joinRequests.filter(item => item.status === 'Accepted').length;
+  const currentUserJoin = joinRequests.filter(item => item.user_id === actor.User_ID);
+  return json({
+    groupRequest,
+    joinRequests: currentUserJoin,
+    invitations: [invitation],
+    accepted_participant_count: acceptedCount,
+    remaining_slots: Math.max(groupRequest.max_members - acceptedCount, 0),
+    invite_code_preview: true,
+  });
+}
+
 async function countAcceptedParticipants(groupRequestId: string) {
   const { data, error } = await supabaseAdmin
     .from('group_join_requests')
@@ -731,9 +778,6 @@ async function loadCreatorManagedGroupRequest(actor: UserRecord, requestId: stri
   if (request.expires_at && new Date(request.expires_at).getTime() <= Date.now()) {
     throw new Error('This group request has expired.');
   }
-  if (request.invite_mode === 'PublicRequest') {
-    throw new Error('This group request does not allow invite-based joining.');
-  }
 
   return request;
 }
@@ -741,6 +785,9 @@ async function loadCreatorManagedGroupRequest(actor: UserRecord, requestId: stri
 async function createFormationInvitation(actor: UserRecord, body: GroupFormationPayload) {
   const request = await loadCreatorManagedGroupRequest(actor, body.requestId);
   const invitedTarget = cleanText(body.invitedPhoneOrStudentId) || null;
+  if (request.invite_mode === 'PublicRequest' && (body.targetUserId || invitedTarget)) {
+    throw new Error('Public forming groups only support shareable invite codes.');
+  }
   const shouldCreateInviteCode = request.invite_mode === 'InviteCode' || request.invite_mode === 'InviteCodeAndDirect' || (!body.targetUserId && !invitedTarget);
   const inviteCode = body.inviteCode ? cleanText(body.inviteCode).toUpperCase() : (shouldCreateInviteCode ? createInviteCode() : null);
 
@@ -819,9 +866,7 @@ function assertInvitationMatchesActor(invitation: GroupInvitationRecord, actor: 
   if (invitation.invited_user_id && invitation.invited_user_id !== actor.User_ID) {
     throw new Error('This invitation belongs to another user.');
   }
-  const requestedInviteCode = body.inviteCode ? cleanText(body.inviteCode).toUpperCase() : null;
-  const redeemingByCode = Boolean(requestedInviteCode && invitation.invite_code && requestedInviteCode === invitation.invite_code);
-  if (invitation.invited_phone_or_student_id && !redeemingByCode) {
+  if (invitation.invited_phone_or_student_id) {
     const actorPhone = normalizeInviteTarget(actor.Phone_Number);
     const target = normalizeInviteTarget(invitation.invited_phone_or_student_id);
     if (actorPhone !== target) {
@@ -875,6 +920,7 @@ async function acceptFormationInvitation(actor: UserRecord, body: GroupFormation
   }
 
   const now = new Date().toISOString();
+  const reusableInviteCode = Boolean(body.inviteCode && invitation.invite_code && !invitation.invited_user_id && !invitation.invited_phone_or_student_id);
   const participantPayload = {
     status: 'Accepted',
     requested_at: existing?.requested_at ?? now,
@@ -898,18 +944,22 @@ async function acceptFormationInvitation(actor: UserRecord, body: GroupFormation
     throw joinError;
   }
 
-  const { data: updatedInvitation, error: invitationError } = await supabaseAdmin
-    .from('group_invitations')
-    .update({
-      status: 'Accepted',
-      accepted_at: now,
-    })
-    .eq('id', invitation.id)
-    .select('*')
-    .single();
+  let updatedInvitation = invitation;
+  if (!reusableInviteCode) {
+    const { data: acceptedInvitation, error: invitationError } = await supabaseAdmin
+      .from('group_invitations')
+      .update({
+        status: 'Accepted',
+        accepted_at: now,
+      })
+      .eq('id', invitation.id)
+      .select('*')
+      .single();
 
-  if (invitationError) {
-    throw invitationError;
+    if (invitationError) {
+      throw invitationError;
+    }
+    updatedInvitation = acceptedInvitation as GroupInvitationRecord;
   }
 
   await writeAuditEvent({
@@ -921,6 +971,7 @@ async function acceptFormationInvitation(actor: UserRecord, body: GroupFormation
       group_request_id: request.id,
       join_request_id: (joinRequest as GroupJoinRequestRecord).id,
       previous_join_status: existing?.status ?? null,
+      reusable_invite_code: reusableInviteCode,
     },
   });
 
@@ -1408,6 +1459,10 @@ Deno.serve(async request => {
           assertVerifiedMember(actor);
         }
         return getFormationRequestDetail(actor, body);
+
+      case 'lookupInviteCode':
+        await assertNormalFormationEligibility(actor);
+        return lookupFormationInviteCode(actor, body);
 
       case 'acceptInvite':
         await assertNormalFormationEligibility(actor);

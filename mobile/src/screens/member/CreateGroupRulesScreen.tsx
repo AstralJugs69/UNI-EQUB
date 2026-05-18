@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { InlineError, InputField, Pill, PrimaryCTA, ScreenScroll, SectionCard, SegmentedTabs, StatusBanner, TopAppBar, TitleBlock } from '../../components/ui';
+import { InlineError, InputField, PrimaryCTA, ScreenScroll, SectionCard, SegmentedTabs, StatusBanner, TopAppBar, TitleBlock } from '../../components/ui';
 import { routes } from '../../navigation/routes';
 import { useMemberActions } from '../../hooks/useAppQueries';
-import { memberStyles } from './styles';
 
 export function CreateGroupRulesScreen({ route }: any) {
   const navigation = useNavigation<any>();
@@ -86,13 +85,10 @@ export function CreateGroupRulesScreen({ route }: any) {
         ) : null}
       </SectionCard>
       <SectionCard variant="soft">
-        <TitleBlock title="Built-in automation" subtitle={visibility === 'Private' ? 'Private groups start as soon as the creator has enough accepted members.' : 'Public groups go through admin approval before they start.'} />
-        <View style={memberStyles.rowWrap}>
-          <Pill label="Creator review" tone="active" />
-          {visibility === 'Public' ? <Pill label="Admin approval" tone="active" /> : <Pill label="Invite-only start" tone="active" />}
-          <Pill label={visibility === 'Private' ? 'Canonical group on start' : 'Canonical group on approval'} tone="neutral" />
-          <Pill label="Simulated payout reserve" tone="neutral" />
-        </View>
+        <TitleBlock
+          title="Start rule"
+          subtitle={visibility === 'Private' ? 'Private groups start after 5 accepted members.' : 'Public groups can be submitted after 5 accepted members.'}
+        />
       </SectionCard>
       {parsedMinMembers > maxMembers ? (
         <InlineError message="Minimum members cannot be greater than max members." />

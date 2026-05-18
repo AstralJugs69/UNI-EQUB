@@ -20,7 +20,7 @@ export function CreateGroupBasicsScreen() {
   return (
     <ScreenScroll>
       <TopAppBar title="Create New Equb" subtitle="Step 1 of 2" onBack={() => navigation.goBack()} />
-      <TitleBlock title="Set the basics" subtitle="This starts a Phase 2 formation request. Public groups go to admin review; private invite groups can start after enough accepted members join." />
+      <TitleBlock title="Set the basics" subtitle="Public groups go to admin review; private invite groups can start after enough accepted members join." />
       <SectionCard>
         <InputField label="Group Name" value={groupName} onChangeText={setGroupName} leadingIcon="groups" />
         <InputField label="Contribution Amount (ETB)" value={amount} onChangeText={setAmount} keyboardType="number-pad" leadingIcon="payments" />
@@ -44,7 +44,7 @@ export function CreateGroupBasicsScreen() {
         <MetricTile label="Estimated Pot" value={formatCurrency(estimatedPot)} helper={`${parsedMembers || 0} members`} tone="active" />
       </View>
       {parsedMembers > 0 && parsedMembers < 5 ? (
-        <Text style={memberStyles.mutedText}>Use at least 5 members for the current Phase 2 policy default.</Text>
+        <Text style={memberStyles.mutedText}>Use at least 5 members for the current policy default.</Text>
       ) : null}
       <PrimaryCTA
         label="Continue To Rules"

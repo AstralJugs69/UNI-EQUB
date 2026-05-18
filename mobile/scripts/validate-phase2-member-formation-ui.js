@@ -7,6 +7,7 @@ const navigatorPath = path.join(repoRoot, 'mobile/src/navigation/AppNavigator.ts
 const hooksPath = path.join(repoRoot, 'mobile/src/hooks/useAppQueries.ts');
 const explorePath = path.join(repoRoot, 'mobile/src/screens/member/ExploreScreen.tsx');
 const detailPath = path.join(repoRoot, 'mobile/src/screens/member/FormationDetailScreen.tsx');
+const joinCodePath = path.join(repoRoot, 'mobile/src/screens/member/FormationJoinCodeScreen.tsx');
 const indexPath = path.join(repoRoot, 'mobile/src/screens/member/index.ts');
 const stylesPath = path.join(repoRoot, 'mobile/src/screens/member/styles.ts');
 
@@ -42,16 +43,20 @@ function main() {
   const hooks = read(hooksPath);
   const explore = read(explorePath);
   const detail = read(detailPath);
+  const joinCode = read(joinCodePath);
   const index = read(indexPath);
   const styles = read(stylesPath);
 
   [
     "formationDetail: 'FormationDetail'",
+    "formationJoinCode: 'FormationJoinCode'",
   ].forEach(token => assertIncludes(routes, token, 'formation route token'));
 
   [
     'FormationDetailScreen',
+    'FormationJoinCodeScreen',
     'routes.formationDetail',
+    'routes.formationJoinCode',
   ].forEach(token => assertIncludes(navigator, token, 'navigator formation route token'));
 
   [
@@ -60,12 +65,17 @@ function main() {
     'useFormationGroupsQuery',
     'useFormationGroupQuery',
     'requestJoinFormation',
+    'lookupFormationInviteCode',
+    'acceptFormationInviteCode',
     'services.formation.requestJoin',
+    'services.formation.lookupInviteCode',
+    'services.formation.acceptInvite',
   ].forEach(token => assertIncludes(hooks, token, 'formation query hook token'));
 
   [
     'useFormationGroupsQuery',
     'Forming groups',
+    'Join With Code',
     'formingGroups.map',
     'request.proposed_group_name',
     'request.accepted_participant_count',
@@ -82,7 +92,17 @@ function main() {
     'data.joinRequests.map',
   ].forEach(token => assertIncludes(detail, token, 'member formation detail token'));
 
+  [
+    'FormationJoinCodeScreen',
+    'lookupFormationInviteCode',
+    'acceptFormationInviteCode',
+    'Preview Group',
+    'Accept Terms And Join',
+    'You are accepted',
+  ].forEach(token => assertIncludes(joinCode, token, 'member join-with-code token'));
+
   assertIncludes(index, "export { FormationDetailScreen }", 'member screen export');
+  assertIncludes(index, "export { FormationJoinCodeScreen }", 'member join-code screen export');
   assertIncludes(styles, 'rowBetween', 'member formation UI row style');
   assertIncludes(styles, 'itemBlock', 'member formation UI item style');
 
@@ -94,12 +114,15 @@ function main() {
       hooks: 'mobile/src/hooks/useAppQueries.ts',
       explore: 'mobile/src/screens/member/ExploreScreen.tsx',
       detail: 'mobile/src/screens/member/FormationDetailScreen.tsx',
+      joinCode: 'mobile/src/screens/member/FormationJoinCodeScreen.tsx',
       index: 'mobile/src/screens/member/index.ts',
       styles: 'mobile/src/screens/member/styles.ts',
     },
     completedChecks: [
       'member navigation exposes a Phase 2 formation detail route',
       'Explore screen lists public forming group requests separately from approved Equb groups',
+      'Explore screen exposes join-with-code as a member formation path',
+      'join-with-code screen previews invite codes and accepts current terms',
       'formation detail screen shows terms, participant progress, accepted count, and remaining slots',
       'member join request mutation accepts current terms through the formation service contract',
       'private vesting override self-service remains paused until user-approved warning copy exists',

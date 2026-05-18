@@ -29,7 +29,7 @@ export function DashboardScreen() {
         {session.user.kycStatus !== 'Verified' ? (
           <StatusBanner tone="warning" title="KYC review is still pending." body="Group creation and payout withdrawal stay locked until an admin approves your ID review." />
         ) : null}
-        <TopAppBar title={firstName} subtitle="Welcome to UniEqub" rightLabel="New member" />
+        <TopAppBar title={firstName} subtitle="Welcome to UniEqub" />
         <HeroCard>
           <Text style={memberStyles.heroValue}>Start your first cycle</Text>
           <Text style={memberStyles.heroBody}>Browse open groups or submit your own request when you are ready to begin saving.</Text>
@@ -65,7 +65,7 @@ export function DashboardScreen() {
       {session.user.kycStatus !== 'Verified' ? (
         <StatusBanner tone="warning" title="KYC review is still pending." body="You can view your cycle, but group creation and payout withdrawal remain restricted until approval." />
       ) : null}
-      <TopAppBar title={firstName} subtitle="Member dashboard" rightLabel="Live" />
+      <TopAppBar title={firstName} subtitle="Member dashboard" />
       <HeroCard>
         <Text style={memberStyles.heroValue}>{formatCurrency(group.Amount)}</Text>
         <Text style={memberStyles.heroBody}>{group.Group_Name} is at {data.paidCount}/{data.totalMembers} paid. Your contribution is the fastest way to push the round forward.</Text>

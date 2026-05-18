@@ -8,7 +8,7 @@ import { authStyles } from './styles';
 
 export function LoginScreen({ route }: { route?: { params?: { roleHint?: 'Admin' } } }) {
   const navigation = useNavigation<any>();
-  const { beginLogin } = useAuth();
+  const { login } = useAuth();
   const [role, setRole] = useState<'Member' | 'Admin'>(route?.params?.roleHint === 'Admin' ? 'Admin' : 'Member');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
@@ -19,8 +19,7 @@ export function LoginScreen({ route }: { route?: { params?: { roleHint?: 'Admin'
     try {
       setError('');
       setSubmitting(true);
-      await beginLogin(phoneNumber, password, role);
-      navigation.navigate(routes.otp, { mode: 'login' });
+      await login(phoneNumber, password, role);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
@@ -32,7 +31,7 @@ export function LoginScreen({ route }: { route?: { params?: { roleHint?: 'Admin'
     <ScreenScroll contentStyle={authStyles.centeredContent}>
       <TitleBlock
         title={role === 'Admin' ? 'Platform Admin' : 'Welcome Back'}
-        subtitle={role === 'Admin' ? 'Approve groups, review KYC, and monitor the automated cycle flow.' : 'Sign in with your phone number and complete OTP verification to continue.'}
+        subtitle={role === 'Admin' ? 'Approve groups, review KYC, and monitor the automated cycle flow.' : 'Sign in with your phone number and password.'}
       />
       <View style={authStyles.segmentedWrap}>
         <SegmentedTabs
@@ -55,12 +54,12 @@ export function LoginScreen({ route }: { route?: { params?: { roleHint?: 'Admin'
       </View>
       <StatusBanner
         tone="info"
-        title={role === 'Admin' ? 'Admin sign-ins also require OTP.' : 'Every login requires a fresh OTP.'}
+        title="Session stays on this device."
         body="Saved sessions that stay inactive for 7 days are signed out automatically."
       />
       <InlineError message={error} />
       <View style={authStyles.footerActions}>
-        <PrimaryCTA label={role === 'Admin' ? 'Send Admin OTP' : 'Send Login OTP'} onPress={handleLogin} loading={submitting} disabled={!phoneNumber || !password} />
+        <PrimaryCTA label="Sign In" onPress={handleLogin} loading={submitting} disabled={!phoneNumber || !password} />
         {role === 'Member' ? <SecondaryCTA label="Create New Account" onPress={() => navigation.navigate(routes.signup)} disabled={submitting} /> : null}
       </View>
     </ScreenScroll>

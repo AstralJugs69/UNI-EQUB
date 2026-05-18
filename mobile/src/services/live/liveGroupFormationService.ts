@@ -128,6 +128,11 @@ export const liveGroupFormationService: GroupFormationService = {
     return toDetail(response);
   },
 
+  async lookupInviteCode(_userId: string, inviteCode: string): Promise<GroupFormationDetail> {
+    const response = await invoke<FormationDetailEnvelope>({ action: 'lookupInviteCode', inviteCode: inviteCode.trim().toUpperCase() });
+    return toDetail(response);
+  },
+
   async createRequest(_userId: string, input: CreateGroupFormationInput): Promise<GroupFormationDetail> {
     const response = await invoke<FormationDetailEnvelope>({
       action: 'createRequest',
@@ -178,7 +183,7 @@ export const liveGroupFormationService: GroupFormationService = {
     const response = await invoke<FormationDetailEnvelope>({
       action: 'acceptInvite',
       invitationId: input.invitationId,
-      inviteCode: input.inviteCode,
+      inviteCode: input.inviteCode?.trim().toUpperCase(),
       groupTermsAccepted: input.groupTermsAccepted,
       acceptedTermsVersion: input.acceptedTermsVersion,
     });

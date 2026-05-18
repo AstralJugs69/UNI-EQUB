@@ -118,6 +118,7 @@ export interface GroupFormationService {
   listMine(userId: string): Promise<GroupFormationRequestSummary[]>;
   listPendingApproval(): Promise<GroupFormationRequestSummary[]>;
   getRequest(userId: string, requestId: string): Promise<GroupFormationDetail>;
+  lookupInviteCode(userId: string, inviteCode: string): Promise<GroupFormationDetail>;
   createRequest(userId: string, input: CreateGroupFormationInput): Promise<GroupFormationDetail>;
   requestJoin(userId: string, requestId: string, terms: FormationTermsAcceptance): Promise<GroupFormationDetail>;
   acceptJoin(userId: string, joinRequestId: string, decisionReason?: string): Promise<GroupFormationDetail>;

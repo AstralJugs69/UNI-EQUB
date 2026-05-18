@@ -229,6 +229,28 @@ export function useMemberActions() {
         ]);
       },
     }),
+    lookupFormationInviteCode: useMutation({
+      mutationFn: (inviteCode: string) =>
+        services.formation.lookupInviteCode(session!.user.userId, inviteCode),
+      onSuccess: async detail => {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.formationGroup(detail.groupRequest.id) });
+      },
+    }),
+    acceptFormationInviteCode: useMutation({
+      mutationFn: ({ inviteCode, acceptedTermsVersion }: { inviteCode: string; acceptedTermsVersion: string }) =>
+        services.formation.acceptInvite(session!.user.userId, {
+          inviteCode,
+          groupTermsAccepted: true,
+          acceptedTermsVersion,
+        }),
+      onSuccess: async detail => {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.myFormationGroups }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.formationGroup(detail.groupRequest.id) }),
+        ]);
+      },
+    }),
     inviteFormation: useMutation({
       mutationFn: (input: Parameters<typeof services.formation.invite>[1]) =>
         services.formation.invite(session!.user.userId, input),

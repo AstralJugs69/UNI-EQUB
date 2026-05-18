@@ -8,6 +8,7 @@
     "listMine",
     "listPendingApproval",
     "getRequest",
+    "lookupInviteCode",
     "createRequest",
     "requestJoin",
     "acceptJoin",
@@ -37,5 +38,5 @@
     "expected validation failures return readable non-500 function responses"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-17T23:12:39.503Z"
+  "validatedAt": "2026-05-18T06:27:19.463Z"
 }

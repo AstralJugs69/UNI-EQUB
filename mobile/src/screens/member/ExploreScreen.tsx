@@ -15,19 +15,23 @@ export function ExploreScreen() {
 
   return (
     <AppScreen footer={<MemberNav active={routes.explore} />} footerFlush>
-      <TopAppBar title="Available Equbs" subtitle="Explore" />
+      <TopAppBar title="Explore" />
       <SectionCard variant="soft">
-        <Text style={memberStyles.mutedText}>Browse approved groups or review public Phase 2 groups that are still gathering members before admin approval.</Text>
-        <SecondaryCTA label="Create New Equb" onPress={() => navigation.navigate(routes.createBasics)} />
+        <Text style={memberStyles.sectionTitle}>Form or join an Equb</Text>
+        <Text style={memberStyles.mutedText}>Use an invite code, create a forming group, or browse approved groups.</Text>
+        <View style={memberStyles.twoCol}>
+          <SecondaryCTA label="Join With Code" onPress={() => navigation.navigate(routes.formationJoinCode)} />
+          <SecondaryCTA label="Create Equb" onPress={() => navigation.navigate(routes.createBasics)} />
+        </View>
       </SectionCard>
       <SectionCard>
         <View style={memberStyles.rowBetween}>
-          <Text style={memberStyles.sectionTitle}>My group requests</Text>
-          <Pill label={`${myRequests.length}`} tone={myRequests.length > 0 ? 'active' : 'neutral'} />
+          <Text style={memberStyles.sectionTitle}>My requests</Text>
+          <Text style={memberStyles.mutedText}>{myRequests.length} active</Text>
         </View>
         <InlineError message={myRequestsError instanceof Error ? myRequestsError.message : ''} />
         {!myRequests.length ? (
-          <Text style={memberStyles.mutedText}>Create a request to gather participants before admin approval creates the final Equb group.</Text>
+          <Text style={memberStyles.mutedText}>Create a forming group to gather accepted members before it starts.</Text>
         ) : myRequests.map(request => (
           <View key={request.id} style={memberStyles.itemBlock}>
             <View style={memberStyles.rowWrap}>
@@ -48,7 +52,6 @@ export function ExploreScreen() {
       <SectionCard>
         <View style={memberStyles.rowBetween}>
           <Text style={memberStyles.sectionTitle}>Forming groups</Text>
-          <Pill label="Phase 2" tone="active" />
         </View>
         <InlineError message={formingError instanceof Error ? formingError.message : ''} />
         {formingGroups.map(request => (
@@ -62,7 +65,7 @@ export function ExploreScreen() {
             <Text style={memberStyles.mutedText}>{request.description ?? 'Public forming group request.'}</Text>
             <View style={memberStyles.metricsGrid}>
               <MetricTile label="Contribution" value={formatCurrency(request.contribution_amount)} />
-              <MetricTile label="Accepted" value={`${request.accepted_participant_count}/${request.max_members}`} helper={`${request.remaining_slots} slots left`} />
+              <MetricTile label="Accepted" value={`${request.accepted_participant_count}/${request.min_members}`} helper={`${request.remaining_slots} slots left`} />
             </View>
             <PrimaryCTA label="Review Request" onPress={() => navigation.navigate(routes.formationDetail, { requestId: request.id })} />
           </View>

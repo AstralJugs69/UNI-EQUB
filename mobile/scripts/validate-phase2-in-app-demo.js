@@ -12,6 +12,7 @@ const files = {
   servicesProvider: 'mobile/src/providers/ServicesProvider.tsx',
   banner: 'mobile/src/components/DemoModeBanner.tsx',
   dashboard: 'mobile/src/screens/member/DashboardScreen.tsx',
+  joinCode: 'mobile/src/screens/member/FormationJoinCodeScreen.tsx',
   adminDashboard: 'mobile/src/screens/admin/AdminDashboardScreen.tsx',
   adminKyc: 'mobile/src/screens/admin/AdminKycScreen.tsx',
   adminGroups: 'mobile/src/screens/admin/AdminGroupsScreen.tsx',
@@ -55,11 +56,13 @@ function main() {
 
   [
     "demoTour: 'DemoTour'",
+    "formationJoinCode: 'FormationJoinCode'",
   ].forEach(token => assertIncludes(content.routes, token, 'demo route'));
 
   [
     'DemoTourScreen',
     'routes.demoTour',
+    'FormationJoinCodeScreen',
   ].forEach(token => assertIncludes(content.navigator, token, 'demo navigator wiring'));
 
   [
@@ -111,7 +114,7 @@ function main() {
   ].forEach(token => assertIncludes(content.adminKyc, token, 'expanded admin KYC token'));
 
   [
-    'More Phase 2 requests',
+    'More formation requests',
     'More legacy requests',
   ].forEach(token => assertIncludes(content.adminGroups, token, 'expanded admin groups token'));
 
@@ -130,6 +133,7 @@ function main() {
     'formation-demo-public',
     'formation-demo-private',
     'UNI-DEMO',
+    'FORM-2026',
     "frequency: 'Daily'",
     'vesting_disabled_by_creator: true',
     'Campus Demo Formation',
@@ -139,6 +143,13 @@ function main() {
     'Transport Mini Equb',
     'providerLogs',
   ].forEach(token => assertIncludes(content.mockBackend, token, 'seeded mock demo state'));
+
+  [
+    'Preview Group',
+    'Accept Terms And Join',
+    'lookupFormationInviteCode',
+    'acceptFormationInviteCode',
+  ].forEach(token => assertIncludes(content.joinCode, token, 'demo mirrored join-code flow'));
 
   [
     'seeds the in-app demo queues',
@@ -159,6 +170,7 @@ function main() {
       'auth provider can start seeded member and admin demo sessions without persisted live tokens',
       'services provider can switch between live Supabase services and mock demo services',
       'mock backend reset restores repeatable final-draw, public/private formation, invite-code, and public admin formation queues',
+      'demo mode mirrors live join-with-code lookup and acceptance screens',
       'member and admin dashboards show a visible demo-mode banner',
       'admin demo screens expose richer KYC, group, provider, reminder, and audit states',
       'demo docs and root npm script reference the in-app showcase path',

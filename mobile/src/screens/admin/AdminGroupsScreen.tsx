@@ -35,7 +35,6 @@ export function AdminGroupsScreen() {
         <>
           <SectionCard>
             <View style={adminStyles.rowWrap}>
-              <Pill label="Phase 2" tone="active" />
               <Pill label={formationItem.status} tone="warn" />
               <Pill label={formationItem.risk_level} tone={formationItem.risk_level === 'Low' ? 'good' : 'warn'} />
             </View>
@@ -64,7 +63,7 @@ export function AdminGroupsScreen() {
             </View>
           </SectionCard>
           <SectionCard variant="soft">
-            <TitleBlock title="Review checks" subtitle="Phase 2 approval creates canonical MVP group/member/round rows and leaves rejection in group_requests." />
+            <TitleBlock title="Review checks" subtitle="Approval creates canonical MVP group/member/round rows and leaves rejection in group_requests." />
             <ListRow title="Accepted participant minimum" subtitle={formationItem.accepted_participant_count >= formationItem.min_members ? 'Satisfied' : 'Below minimum'} leadingIcon="fact-check" />
             <ListRow title="Vesting policy" subtitle={formationItem.vesting_disabled_by_creator ? 'Override requested' : 'Standard vesting enabled'} leadingIcon="verified-user" />
             <ListRow title="Agreement required" subtitle={formationItem.agreement_required ? 'Required' : 'Not required'} leadingIcon="assignment" />
@@ -75,7 +74,7 @@ export function AdminGroupsScreen() {
       ) : null}
       {formationQueue.length > 1 ? (
         <SectionCard variant="soft">
-          <Text style={adminStyles.sectionTitle}>More Phase 2 requests</Text>
+          <Text style={adminStyles.sectionTitle}>More formation requests</Text>
           <View style={adminStyles.listGroup}>
             {formationQueue.slice(1).map(request => (
               <ListRow

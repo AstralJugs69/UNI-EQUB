@@ -6,17 +6,20 @@
     "hooks": "mobile/src/hooks/useAppQueries.ts",
     "explore": "mobile/src/screens/member/ExploreScreen.tsx",
     "detail": "mobile/src/screens/member/FormationDetailScreen.tsx",
+    "joinCode": "mobile/src/screens/member/FormationJoinCodeScreen.tsx",
     "index": "mobile/src/screens/member/index.ts",
     "styles": "mobile/src/screens/member/styles.ts"
   },
   "completedChecks": [
     "member navigation exposes a Phase 2 formation detail route",
     "Explore screen lists public forming group requests separately from approved Equb groups",
+    "Explore screen exposes join-with-code as a member formation path",
+    "join-with-code screen previews invite codes and accepts current terms",
     "formation detail screen shows terms, participant progress, accepted count, and remaining slots",
     "member join request mutation accepts current terms through the formation service contract",
     "private vesting override self-service remains paused until user-approved warning copy exists"
   ],
   "requiresSupabaseCredentials": false,
   "requiresDeviceValidation": true,
-  "validatedAt": "2026-05-17T23:09:46.262Z"
+  "validatedAt": "2026-05-18T06:26:53.797Z"
 }

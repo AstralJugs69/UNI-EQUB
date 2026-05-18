@@ -25,7 +25,7 @@ This repository is organized as an implementation workspace around the original 
 - The original five core MVP tables remain canonical: `User`, `EqubGroup`, `GroupMembers`, `Round`, and `Transaction`.
 - The initial Phase 2 foundation migration adds group formation, contribution obligation, mock provider attempt, wallet/simulated ledger, payout request/schedule, reliability restriction, durable notification, audit event, and app configuration tables.
 - The shared Phase 2 backend helper batch adds config, audit, notification, reliability, obligation, payment attempt, ledger, and payout vesting scaffolding while leaving sensitive writes behind Edge Functions.
-- The `group-formation` Edge Function currently provides the Phase 2 command boundary for public admin approval/rejection and private invite-based auto-start, including canonical MVP group/member/round creation when a request is activated; mobile service/UI migration is being added incrementally.
+- The `group-formation` Edge Function provides the Phase 2 command boundary for public admin approval/rejection, private invite-based auto-start, reusable invite-code lookup/redemption, and canonical MVP group/member/round creation when a request is activated; the member and creator UI paths are wired through the service contracts.
 - Payment behavior remains sandbox/mock for the capstone; real payment provider integration is future work only.
 
 ## Commands
@@ -41,6 +41,7 @@ This repository is organized as an implementation workspace around the original 
 - `npm run qa:wallet-clearance`
 - `npm run qa:ussd-simulator`
 - `npm run qa:phase2-foundation`
+- `npm run qa:direct-login`
 - `npm run qa:phase2-shared`
 - `npm run qa:phase2-formation`
 - `npm run qa:phase2-legacy-group`
@@ -75,7 +76,8 @@ This repository is organized as an implementation workspace around the original 
 - Operator checklist: [phase2_demo_operator_checklist.md](C:/dev/projects/UNI-EQUB/Build/delivery/demo/phase2_demo_operator_checklist.md)
 - Readiness validation: `npm run qa:phase2-demo-readiness`
 - In-app demo validation: `npm run qa:phase2-in-app-demo`
-- Device path: run/install the app, tap **Try Demo Mode**, then launch the seeded member or admin showcase. This uses local mock data and leaves normal Supabase login untouched.
+- Direct-login validation: `npm run qa:direct-login`
+- Device path: run/install the app, tap **Try Demo Mode**, then launch the seeded member or admin showcase. Member demo includes Explore, Join With Code using seeded `FORM-2026`, and creator formation management. This uses local mock data and leaves normal Supabase login untouched.
 - Standalone signed demo APK: `npm run mobile:apk:release` builds `mobile/android/app/build/outputs/apk/release/app-release.apk` with the React Native bundle packaged inside. Configure `UNIEQUB_RELEASE_STORE_FILE`, `UNIEQUB_RELEASE_STORE_PASSWORD`, `UNIEQUB_RELEASE_KEY_ALIAS`, and `UNIEQUB_RELEASE_KEY_PASSWORD` to use a release key; otherwise the Gradle file falls back to debug signing.
 
 ## Hosted USSD simulator

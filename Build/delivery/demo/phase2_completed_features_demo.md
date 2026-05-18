@@ -105,17 +105,19 @@ Evidence:
 
 Show:
 
-- Member registration/login
+- Member/admin login with phone number and password
+- Member registration with OTP retained for phone/KYC verification
 - KYC submission state
 - Admin KYC approval if a test account is available
 
 Say:
 
 - Member access is gated by role, session token, and KYC status.
-- Real OTP/device validation needs an OTP-capable phone and should not be faked.
+- Login no longer uses OTP. Real registration/KYC phone verification still needs an OTP-capable phone and should not be faked.
 
 Evidence:
 
+- `Build/delivery/evidence/direct-login-validation.json`
 - `Build/delivery/evidence/kyc-upload-validation.json`
 
 ### 3. Phase 2 Group Formation
@@ -123,8 +125,9 @@ Evidence:
 Show:
 
 - Member opens the in-app demo and sees a public forming request in Explore
-- Member taps Create New Equb, creates a forming request, and returns to it from My group requests
-- Creator manages participants or invitations from the creator workspace
+- Member taps Join With Code, previews seeded code `FORM-2026`, accepts terms, and is auto-accepted into the forming group
+- Member taps Create Equb, creates a forming request, and returns to it from My requests
+- Creator creates/share invite codes, reviews participants, and sees accepted `X/5` readiness before submit/start
 - Admin demo reviews the seeded `Campus Demo Formation` request
 - Admin approval creates canonical `EqubGroup`, `GroupMembers`, initial `Round`, and obligations
 
@@ -132,6 +135,7 @@ Important narration:
 
 - `Rejected` lives in `group_requests`, not canonical `EqubGroup.Status`.
 - Formation is pre-canonical; approval creates the MVP group rows.
+- Public invite-code redemption auto-accepts verified eligible users; normal public discovery requests still require creator approval.
 
 Evidence:
 

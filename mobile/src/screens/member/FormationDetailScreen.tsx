@@ -46,7 +46,7 @@ export function FormationDetailScreen({ route }: any) {
 
   return (
     <ScreenScroll>
-      <TopAppBar title="Forming Group" subtitle="Phase 2 request" onBack={() => navigation.goBack()} />
+      <TopAppBar title="Forming Group" onBack={() => navigation.goBack()} />
       <TitleBlock
         title={request.proposed_group_name}
         subtitle={request.description ?? (isPrivate ? 'Private invite group gathering accepted members before it starts.' : 'Public group request gathering members before admin approval.')}
@@ -59,8 +59,8 @@ export function FormationDetailScreen({ route }: any) {
       {currentUserJoin ? (
         <StatusBanner
           tone={currentUserJoin.status === 'Accepted' ? 'success' : 'info'}
-          title={`Your request is ${currentUserJoin.status.toLowerCase()}`}
-          body={isPrivate ? 'The creator manages accepted members before starting this invite-only group.' : 'The creator manages participant approval before submitting the group for admin review.'}
+          title={currentUserJoin.status}
+          body={isPrivate ? 'The creator can start this group after enough accepted members join.' : 'The creator reviews participants before submitting the group.'}
         />
       ) : null}
       {request.vesting_disabled_by_creator ? (
@@ -68,21 +68,16 @@ export function FormationDetailScreen({ route }: any) {
       ) : null}
       <View style={memberStyles.metricsGrid}>
         <MetricTile label="Contribution" value={formatCurrency(request.contribution_amount)} />
-        <MetricTile label="Accepted" value={`${data.accepted_participant_count}/${request.max_members}`} helper={`${data.remaining_slots} slots left`} />
+        <MetricTile label="Accepted" value={`${data.accepted_participant_count}/${request.min_members}`} helper={`${data.remaining_slots} slots left`} />
       </View>
       <SectionCard>
-        <Text style={memberStyles.sectionTitle}>Before you request to join</Text>
+        <Text style={memberStyles.sectionTitle}>Terms</Text>
         <View style={memberStyles.listGroup}>
-          <ListRow title="Current terms version" subtitle={request.terms_version} leadingIcon="rule" />
+          <ListRow title={request.terms_version} leadingIcon="rule" />
           <ListRow
-            title="Creator accepts members first"
-            subtitle={isPrivate ? 'An invite or accepted request is needed before the group starts.' : 'A join request does not create a canonical group membership until approval is complete.'}
+            title={isPrivate ? 'Invite-managed group' : 'Creator-reviewed request'}
+            subtitle={isPrivate ? 'The group starts when the accepted-member minimum is met.' : 'Admin review happens after the creator submits.'}
             leadingIcon="how-to-reg"
-          />
-          <ListRow
-            title={isPrivate ? 'No admin approval' : 'Admin approval still required'}
-            subtitle={isPrivate ? 'Private invite groups start once the accepted-member minimum is met.' : 'The group becomes active only after admin review creates the canonical Equb group.'}
-            leadingIcon={isPrivate ? 'lock-open' : 'admin-panel-settings'}
           />
         </View>
       </SectionCard>
@@ -102,7 +97,7 @@ export function FormationDetailScreen({ route }: any) {
       </SectionCard>
       <InlineError message={error} />
       <PrimaryCTA
-        label={currentUserJoin ? `Request ${currentUserJoin.status}` : 'Accept Terms And Request Join'}
+        label={currentUserJoin ? (currentUserJoin.status === 'Accepted' ? 'Accepted' : 'Requested') : 'Accept Terms And Request Join'}
         onPress={handleJoinRequest}
         loading={requestJoinFormation.isPending}
         disabled={!canRequestJoin || requestJoinFormation.isPending}

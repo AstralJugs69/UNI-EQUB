@@ -27,13 +27,12 @@ describe('MockBackend auth flow', () => {
     await expect(backend.auth.verifyOtp('0911223344', '0000')).rejects.toThrow('No OTP challenge is active for this number.');
   });
 
-  it('requires OTP to complete a normal login challenge', async () => {
+  it('rejects direct login for wrong password, wrong role, and banned users', async () => {
     const backend = new MockBackend();
-    const challenge = await backend.auth.beginLogin({ phoneNumber: '0911000000', password: 'demo1234' }, 'Member');
-    expect(challenge.challengeToken).toContain('login-challenge-');
 
-    const session = await backend.auth.completeLogin(challenge.challengeToken, '4719');
-    expect(session.user.userId).toBe('user-dawit');
+    await expect(backend.auth.login({ phoneNumber: '0911000000', password: 'wrong' }, 'Member')).rejects.toThrow('Invalid phone number or password.');
+    await expect(backend.auth.login({ phoneNumber: '0911000000', password: 'demo1234' }, 'Admin')).rejects.toThrow('Admin access is not available for this account.');
+    await expect(backend.auth.login({ phoneNumber: '0911000008', password: 'banned1234' }, 'Member')).rejects.toThrow('This account has been banned and cannot log in.');
   });
 });
 
@@ -59,6 +58,7 @@ describe('MockBackend automatic draw flow', () => {
     expect(privateFormation.groupRequest.frequency).toBe('Daily');
     expect(privateFormation.groupRequest.vesting_disabled_by_creator).toBe(true);
     expect(privateFormation.invitations.some(item => item.invite_code === 'UNI-DEMO')).toBe(true);
+    expect(privateFormation.accepted_participant_count).toBe(5);
 
     const pendingBeforeApproval = await backend.formation.listPendingApproval();
     expect(pendingBeforeApproval.some(item => item.id === 'formation-demo-review')).toBe(true);
@@ -81,7 +81,7 @@ describe('MockBackend automatic draw flow', () => {
       description: 'Formation service contract coverage.',
       amount: 700,
       frequency: 'Weekly',
-      minMembers: 2,
+      minMembers: 5,
       maxMembers: 5,
       visibility: 'Public',
       termsVersion: 'phase2-v1',
@@ -106,6 +106,15 @@ describe('MockBackend automatic draw flow', () => {
     const accepted = await backend.formation.acceptJoin('user-dawit', joinRequest!.id);
     expect(accepted.accepted_participant_count).toBe(2);
 
+    for (const userId of ['user-ruth', 'user-saba', 'user-noah']) {
+      const next = await backend.formation.requestJoin(userId, created.groupRequest.id, {
+        groupTermsAccepted: true,
+        acceptedTermsVersion: 'phase2-v1',
+      });
+      const nextJoin = next.joinRequests.find(item => item.user_id === userId);
+      await backend.formation.acceptJoin('user-dawit', nextJoin!.id);
+    }
+
     const submitted = await backend.formation.submitForApproval('user-dawit', created.groupRequest.id);
     expect(submitted.groupRequest.status).toBe('PendingApproval');
   });
@@ -116,8 +125,8 @@ describe('MockBackend automatic draw flow', () => {
       groupName: 'Private Formation Circle',
       amount: 600,
       frequency: 'Daily',
-      minMembers: 2,
-      maxMembers: 4,
+      minMembers: 5,
+      maxMembers: 5,
       visibility: 'Private',
       inviteMode: 'InviteCodeAndDirect',
       vestingEnabled: false,
@@ -141,8 +150,18 @@ describe('MockBackend automatic draw flow', () => {
       groupTermsAccepted: true,
       acceptedTermsVersion: 'phase2-v1',
     });
-    const mikiJoin = accepted.joinRequests.find(item => item.user_id === 'user-miki');
-    await backend.formation.acceptJoin('user-dawit', mikiJoin!.id);
+    expect(accepted.joinRequests.some(item => item.user_id === 'user-miki' && item.status === 'Accepted')).toBe(true);
+
+    const shared = await backend.formation.invite('user-dawit', {
+      requestId: created.groupRequest.id,
+    });
+    for (const userId of ['user-ruth', 'user-saba', 'user-noah']) {
+      await backend.formation.acceptInvite(userId, {
+        inviteCode: shared.invitation.invite_code ?? undefined,
+        groupTermsAccepted: true,
+        acceptedTermsVersion: 'phase2-v1',
+      });
+    }
 
     const started = await backend.formation.submitForApproval('user-dawit', created.groupRequest.id);
     expect(started.groupRequest.status).toBe('Approved');
@@ -157,8 +176,8 @@ describe('MockBackend automatic draw flow', () => {
       groupName: 'Shareable Invite Circle',
       amount: 600,
       frequency: 'Monthly',
-      minMembers: 2,
-      maxMembers: 4,
+      minMembers: 5,
+      maxMembers: 5,
       visibility: 'Private',
       inviteMode: 'InviteCodeAndDirect',
       termsVersion: 'phase2-v1',
@@ -166,8 +185,10 @@ describe('MockBackend automatic draw flow', () => {
 
     const response = await backend.formation.invite('user-dawit', {
       requestId: created.groupRequest.id,
-      invitedPhoneOrStudentId: '0911000099',
     });
+
+    const preview = await backend.formation.lookupInviteCode('user-miki', response.invitation.invite_code ?? '');
+    expect(preview.groupRequest.id).toBe(created.groupRequest.id);
 
     const accepted = await backend.formation.acceptInvite('user-miki', {
       inviteCode: response.invitation.invite_code ?? undefined,
@@ -175,6 +196,50 @@ describe('MockBackend automatic draw flow', () => {
       acceptedTermsVersion: 'phase2-v1',
     });
 
+    expect(accepted.joinRequests.some(item => item.user_id === 'user-miki' && item.status === 'Accepted')).toBe(true);
+    const acceptedAgain = await backend.formation.acceptInvite('user-miki', {
+      inviteCode: response.invitation.invite_code ?? undefined,
+      groupTermsAccepted: true,
+      acceptedTermsVersion: 'phase2-v1',
+    });
+    expect(acceptedAgain.joinRequests.filter(item => item.user_id === 'user-miki').length).toBe(1);
+    const reused = await backend.formation.acceptInvite('user-ruth', {
+      inviteCode: response.invitation.invite_code ?? undefined,
+      groupTermsAccepted: true,
+      acceptedTermsVersion: 'phase2-v1',
+    });
+    expect(reused.joinRequests.some(item => item.user_id === 'user-ruth' && item.status === 'Accepted')).toBe(true);
+    expect(reused.invitations.find(item => item.id === response.invitation.id)?.status).toBe('Pending');
+  });
+
+  it('supports public reusable invite codes that auto-accept eligible members', async () => {
+    const backend = new MockBackend();
+    const created = await backend.formation.createRequest('user-dawit', {
+      groupName: 'Public Invite Formation Circle',
+      amount: 500,
+      frequency: 'Weekly',
+      minMembers: 5,
+      maxMembers: 5,
+      visibility: 'Public',
+      inviteMode: 'PublicRequest',
+      termsVersion: 'phase2-v1',
+    });
+    const response = await backend.formation.invite('user-dawit', {
+      requestId: created.groupRequest.id,
+    });
+    await expect(backend.formation.invite('user-dawit', {
+      requestId: created.groupRequest.id,
+      invitedPhoneOrStudentId: '0911000002',
+    })).rejects.toThrow('Public forming groups only support shareable invite codes.');
+
+    const preview = await backend.formation.lookupInviteCode('user-miki', response.invitation.invite_code ?? '');
+    expect(preview.groupRequest.visibility).toBe('Public');
+
+    const accepted = await backend.formation.acceptInvite('user-miki', {
+      inviteCode: response.invitation.invite_code ?? undefined,
+      groupTermsAccepted: true,
+      acceptedTermsVersion: 'phase2-v1',
+    });
     expect(accepted.joinRequests.some(item => item.user_id === 'user-miki' && item.status === 'Accepted')).toBe(true);
   });
 
@@ -184,7 +249,7 @@ describe('MockBackend automatic draw flow', () => {
       groupName: 'Admin Review Formation Circle',
       amount: 900,
       frequency: 'Weekly',
-      minMembers: 2,
+      minMembers: 5,
       maxMembers: 5,
       visibility: 'Public',
       termsVersion: 'phase2-v1',
@@ -195,6 +260,14 @@ describe('MockBackend automatic draw flow', () => {
     });
     const joinRequest = joined.joinRequests.find(item => item.user_id === 'user-miki');
     await backend.formation.acceptJoin('user-dawit', joinRequest!.id);
+    for (const userId of ['user-ruth', 'user-saba', 'user-noah']) {
+      const next = await backend.formation.requestJoin(userId, created.groupRequest.id, {
+        groupTermsAccepted: true,
+        acceptedTermsVersion: 'phase2-v1',
+      });
+      const nextJoin = next.joinRequests.find(item => item.user_id === userId);
+      await backend.formation.acceptJoin('user-dawit', nextJoin!.id);
+    }
     await backend.formation.submitForApproval('user-dawit', created.groupRequest.id);
 
     const pending = await backend.formation.listPendingApproval();
@@ -202,6 +275,23 @@ describe('MockBackend automatic draw flow', () => {
 
     const approvedGroup = await backend.formation.adminApprove(created.groupRequest.id);
     expect(approvedGroup.Status).toBe('Active');
+  });
+
+  it('blocks creator submission until five accepted participants are present', async () => {
+    const backend = new MockBackend();
+    const created = await backend.formation.createRequest('user-dawit', {
+      groupName: 'Five Member Readiness Circle',
+      amount: 900,
+      frequency: 'Weekly',
+      minMembers: 5,
+      maxMembers: 5,
+      visibility: 'Public',
+      termsVersion: 'phase2-v1',
+    });
+
+    await expect(backend.formation.submitForApproval('user-dawit', created.groupRequest.id)).rejects.toThrow(
+      'At least 5 accepted participants are required before this group can start.',
+    );
   });
 
   it('keeps the legacy group creation request path pending during Phase 2 migration', async () => {

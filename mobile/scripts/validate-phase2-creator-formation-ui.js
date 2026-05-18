@@ -81,14 +81,16 @@ function main() {
     'Private invite groups start without admin review',
     "vestingEnabled: visibility === 'Public'",
     "riskWarningAccepted: visibility === 'Private' ? privateRiskAccepted : undefined",
+    'Private groups start after 5 accepted members.',
+    'Public groups can be submitted after 5 accepted members.',
   ].forEach(token => assertIncludes(rules, token, 'create flow formation token'));
 
   [
     'useMyFormationGroupsQuery',
-    'My group requests',
+    'My requests',
     'myRequests.map',
     'navigation.navigate(routes.formationCreator',
-    'Create New Equb',
+    'Create Equb',
   ].forEach(token => assertIncludes(explore, token, 'member-owned formation request list token'));
 
   [
@@ -96,12 +98,15 @@ function main() {
     'inviteFormation.mutateAsync',
     'Share.share',
     'handleShareInvite',
+    'Shareable invite code',
+    'Create Invite Code',
     'acceptFormationJoin.mutateAsync',
     'removeFormationParticipant.mutateAsync',
     'submitFormationForApproval.mutateAsync',
     'pendingRequests.map',
     'Accepted participants',
     'Invitations',
+    'Reusable',
     'accessibilityLabel={`Share invite code ${invitation.invite_code}`}',
     'more accepted member',
     'Waiting For Admin',
@@ -130,7 +135,7 @@ function main() {
       'create basics screen supports Daily draw cadence',
       'private-group selection shows a vesting risk warning before disabling vesting',
       'Explore screen lets creators return to their own formation requests',
-      'creator management screen exposes invitation creation',
+      'creator management screen exposes public reusable code creation and private invitation creation',
       'creator management screen exposes accept/remove participant actions',
       'creator management screen exposes public submit-for-approval and private start actions',
       'mock backend regression covers private creator invitation behavior',

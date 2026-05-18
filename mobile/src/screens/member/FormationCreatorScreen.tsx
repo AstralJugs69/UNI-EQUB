@@ -32,7 +32,8 @@ export function FormationCreatorScreen({ route }: any) {
 
   const request = data.groupRequest;
   const isPrivate = request.visibility === 'Private';
-  const canInvite = request.status === 'Forming' && request.invite_mode !== 'PublicRequest';
+  const isPublicRequest = request.invite_mode === 'PublicRequest';
+  const canInvite = request.status === 'Forming';
   const canSubmit = request.status === 'Forming' && data.accepted_participant_count >= request.min_members;
   const acceptedRemaining = Math.max(request.min_members - data.accepted_participant_count, 0);
 
@@ -41,7 +42,7 @@ export function FormationCreatorScreen({ route }: any) {
       setError('');
       await inviteFormation.mutateAsync({
         requestId: request.id,
-        invitedPhoneOrStudentId: inviteTarget.trim() || undefined,
+        invitedPhoneOrStudentId: isPublicRequest ? undefined : inviteTarget.trim() || undefined,
       });
       setInviteTarget('');
     } catch (err) {
@@ -100,6 +101,7 @@ export function FormationCreatorScreen({ route }: any) {
       <View style={memberStyles.metricsGrid}>
         <MetricTile label="Contribution" value={formatCurrency(request.contribution_amount)} />
         <MetricTile label="Accepted" value={`${data.accepted_participant_count}/${request.min_members}`} helper={`${data.remaining_slots} slots left`} tone={canSubmit ? 'good' : 'neutral'} />
+        <MetricTile label="Minimum" value={`${request.min_members}`} helper={canSubmit ? 'Ready' : 'Not ready'} tone={canSubmit ? 'good' : 'neutral'} />
       </View>
       {request.status === 'PendingApproval' ? (
         <StatusBanner tone="success" title={isPrivate ? 'Starting private group' : 'Submitted for admin approval'} />
@@ -115,9 +117,18 @@ export function FormationCreatorScreen({ route }: any) {
       ) : null}
       {canInvite ? (
         <SectionCard>
-          <Text style={memberStyles.sectionTitle}>Invite participant</Text>
-          <InputField label="Phone or Student ID" value={inviteTarget} onChangeText={setInviteTarget} leadingIcon="person-add" />
-          <PrimaryCTA label="Create Invitation" onPress={handleInvite} loading={inviteFormation.isPending} disabled={inviteFormation.isPending} />
+          <Text style={memberStyles.sectionTitle}>{isPublicRequest ? 'Shareable invite code' : 'Invite participant'}</Text>
+          {isPublicRequest ? (
+            <Text style={memberStyles.mutedText}>Create a reusable code that verified members can accept directly.</Text>
+          ) : (
+            <InputField label="Phone or Student ID" value={inviteTarget} onChangeText={setInviteTarget} leadingIcon="person-add" />
+          )}
+          <PrimaryCTA
+            label={isPublicRequest ? 'Create Invite Code' : 'Create Invitation'}
+            onPress={handleInvite}
+            loading={inviteFormation.isPending}
+            disabled={inviteFormation.isPending}
+          />
         </SectionCard>
       ) : null}
       <SectionCard>
@@ -140,30 +151,33 @@ export function FormationCreatorScreen({ route }: any) {
         <SectionCard variant="soft">
           <Text style={memberStyles.sectionTitle}>Invitations</Text>
           <View style={memberStyles.listGroup}>
-            {data.invitations.map(invitation => (
-              <ListRow
-                key={invitation.id}
-                title={invitation.invite_code ?? invitation.invited_phone_or_student_id ?? 'Invitation'}
-                subtitle={invitation.invite_code && invitation.invited_phone_or_student_id ? invitation.invited_phone_or_student_id : undefined}
-                right={(
-                  <View style={memberStyles.inviteActions}>
-                    <Pill label={invitation.status} tone={invitation.status === 'Accepted' ? 'good' : invitation.status === 'Pending' ? 'warn' : 'neutral'} />
-                    {invitation.invite_code ? (
-                      <Pressable
-                        onPress={() => handleShareInvite(invitation.invite_code!)}
-                        android_ripple={{ color: '#dce6f3', borderless: true }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Share invite code ${invitation.invite_code}`}
-                        style={memberStyles.iconAction}
-                      >
-                        <Icon name="share" size={iconSize.sm} color={palette.primaryDark} />
-                      </Pressable>
-                    ) : null}
-                  </View>
-                )}
-                leadingIcon="mail"
-              />
-            ))}
+            {data.invitations.map(invitation => {
+              const reusable = Boolean(invitation.invite_code && !invitation.invited_phone_or_student_id && !invitation.invited_user_id);
+              return (
+                <ListRow
+                  key={invitation.id}
+                  title={invitation.invite_code ?? invitation.invited_phone_or_student_id ?? 'Invitation'}
+                  subtitle={invitation.invite_code && invitation.invited_phone_or_student_id ? invitation.invited_phone_or_student_id : undefined}
+                  right={(
+                    <View style={memberStyles.inviteActions}>
+                      <Pill label={reusable ? 'Reusable' : invitation.status} tone={invitation.status === 'Accepted' ? 'good' : invitation.status === 'Pending' ? 'warn' : 'neutral'} />
+                      {invitation.invite_code ? (
+                        <Pressable
+                          onPress={() => handleShareInvite(invitation.invite_code!)}
+                          android_ripple={{ color: '#dce6f3', borderless: true }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Share invite code ${invitation.invite_code}`}
+                          style={memberStyles.iconAction}
+                        >
+                          <Icon name="share" size={iconSize.sm} color={palette.primaryDark} />
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  )}
+                  leadingIcon="mail"
+                />
+              );
+            })}
           </View>
         </SectionCard>
       ) : null}

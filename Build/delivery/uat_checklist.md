@@ -1,6 +1,6 @@
 # UniEqub UAT Checklist
 
-Last Updated: 2026-05-17
+Last Updated: 2026-05-18
 
 ## Auth and KYC
 - Register a new member account
@@ -8,7 +8,7 @@ Last Updated: 2026-05-17
 - Capture Front ID, Back ID, and Selfie
 - Submit KYC and confirm pending state
 - Approve KYC from admin workspace
-- Log in again with OTP after approval
+- Log in again with phone number and password after approval
 
 ## Group lifecycle
 - Create a new group request as a verified member
@@ -56,6 +56,8 @@ Phase 2 UAT scenarios, user-only validation tasks, required evidence files, and 
 ## Phase 2 in-app demo smoke pass
 - Launch the app and tap **Try Demo Mode** on the splash screen.
 - Launch Member Demo and confirm the dashboard shows the demo banner.
+- Open Explore, tap Join With Code, preview `FORM-2026`, accept terms, and confirm accepted participant state.
+- Create a forming group and confirm submit/start is disabled until five accepted participants are present.
 - Pay the current round through direct mock payment or the USSD simulator.
 - Confirm payment success, wallet, history, and notification state update.
 - Log out, return to **Try Demo Mode**, and launch Admin Demo.
@@ -69,5 +71,6 @@ For a demo of completed Phase 2 features, use:
 - `Build/delivery/demo/phase2_demo_operator_checklist.md`
 - `npm run qa:phase2-demo-readiness`
 - `npm run qa:phase2-in-app-demo`
+- `npm run qa:direct-login`
 
 The checklist above remains valid for the original MVP baseline. The Phase 2 demo runbook narrows the presentation to implemented features and explicitly calls out unfinished notification/audit, freeze/poll/refund, release, screenshot, and UAT evidence work.

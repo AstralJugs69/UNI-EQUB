@@ -19,6 +19,7 @@ interface AuthContextValue {
   session: AuthSession | null;
   pendingUser: SessionUser | null;
   pendingLogin: PendingLoginChallenge | null;
+  login: (phoneNumber: string, password: string, roleHint?: 'Member' | 'Admin') => Promise<void>;
   beginLogin: (phoneNumber: string, password: string, roleHint?: 'Member' | 'Admin') => Promise<void>;
   completeLogin: (otp: string) => Promise<void>;
   register: (fullName: string, phoneNumber: string, password: string) => Promise<void>;
@@ -98,6 +99,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
     beginLogin: async (phoneNumber, password, roleHint) => {
       const challenge = await services.auth.beginLogin({ phoneNumber, password }, roleHint);
       setPendingLogin(challenge);
+    },
+    login: async (phoneNumber, password, roleHint) => {
+      const nextSession = await services.auth.login({ phoneNumber, password }, roleHint);
+      await saveSessionToken(nextSession.token);
+      await saveLastActiveAt(new Date().toISOString());
+      setSession(nextSession);
+      setPendingLogin(null);
+      setPendingUser(null);
+      setPendingKycToken(null);
     },
     completeLogin: async otp => {
       if (!pendingLogin) {

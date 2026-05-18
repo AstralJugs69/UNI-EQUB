@@ -51,6 +51,7 @@ function main() {
     'listMine(userId: string)',
     'listPendingApproval(): Promise<GroupFormationRequestSummary[]>',
     'getRequest(userId: string, requestId: string)',
+    'lookupInviteCode(userId: string, inviteCode: string)',
     'createRequest(userId: string, input: CreateGroupFormationInput)',
     'requestJoin(userId: string, requestId: string, terms: FormationTermsAcceptance)',
     'invite(userId: string, input: FormationInvitationInput)',
@@ -73,6 +74,7 @@ function main() {
     "action: 'listMine'",
     "action: 'listPendingApproval'",
     "action: 'getRequest'",
+    "action: 'lookupInviteCode'",
     "action: 'createRequest'",
     "action: 'requestJoin'",
     "action: 'acceptJoin'",
@@ -92,6 +94,7 @@ function main() {
 
   [
     'formation = {',
+    'lookupInviteCode: async (userId: string, inviteCode: string)',
     'listMine: async (userId: string)',
     'createRequest: async (userId: string, input: CreateGroupFormationInput)',
     'requestJoin: async (userId: string, requestId: string, terms: FormationTermsAcceptance)',
@@ -126,7 +129,8 @@ function main() {
       edgeFunction: 'supabase/functions/group-formation/index.ts',
     },
     completedChecks: [
-      'mobile contract exposes Phase 2 formation list/detail/create/join/invite/submit actions',
+    'mobile contract exposes Phase 2 formation list/detail/create/join/invite/submit actions',
+      'mobile contract exposes invite-code preview before acceptance',
       'mobile contract exposes creator-owned formation requests for member-side management',
       'mobile contract exposes admin pending-approval list for formation review',
       'live service invokes the group-formation Edge Function for formation actions',

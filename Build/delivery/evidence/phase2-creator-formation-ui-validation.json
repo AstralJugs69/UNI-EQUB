@@ -15,12 +15,12 @@
     "create basics screen supports Daily draw cadence",
     "private-group selection shows a vesting risk warning before disabling vesting",
     "Explore screen lets creators return to their own formation requests",
-    "creator management screen exposes invitation creation",
+    "creator management screen exposes public reusable code creation and private invitation creation",
     "creator management screen exposes accept/remove participant actions",
     "creator management screen exposes public submit-for-approval and private start actions",
     "mock backend regression covers private creator invitation behavior"
   ],
   "requiresSupabaseCredentials": false,
   "requiresDeviceValidation": true,
-  "validatedAt": "2026-05-17T23:09:46.245Z"
+  "validatedAt": "2026-05-18T06:26:53.789Z"
 }

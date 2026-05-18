@@ -11,6 +11,7 @@
   groupDetail: 'GroupDetail',
   formationDetail: 'FormationDetail',
   formationCreator: 'FormationCreator',
+  formationJoinCode: 'FormationJoinCode',
   createBasics: 'CreateGroupBasics',
   createRules: 'CreateGroupRules',
   groupStatus: 'GroupStatus',

@@ -1,6 +1,6 @@
 ﻿import { fail, json } from '../_shared/contracts.ts';
 import type { RegisterLoginPayload } from '../_shared/contracts.ts';
-import { hashPassword, signLoginChallenge, signPendingKycToken, signSession, verifyLoginChallenge, verifyPassword, verifySession } from '../_shared/auth.ts';
+import { hashPassword, signPendingKycToken, signSession, verifyPassword, verifySession } from '../_shared/auth.ts';
 import { normalizePhone } from '../_shared/phone.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import type { UserRecord } from '../_shared/types.ts';
@@ -121,34 +121,26 @@ Deno.serve(async request => {
         }
         const { user, error } = await validateCredentials(body.beginLogin.phoneNumber, body.beginLogin.password, body.beginLogin.roleHint);
         if (error || !user) {
-          return fail(error ?? 'Login challenge could not be created.', 401);
-        }
-        await requestOtp(user.Phone_Number);
-        const challengeToken = await signLoginChallenge(user);
-        return json({ challengeToken, phoneNumber: user.Phone_Number });
-      }
-
-      case 'completeLogin': {
-        if (!body.completeLogin) {
-          return fail('Missing completeLogin payload.', 400);
-        }
-        const payload = await verifyLoginChallenge(body.completeLogin.challengeToken);
-        const userId = payload.sub;
-        const phoneNumber = payload.phone as string | undefined;
-        if (!userId || !phoneNumber) {
-          return fail('Invalid login challenge token.', 401);
-        }
-        await verifyOtp(phoneNumber, body.completeLogin.otp);
-        const user = await requireUserById(userId);
-        if (user.KYC_Status === 'Banned') {
-          return fail('This account has been banned and cannot log in.', 403);
+          return fail(error ?? 'Login could not be completed.', 401);
         }
         const token = await signSession(user);
         return json({ token, user: toSessionUser(user) });
       }
 
+      case 'completeLogin': {
+        return fail('OTP login completion is no longer required. Use direct login.', 400);
+      }
+
       case 'login': {
-        return fail('Direct login is disabled. Start login with OTP first.', 400);
+        if (!body.login) {
+          return fail('Missing login payload.', 400);
+        }
+        const { user, error } = await validateCredentials(body.login.phoneNumber, body.login.password, body.login.roleHint);
+        if (error || !user) {
+          return fail(error ?? 'Login could not be completed.', 401);
+        }
+        const token = await signSession(user);
+        return json({ token, user: toSessionUser(user) });
       }
 
       case 'restore': {
