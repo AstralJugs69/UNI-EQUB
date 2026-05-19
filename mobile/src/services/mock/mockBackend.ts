@@ -22,11 +22,13 @@ import type {
   PaymentResult,
   RefundTicketRecord,
   ReminderBatchResult,
+  ReliabilityPublicStatus,
   ReportSummary,
   RoundRecord,
   SessionUser,
   TransactionRecord,
   UssdSessionState,
+  UserReliabilityProfileRecord,
   UserRecord,
   WalletSnapshot,
 } from '../../types/domain';
@@ -83,6 +85,7 @@ interface DatabaseState {
   resolutionPollOptions: GroupResolutionPollOptionRecord[];
   resolutionVotes: GroupResolutionVoteRecord[];
   refundTickets: RefundTicketRecord[];
+  reliabilityProfiles: UserReliabilityProfileRecord[];
 }
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -137,7 +140,18 @@ export class MockBackend implements AppServices {
       resolutionPollOptions: [],
       resolutionVotes: [],
       refundTickets: [],
+      reliabilityProfiles: this.createReliabilityProfiles(),
     };
+  }
+
+  private createReliabilityProfiles(): UserReliabilityProfileRecord[] {
+    return [
+      { user_id: 'user-dawit', public_status: 'BuildingTrust', completed_groups_count: 1, perfect_completed_groups_count: 1, late_payment_count: 0, default_count: 0, restriction_count: 0, current_maturity_completed_count: 1, updated_at: nowIso() },
+      { user_id: 'user-miki', public_status: 'Trusted', completed_groups_count: 3, perfect_completed_groups_count: 3, late_payment_count: 0, default_count: 0, restriction_count: 0, current_maturity_completed_count: 3, updated_at: nowIso() },
+      { user_id: 'user-ruth', public_status: 'New', completed_groups_count: 0, perfect_completed_groups_count: 0, late_payment_count: 0, default_count: 0, restriction_count: 0, current_maturity_completed_count: 0, updated_at: nowIso() },
+      { user_id: 'user-saba', public_status: 'BuildingTrust', completed_groups_count: 1, perfect_completed_groups_count: 1, late_payment_count: 1, default_count: 0, restriction_count: 0, current_maturity_completed_count: 1, updated_at: nowIso() },
+      { user_id: 'user-banned', public_status: 'Banned', completed_groups_count: 0, perfect_completed_groups_count: 0, late_payment_count: 0, default_count: 1, restriction_count: 1, current_maturity_completed_count: 0, updated_at: nowIso() },
+    ];
   }
 
   private createDemoAdminUsers(): UserRecord[] {
@@ -1093,6 +1107,7 @@ export class MockBackend implements AppServices {
         .filter(item => item.User_ID === userId && item.Type === 'Contribution' && item.Status === 'Successful')
         .reduce((sum, item) => sum + item.Amount, 0);
       const readyPayout = this.readyPayout(userId);
+      const reliabilityProfile = this.reliabilityProfileForUser(userId);
       const recentTransactions = this.db.transactions
         .filter(item => item.User_ID === userId)
         .sort((a, b) => b.Date.localeCompare(a.Date))
@@ -1107,6 +1122,7 @@ export class MockBackend implements AppServices {
         totalSaved,
         readyPayout,
         recentTransactions,
+        reliabilityProfile: clone(reliabilityProfile),
       };
     },
   };
@@ -1553,6 +1569,17 @@ export class MockBackend implements AppServices {
       logs: clone(this.db.auditLogs),
       reminderQueue: clone(this.db.reminderQueue),
       providerLogs: clone(this.db.providerLogs),
+      reliabilitySummary: this.reliabilitySummary(),
+      auditTimeline: this.db.auditLogs.map((log, index) => ({
+        id: `mock-audit-${index}`,
+        eventType: log.split(' • ')[0].toLowerCase().replace(/\s+/g, '_'),
+        actorRole: index % 2 === 0 ? 'Admin' : 'System',
+        actorName: index % 2 === 0 ? 'Saba Admin' : null,
+        entityType: 'demo_event',
+        entityId: null,
+        createdAt: nowIso(),
+        summary: log,
+      })),
     }),
 
     listReports: async (): Promise<ReportSummary[]> => [
@@ -1706,6 +1733,31 @@ export class MockBackend implements AppServices {
       eligibleVoterCount: poll.eligible_voter_user_ids.length,
       currentUserVote: votes.find(vote => vote.voter_user_id === currentUserId) ?? null,
     };
+  }
+
+  private reliabilityProfileForUser(userId: string) {
+    const existing = this.db.reliabilityProfiles.find(profile => profile.user_id === userId);
+    if (existing) {
+      return existing;
+    }
+    return {
+      user_id: userId,
+      public_status: this.requireUser(userId).KYC_Status === 'Banned' ? 'Banned' : 'New',
+      completed_groups_count: 0,
+      perfect_completed_groups_count: 0,
+      late_payment_count: 0,
+      default_count: 0,
+      restriction_count: 0,
+      current_maturity_completed_count: 0,
+      updated_at: nowIso(),
+    } satisfies UserReliabilityProfileRecord;
+  }
+
+  private reliabilitySummary() {
+    return this.db.reliabilityProfiles.reduce<Partial<Record<ReliabilityPublicStatus, number>>>((summary, profile) => {
+      summary[profile.public_status] = (summary[profile.public_status] ?? 0) + 1;
+      return summary;
+    }, {});
   }
 
   private activeMembershipCount(groupId: string) {

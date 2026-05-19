@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { AppScreen, EmptyState, ListRow, MetricTile, Pill, PrimaryCTA, SecondaryCTA, SectionCard, TopAppBar, TitleBlock } from '../../components/ui';
 import { useAdminActions, useAdminOverviewQuery, useReportsQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
@@ -20,6 +20,20 @@ export function AdminReportsScreen() {
           <MetricTile label="KYC" value={String(overview.pendingKycCount)} tone={overview.pendingKycCount > 0 ? 'warn' : 'good'} />
           <MetricTile label="Groups" value={String(overview.pendingGroupCount)} tone={overview.pendingGroupCount > 0 ? 'warn' : 'good'} />
           <MetricTile label="Active" value={String(overview.activeGroupCount)} />
+        </SectionCard>
+      ) : null}
+      {overview?.reliabilitySummary ? (
+        <SectionCard variant="soft">
+          <TitleBlock title="Reliability labels" subtitle="Public user labels only; internal counters are not exposed here." />
+          <View style={adminStyles.rowWrap}>
+            {(['New', 'BuildingTrust', 'Trusted', 'Restricted', 'Banned'] as const).map(status => (
+              <Pill
+                key={status}
+                label={`${status}: ${overview.reliabilitySummary?.[status] ?? 0}`}
+                tone={status === 'Trusted' ? 'good' : status === 'Restricted' || status === 'Banned' ? 'bad' : status === 'BuildingTrust' ? 'active' : 'neutral'}
+              />
+            ))}
+          </View>
         </SectionCard>
       ) : null}
       <SectionCard>
@@ -46,7 +60,20 @@ export function AdminReportsScreen() {
           ))}
         </SectionCard>
       ) : null}
-      {overview?.logs.length ? (
+      {overview?.auditTimeline?.length ? (
+        <SectionCard>
+          <TitleBlock title="Audit timeline" subtitle="Read-only recent sensitive events." />
+          {overview.auditTimeline.map(event => (
+            <ListRow
+              key={event.id}
+              title={event.summary}
+              subtitle={`${event.actorName ?? event.actorRole} • ${event.createdAt}`}
+              right={<Pill label={event.actorRole} tone={event.actorRole === 'Admin' ? 'active' : 'neutral'} />}
+              leadingIcon="history"
+            />
+          ))}
+        </SectionCard>
+      ) : overview?.logs.length ? (
         <SectionCard>
           <TitleBlock title="Audit timeline" subtitle="Recent decisions and automated events." />
           {overview.logs.map(log => <ListRow key={log} title={log} leadingIcon="history" />)}

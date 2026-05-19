@@ -3,7 +3,7 @@ import type { ReportExportPayload } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
 import { getRoundObligationProgress } from '../_shared/obligations.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import type { GroupRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
+import type { GroupRecord, MembershipRecord, ReliabilityPublicStatus, RoundRecord, TransactionRecord, UserRecord, UserReliabilityProfileRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -70,22 +70,74 @@ async function requireAdmin(token: string) {
 }
 
 async function loadAllState() {
-  const [{ data: users, error: userError }, { data: groups, error: groupError }, { data: rounds, error: roundError }, { data: transactions, error: transactionError }] = await Promise.all([
+  const [
+    { data: users, error: userError },
+    { data: groups, error: groupError },
+    { data: rounds, error: roundError },
+    { data: transactions, error: transactionError },
+    { data: reliabilityProfiles, error: reliabilityError },
+    { data: auditEvents, error: auditError },
+  ] = await Promise.all([
     supabaseAdmin.from('User').select('*'),
     supabaseAdmin.from('EqubGroup').select('*'),
     supabaseAdmin.from('Round').select('*'),
     supabaseAdmin.from('Transaction').select('*'),
+    supabaseAdmin.from('user_reliability_profiles').select('*'),
+    supabaseAdmin
+      .from('audit_events')
+      .select('id, actor_user_id, actor_role, event_type, entity_type, entity_id, metadata, created_at, User:actor_user_id(Full_Name)')
+      .order('created_at', { ascending: false })
+      .limit(20),
   ]);
   if (userError) throw userError;
   if (groupError) throw groupError;
   if (roundError) throw roundError;
   if (transactionError) throw transactionError;
+  if (reliabilityError) throw reliabilityError;
+  if (auditError) throw auditError;
   return {
     users: (users ?? []) as UserRecord[],
     groups: (groups ?? []) as GroupRecord[],
     rounds: (rounds ?? []) as RoundRecord[],
     transactions: ((transactions ?? []) as TransactionRecord[]).map(item => ({ ...item, Amount: Number(item.Amount) })),
+    reliabilityProfiles: (reliabilityProfiles ?? []) as UserReliabilityProfileRecord[],
+    auditEvents: auditEvents ?? [],
   };
+}
+
+function deriveReliabilitySummary(profiles: UserReliabilityProfileRecord[]) {
+  const summary: Partial<Record<ReliabilityPublicStatus, number>> = {};
+  for (const profile of profiles) {
+    summary[profile.public_status] = (summary[profile.public_status] ?? 0) + 1;
+  }
+  return summary;
+}
+
+function humanizeEventType(eventType: string) {
+  return eventType
+    .split('_')
+    .filter(Boolean)
+    .map(part => part[0].toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function deriveAuditTimeline(events: Array<Record<string, unknown>>) {
+  return events.map(event => {
+    const userRelation = event.User as { Full_Name?: string } | null | undefined;
+    const eventType = String(event.event_type ?? 'audit_event');
+    const entityType = event.entity_type ? String(event.entity_type) : null;
+    const entityId = event.entity_id ? String(event.entity_id) : null;
+    return {
+      id: String(event.id),
+      eventType,
+      actorRole: String(event.actor_role ?? 'System'),
+      actorName: userRelation?.Full_Name ?? null,
+      entityType,
+      entityId,
+      createdAt: String(event.created_at),
+      summary: `${humanizeEventType(eventType)}${entityType ? ` on ${entityType}` : ''}`,
+    };
+  });
 }
 
 async function deriveReminderQueue(groups: GroupRecord[], rounds: RoundRecord[]) {
@@ -166,6 +218,8 @@ Deno.serve(async request => {
           exportsCount: reportDefinitions.length,
           logs: deriveLogs(state.users, state.groups, state.rounds, state.transactions),
           reminderQueue,
+          reliabilitySummary: deriveReliabilitySummary(state.reliabilityProfiles),
+          auditTimeline: deriveAuditTimeline(state.auditEvents),
         });
       }
 

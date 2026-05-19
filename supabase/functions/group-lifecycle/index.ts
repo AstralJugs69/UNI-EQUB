@@ -4,10 +4,10 @@ import { verifySession } from '../_shared/auth.ts';
 import { freezeGroupForAdminReview, resolveOpenGroupFreeze } from '../_shared/groupFreeze.ts';
 import { createFrozenGroupResolutionPoll, closeResolutionPollIfReady, getGroupResolutionState, voteOnResolutionPoll } from '../_shared/groupResolution.ts';
 import { getRoundObligationProgress } from '../_shared/obligations.ts';
-import { assertReliabilityAllowsNormalFlow, getReliabilityJoinGate } from '../_shared/reliability.ts';
+import { assertReliabilityAllowsNormalFlow, ensureReliabilityProfile, getReliabilityJoinGate } from '../_shared/reliability.ts';
 import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import type { GroupRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
+import type { GroupRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord, UserReliabilityProfileRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,6 +27,7 @@ interface DashboardSnapshot {
   totalSaved: number;
   readyPayout: number;
   recentTransactions: TransactionRecord[];
+  reliabilityProfile: UserReliabilityProfileRecord;
 }
 
 function toAppGroup(group: GroupRecord): AppGroupRecord {
@@ -328,6 +329,7 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
     totalSaved: (savedTransactions ?? []).reduce((sum, item) => sum + Number(item.Amount ?? 0), 0),
     readyPayout: (payoutTransactions ?? []).reduce((sum, item) => sum + Number(item.Amount ?? 0), 0),
     recentTransactions: ((transactions ?? []) as TransactionRecord[]).map(toTransactionRecord),
+    reliabilityProfile: await ensureReliabilityProfile(actor.User_ID),
   };
 }
 

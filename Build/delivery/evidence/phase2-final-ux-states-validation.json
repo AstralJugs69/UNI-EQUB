@@ -1,0 +1,24 @@
+{
+  "scenario": "phase2-final-ux-states-validation",
+  "validatedFiles": {
+    "mobileTypes": "mobile/src/types/domain.ts",
+    "groupLifecycle": "supabase/functions/group-lifecycle/index.ts",
+    "reportExport": "supabase/functions/report-export/index.ts",
+    "mockBackend": "mobile/src/services/mock/mockBackend.ts",
+    "dashboard": "mobile/src/screens/member/DashboardScreen.tsx",
+    "profile": "mobile/src/screens/member/ProfileScreen.tsx",
+    "adminDashboard": "mobile/src/screens/admin/AdminDashboardScreen.tsx",
+    "adminReports": "mobile/src/screens/admin/AdminReportsScreen.tsx",
+    "tracker": "Build/delivery/phase2_development_progress_tracker.md"
+  },
+  "completedChecks": [
+    "member dashboard and profile expose public reliability labels without internal score details",
+    "admin dashboard and reports expose reliability label counts",
+    "admin reports prefer durable audit timeline rows and keep derived log fallback",
+    "mock demo state mirrors live reliability and audit overview fields",
+    "Phase 8 UX evidence remains repo-local until screenshots/device UAT are captured"
+  ],
+  "requiresSupabaseCredentials": false,
+  "requiresDeviceValidation": true,
+  "validatedAt": "2026-05-19T12:52:50.718Z"
+}

@@ -136,6 +136,7 @@ export interface DashboardSnapshot {
   totalSaved: number;
   readyPayout: number;
   recentTransactions: TransactionRecord[];
+  reliabilityProfile?: UserReliabilityProfileRecord | null;
 }
 
 export interface WalletSnapshot {
@@ -211,12 +212,25 @@ export interface AdminOverview {
   exportsCount: number;
   logs: string[];
   reminderQueue: string[];
+  reliabilitySummary?: Partial<Record<ReliabilityPublicStatus, number>>;
+  auditTimeline?: AuditTimelineItem[];
   providerLogs?: Array<{
     provider: PaymentMethod | 'ReminderEngine';
     status: 'Queued' | 'Successful' | 'Failed';
     message: string;
     createdAt: string;
   }>;
+}
+
+export interface AuditTimelineItem {
+  id: string;
+  eventType: string;
+  actorRole: 'Member' | 'Admin' | 'System' | 'EdgeFunction';
+  actorName?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
+  createdAt: string;
+  summary: string;
 }
 
 export interface KycReviewItem {

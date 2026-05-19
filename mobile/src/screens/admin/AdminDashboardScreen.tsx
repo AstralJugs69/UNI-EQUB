@@ -41,9 +41,30 @@ export function AdminDashboardScreen() {
           <PrimaryCTA label="Reports" onPress={() => navigation.navigate(routes.adminReports)} />
         </View>
       </SectionCard>
+      {data.reliabilitySummary ? (
+        <SectionCard variant="soft">
+          <TitleBlock title="Reliability overview" subtitle="Public labels across current users." />
+          <View style={adminStyles.rowWrap}>
+            {(['New', 'BuildingTrust', 'Trusted', 'Restricted', 'Banned'] as const).map(status => (
+              <Pill
+                key={status}
+                label={`${status}: ${data.reliabilitySummary?.[status] ?? 0}`}
+                tone={status === 'Trusted' ? 'good' : status === 'Restricted' || status === 'Banned' ? 'bad' : status === 'BuildingTrust' ? 'active' : 'neutral'}
+              />
+            ))}
+          </View>
+        </SectionCard>
+      ) : null}
       <SectionCard>
-        <TitleBlock title="Recent audit activity" subtitle="Demo mode seeds the same audit surface used by live reports." />
-        {data.logs.map(log => (
+        <TitleBlock title="Recent audit activity" subtitle="Read-only event trail from reports." />
+        {data.auditTimeline?.length ? data.auditTimeline.slice(0, 4).map(event => (
+          <ListRow
+            key={event.id}
+            title={event.summary}
+            subtitle={`${event.actorName ?? event.actorRole} • ${event.createdAt}`}
+            leadingIcon="history"
+          />
+        )) : data.logs.map(log => (
           <ListRow key={log} title={log} leadingIcon="history" />
         ))}
       </SectionCard>

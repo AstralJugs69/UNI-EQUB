@@ -223,6 +223,15 @@ export function DashboardScreen() {
           active={data.readyPayout > 0}
         />
       </View>
+      {data.reliabilityProfile ? (
+        <StatusBanner
+          tone={data.reliabilityProfile.public_status === 'Trusted' ? 'success' : data.reliabilityProfile.public_status === 'Restricted' || data.reliabilityProfile.public_status === 'Banned' ? 'danger' : 'info'}
+          title={`Reliability: ${data.reliabilityProfile.public_status}`}
+          body={data.reliabilityProfile.public_status === 'Trusted'
+            ? 'Your public label supports full standard payout handling.'
+            : 'This public label is based on completed cycles and payment reliability.'}
+        />
+      ) : null}
       <SectionCard style={memberStyles.dashboardPanel}>
         <Text style={memberStyles.dashboardSectionTitle}>Quick actions</Text>
         <View style={memberStyles.quickActionGrid}>
