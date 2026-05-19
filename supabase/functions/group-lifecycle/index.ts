@@ -2,6 +2,7 @@ import { fail, failFromError, json } from '../_shared/contracts.ts';
 import type { CreateGroupRequest, GroupLifecyclePayload } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
 import { freezeGroupForAdminReview, resolveOpenGroupFreeze } from '../_shared/groupFreeze.ts';
+import { createFrozenGroupResolutionPoll, closeResolutionPollIfReady, getGroupResolutionState, voteOnResolutionPoll } from '../_shared/groupResolution.ts';
 import { getRoundObligationProgress } from '../_shared/obligations.ts';
 import { assertReliabilityAllowsNormalFlow, getReliabilityJoinGate } from '../_shared/reliability.ts';
 import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
@@ -224,6 +225,8 @@ async function getGroupStatusSnapshot(actor: UserRecord, groupId: string) {
     && memberships.some(item => item.User_ID === actor.User_ID)
     && !obligationProgress.paidUserIds.has(actor.User_ID);
 
+  const resolutionState = await getGroupResolutionState(groupId, actor.User_ID);
+
   return {
     group: toAppGroup(group),
     currentRound,
@@ -231,6 +234,8 @@ async function getGroupStatusSnapshot(actor: UserRecord, groupId: string) {
     totalMembers: obligationProgress.totalMembers,
     winnerHistory: await getWinnerHistory(groupId),
     contributors: await getStatusContributors(groupId, memberships, obligationProgress.paidUserIds, currentRound?.Winner_ID),
+    activeResolutionPoll: resolutionState.activeResolutionPoll,
+    refundTickets: resolutionState.refundTickets,
     canCurrentUserPay,
     isFrozen: group.Status === 'Frozen',
   };
@@ -474,6 +479,37 @@ Deno.serve(async request => {
           resolutionNote: body.resolutionNote,
         });
         return json({ group: toAppGroup(result.group), freezeEvent: result.freezeEvent });
+      }
+
+      case 'createResolutionPoll': {
+        assertAdmin(actor);
+        if (!body.groupId) {
+          return fail('Missing groupId for resolution poll.', 400);
+        }
+        return json(await createFrozenGroupResolutionPoll({ groupId: body.groupId, admin: actor }));
+      }
+
+      case 'voteResolutionPoll': {
+        if (!body.groupId || !body.pollId || !body.optionId) {
+          return fail('Missing poll vote payload.', 400);
+        }
+        assertVerifiedMember(actor);
+        const vote = await voteOnResolutionPoll({
+          groupId: body.groupId,
+          pollId: body.pollId,
+          optionId: body.optionId,
+          voter: actor,
+        });
+        return json({ vote, ...(await getGroupResolutionState(body.groupId, actor.User_ID)) });
+      }
+
+      case 'closeResolutionPoll': {
+        assertAdmin(actor);
+        if (!body.groupId || !body.pollId) {
+          return fail('Missing poll close payload.', 400);
+        }
+        await closeResolutionPollIfReady({ pollId: body.pollId, actor, forceExpired: true });
+        return json(await getGroupResolutionState(body.groupId, actor.User_ID));
       }
 
       case 'join': {

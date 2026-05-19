@@ -11,12 +11,16 @@ import type {
   GroupInvitationRecord,
   GroupJoinRequestRecord,
   GroupRecord,
+  GroupResolutionPollOptionRecord,
+  GroupResolutionPollRecord,
+  GroupResolutionVoteRecord,
   GroupRequestRecord,
   GroupStatusSnapshot,
   KycReviewItem,
   MembershipRecord,
   PaymentMethod,
   PaymentResult,
+  RefundTicketRecord,
   ReminderBatchResult,
   ReportSummary,
   RoundRecord,
@@ -75,6 +79,10 @@ interface DatabaseState {
   groupRequests: GroupRequestRecord[];
   groupJoinRequests: GroupJoinRequestRecord[];
   groupInvitations: GroupInvitationRecord[];
+  resolutionPolls: GroupResolutionPollRecord[];
+  resolutionPollOptions: GroupResolutionPollOptionRecord[];
+  resolutionVotes: GroupResolutionVoteRecord[];
+  refundTickets: RefundTicketRecord[];
 }
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -125,6 +133,10 @@ export class MockBackend implements AppServices {
       groupRequests: this.createDemoGroupRequests(),
       groupJoinRequests: this.createDemoJoinRequests(),
       groupInvitations: this.createDemoGroupInvitations(),
+      resolutionPolls: [],
+      resolutionPollOptions: [],
+      resolutionVotes: [],
+      refundTickets: [],
     };
   }
 
@@ -186,6 +198,18 @@ export class MockBackend implements AppServices {
         Status: 'Pending',
         Start_Date: '2026-05-18',
         Description: 'Small daily transport contribution request queued for admin review.',
+      },
+      {
+        Group_ID: 'group-demo-frozen',
+        Creator_ID: 'user-admin',
+        Group_Name: 'Frozen Recovery Demo',
+        Amount: 200,
+        Max_Members: 5,
+        Frequency: 'Weekly',
+        Virtual_Acc_Ref: 'UEQ-FROZEN',
+        Status: 'Frozen',
+        Start_Date: '2026-05-15',
+        Description: 'Frozen group ready for member-poll recovery demo.',
       },
     ];
   }
@@ -863,6 +887,10 @@ export class MockBackend implements AppServices {
         totalMembers,
         winnerHistory,
         contributors,
+        activeResolutionPoll: this.db.resolutionPolls.find(poll => poll.group_id === groupId && poll.status === 'Open')
+          ? this.buildResolutionPollSummary(this.db.resolutionPolls.find(poll => poll.group_id === groupId && poll.status === 'Open')!, userId)
+          : null,
+        refundTickets: this.db.refundTickets.filter(ticket => ticket.group_id === groupId).map(clone),
         canCurrentUserPay,
         isFrozen: group.Status === 'Frozen',
       };
@@ -891,7 +919,7 @@ export class MockBackend implements AppServices {
 
     listPendingApprovals: async (): Promise<GroupApprovalItem[]> => {
       return this.db.groups
-        .filter(group => group.Status === 'Pending' && !this.db.rejectedGroupIds.includes(group.Group_ID))
+        .filter(group => (group.Status === 'Pending' || group.Status === 'Frozen') && !this.db.rejectedGroupIds.includes(group.Group_ID))
         .map(group => ({ group: clone(group), creator: clone(this.requireUser(group.Creator_ID)), note: 'Review amount, membership size, and creator status.' }));
     },
 
@@ -924,6 +952,110 @@ export class MockBackend implements AppServices {
       group.Status = 'Active';
       this.db.auditLogs.unshift(`Group freeze resolved manually: ${group.Group_Name}`);
       this.pushNotification(group.Creator_ID, 'Group resumed', 'Admin reviewed the default case and resumed the group.');
+    },
+
+    createResolutionPoll: async (groupId: string): Promise<GroupStatusSnapshot['activeResolutionPoll']> => {
+      const group = this.requireGroup(groupId);
+      if (group.Status !== 'Frozen') {
+        throw new Error('Resolution polls are only available for frozen groups.');
+      }
+      const existing = this.db.resolutionPolls.find(poll => poll.group_id === groupId && poll.status === 'Open');
+      if (existing) {
+        return this.buildResolutionPollSummary(existing, group.Creator_ID);
+      }
+      const activeMemberIds = this.db.memberships
+        .filter(item => item.Group_ID === groupId && item.Status === 'Active')
+        .map(item => item.User_ID);
+      const eligibleVoterIds = activeMemberIds.length > 0
+        ? activeMemberIds
+        : this.db.users
+          .filter(user => user.Role === 'Member' && user.KYC_Status === 'Verified')
+          .slice(0, Math.min(group.Max_Members, 5))
+          .map(user => user.User_ID);
+      const poll: GroupResolutionPollRecord = {
+        id: makeId('poll'),
+        group_id: groupId,
+        freeze_event_id: `freeze-${groupId}`,
+        created_by_admin_id: 'user-admin',
+        status: 'Open',
+        opens_at: nowIso(),
+        closes_at: plusMinutes(60 * 24),
+        required_threshold_type: 'SimpleMajority',
+        eligible_voter_user_ids: eligibleVoterIds,
+        winning_option_id: null,
+        closed_at: null,
+        metadata: {},
+        created_at: nowIso(),
+        updated_at: nowIso(),
+      };
+      const options: GroupResolutionPollOptionRecord[] = [
+        ['Continue group', 'Resume while reserves stay frozen.', 'ContinueWithReserveFrozen'],
+        ['Keep frozen', 'Pause for more admin follow-up.', 'KeepFrozenForReview'],
+        ['Simulate refunds', 'Create refund tickets for eligible contributors.', 'CreateRefundTickets'],
+      ].map(([label, description, action], index) => ({
+        id: makeId('option'),
+        poll_id: poll.id,
+        option_label: label,
+        option_description: description,
+        resolution_action: action as GroupResolutionPollOptionRecord['resolution_action'],
+        display_order: index + 1,
+        created_at: nowIso(),
+      }));
+      this.db.resolutionPolls.unshift(poll);
+      this.db.resolutionPollOptions.unshift(...options);
+      this.db.auditLogs.unshift(`Resolution poll opened: ${group.Group_Name}`);
+      this.pushNotification(group.Creator_ID, 'Resolution poll opened', 'Members can vote on the frozen group case.');
+      return this.buildResolutionPollSummary(poll, group.Creator_ID);
+    },
+
+    voteResolutionPoll: async (groupId: string, pollId: string, optionId: string): Promise<void> => {
+      const poll = this.db.resolutionPolls.find(item => item.id === pollId && item.group_id === groupId && item.status === 'Open');
+      if (!poll) {
+        throw new Error('This resolution poll is not open.');
+      }
+      const voterId = poll.eligible_voter_user_ids[0];
+      if (!voterId) {
+        throw new Error('No eligible voter is available.');
+      }
+      if (this.db.resolutionVotes.some(vote => vote.poll_id === pollId && vote.voter_user_id === voterId)) {
+        throw new Error('You have already voted on this resolution poll.');
+      }
+      this.db.resolutionVotes.unshift({
+        id: makeId('vote'),
+        poll_id: pollId,
+        voter_user_id: voterId,
+        option_id: optionId,
+        voted_at: nowIso(),
+      });
+      this.db.auditLogs.unshift(`Resolution vote recorded for ${groupId}`);
+    },
+
+    closeResolutionPoll: async (groupId: string, pollId: string): Promise<void> => {
+      const poll = this.db.resolutionPolls.find(item => item.id === pollId && item.group_id === groupId);
+      if (!poll) {
+        throw new Error('Resolution poll not found.');
+      }
+      poll.status = 'Expired';
+      poll.closed_at = nowIso();
+      poll.updated_at = nowIso();
+      const group = this.requireGroup(groupId);
+      group.Status = 'Frozen';
+      const refundTickets: RefundTicketRecord[] = poll.eligible_voter_user_ids.map(userId => ({
+        id: makeId('refund'),
+        group_id: groupId,
+        round_id: this.currentOpenRound(groupId)?.Round_ID ?? null,
+        user_id: userId,
+        amount: group.Amount,
+        currency: 'ETB',
+        reason: 'Simulated refund after unresolved frozen group poll.',
+        status: 'Created',
+        calculation_snapshot: { poll_id: pollId },
+        offset_applied_amount: 0,
+        created_by_event_id: poll.freeze_event_id,
+        created_at: nowIso(),
+        processed_at: null,
+      }));
+      this.db.refundTickets.unshift(...refundTickets);
     },
 
     joinGroup: async (userId: string, groupId: string): Promise<void> => {
@@ -1554,6 +1686,26 @@ export class MockBackend implements AppServices {
 
   private successfulContributions(roundId: string) {
     return this.db.transactions.filter(item => item.Round_ID === roundId && item.Type === 'Contribution' && item.Status === 'Successful');
+  }
+
+  private buildResolutionPollSummary(poll: GroupResolutionPollRecord, currentUserId: string): GroupStatusSnapshot['activeResolutionPoll'] {
+    const options = this.db.resolutionPollOptions
+      .filter(option => option.poll_id === poll.id)
+      .sort((a, b) => a.display_order - b.display_order);
+    const votes = this.db.resolutionVotes.filter(vote => vote.poll_id === poll.id);
+    const voteCounts = Object.fromEntries(options.map(option => [
+      option.id,
+      votes.filter(vote => vote.option_id === option.id).length,
+    ]));
+
+    return {
+      poll: clone(poll),
+      options: options.map(clone),
+      voteCounts,
+      requiredVotes: Math.floor(poll.eligible_voter_user_ids.length / 2) + 1,
+      eligibleVoterCount: poll.eligible_voter_user_ids.length,
+      currentUserVote: votes.find(vote => vote.voter_user_id === currentUserId) ?? null,
+    };
   }
 
   private activeMembershipCount(groupId: string) {

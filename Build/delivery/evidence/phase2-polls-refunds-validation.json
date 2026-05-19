@@ -1,0 +1,32 @@
+{
+  "scenario": "phase2-polls-refunds-validation",
+  "validatedFiles": {
+    "migration": "supabase/migrations/20260519131500_phase2_resolution_polls_refund_tickets.sql",
+    "helper": "supabase/functions/_shared/groupResolution.ts",
+    "groupLifecycle": "supabase/functions/group-lifecycle/index.ts",
+    "edgeContracts": "supabase/functions/_shared/contracts.ts",
+    "liveGroups": "mobile/src/services/live/liveGroupsService.ts",
+    "mockBackend": "mobile/src/services/mock/mockBackend.ts",
+    "mobileContracts": "mobile/src/services/contracts/index.ts",
+    "hooks": "mobile/src/hooks/useAppQueries.ts",
+    "memberStatusUi": "mobile/src/screens/member/GroupStatusScreen.tsx",
+    "adminGroupsUi": "mobile/src/screens/admin/AdminGroupsScreen.tsx",
+    "mobileTypes": "mobile/src/types/domain.ts",
+    "sharedTypes": "supabase/functions/_shared/types.ts"
+  },
+  "completedChecks": [
+    "poll, option, vote, and refund ticket companion tables exist with duplicate-vote and query-path indexes",
+    "admin can open a simple-majority resolution poll for a frozen group",
+    "eligible non-defaulted members can vote once from the group status screen",
+    "winning/expired polls resolve through freeze recovery without adding a canonical Disbanded status",
+    "refund tickets are simulated records with ledger/notification evidence and no real money movement",
+    "admin and member UI paths expose poll opening, vote closing, voting, and refund-ticket visibility"
+  ],
+  "limitations": [
+    "remote migration/function deployment and device screenshots remain user/Both validation work",
+    "refund calculation is intentionally simulation-oriented and uses successful contribution records for eligible ticket amounts"
+  ],
+  "requiresSupabaseCredentials": false,
+  "requiresDeviceValidation": true,
+  "validatedAt": "2026-05-19T12:36:47.690Z"
+}

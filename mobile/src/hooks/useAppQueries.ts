@@ -183,6 +183,11 @@ export function useMemberActions() {
       mutationFn: (groupId: string) => services.groups.joinGroup(session!.user.userId, groupId),
       onSuccess: refreshMemberData,
     }),
+    voteResolutionPoll: useMutation({
+      mutationFn: ({ groupId, pollId, optionId }: { groupId: string; pollId: string; optionId: string }) =>
+        services.groups.voteResolutionPoll(groupId, pollId, optionId),
+      onSuccess: refreshMemberData,
+    }),
     payContribution: useMutation({
       mutationFn: ({ groupId, method }: { groupId: string; method: PaymentMethod }) =>
         services.payments.payContribution(session!.user.userId, groupId, method),
@@ -341,6 +346,14 @@ export function useAdminActions() {
     resolveFrozenGroup: useMutation({
       mutationFn: ({ groupId, resolutionNote }: { groupId: string; resolutionNote?: string }) =>
         services.groups.resolveFreeze(groupId, 'ContinueWithReserveFrozen', resolutionNote),
+      onSuccess: refreshAdminData,
+    }),
+    createResolutionPoll: useMutation({
+      mutationFn: (groupId: string) => services.groups.createResolutionPoll(groupId),
+      onSuccess: refreshAdminData,
+    }),
+    closeResolutionPoll: useMutation({
+      mutationFn: ({ groupId, pollId }: { groupId: string; pollId: string }) => services.groups.closeResolutionPoll(groupId, pollId),
       onSuccess: refreshAdminData,
     }),
     approveFormationGroup: useMutation({

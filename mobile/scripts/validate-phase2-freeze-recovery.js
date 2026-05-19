@@ -149,7 +149,7 @@ function main() {
       'live and mock mobile group services expose matching freeze-resolution behavior',
     ],
     limitations: [
-      'poll tables, refund tickets, and terminal disbandment handling remain deferred under P2-706 through P2-709',
+      'poll/refund-ticket resolution now lives in the follow-on phase2-polls-refunds validator',
       'remote migration/function deployment and device screenshots remain user/Both validation work',
     ],
     requiresSupabaseCredentials: false,

@@ -334,13 +334,22 @@ export async function resolveOpenGroupFreeze(input: {
       resolution_note: input.resolutionNote,
     },
   });
+  const resolvedTitle = input.resolutionAction === 'ContinueWithReserveFrozen'
+    ? 'Group resumed'
+    : input.resolutionAction === 'CreateRefundTickets'
+      ? 'Refund tickets created'
+      : 'Group remains frozen';
+  const resolvedMessage = input.resolutionAction === 'ContinueWithReserveFrozen'
+    ? 'Admin reviewed the default case and resumed the group.'
+    : input.resolutionAction === 'CreateRefundTickets'
+      ? 'The frozen group case was closed with simulated refund tickets.'
+      : 'Admin reviewed the default case and kept the group frozen for follow-up.';
+
   await notifyActiveMembers(input.groupId, {
     type: 'group_freeze_resolved',
     severity: nextGroupStatus === 'Active' ? 'Success' : 'Warning',
-    title: nextGroupStatus === 'Active' ? 'Group resumed' : 'Group remains frozen',
-    message: nextGroupStatus === 'Active'
-      ? 'Admin reviewed the default case and resumed the group.'
-      : 'Admin reviewed the default case and kept the group frozen for follow-up.',
+    title: resolvedTitle,
+    message: resolvedMessage,
     freezeEventId: event.id,
     metadata: {
       resolution_action: input.resolutionAction,

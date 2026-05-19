@@ -8,7 +8,7 @@
 }
 
 export type RegisterLoginAction = 'register' | 'requestOtp' | 'verifyOtp' | 'beginLogin' | 'completeLogin' | 'login' | 'restore';
-export type GroupLifecycleAction = 'listBrowseable' | 'getGroup' | 'getGroupStatus' | 'createRequest' | 'listPending' | 'approve' | 'reject' | 'freeze' | 'resolveFreeze' | 'join' | 'getDashboard';
+export type GroupLifecycleAction = 'listBrowseable' | 'getGroup' | 'getGroupStatus' | 'createRequest' | 'listPending' | 'approve' | 'reject' | 'freeze' | 'resolveFreeze' | 'createResolutionPoll' | 'voteResolutionPoll' | 'closeResolutionPoll' | 'join' | 'getDashboard';
 export type GroupFormationAction = 'listPublic' | 'listMine' | 'listPendingApproval' | 'getRequest' | 'lookupInviteCode' | 'createRequest' | 'requestJoin' | 'acceptJoin' | 'removeParticipant' | 'invite' | 'acceptInvite' | 'submitForApproval' | 'adminApprove' | 'adminReject';
 export type ContributionAction = 'payContribution' | 'startContributionUssd' | 'submitContributionUssd' | 'listTransactions' | 'getWallet' | 'reconcileProviderCallback';
 export type PaymentAttemptAction = 'initiateContributionAttempt' | 'recordProviderCallback' | 'markAttemptTimeout' | 'markAttemptCancelled';
@@ -77,8 +77,10 @@ export interface GroupLifecyclePayload {
   token: string;
   groupId?: string;
   createRequest?: CreateGroupRequest;
-  resolutionAction?: 'ContinueWithReserveFrozen' | 'KeepFrozenForReview';
+  resolutionAction?: 'ContinueWithReserveFrozen' | 'KeepFrozenForReview' | 'CreateRefundTickets';
   resolutionNote?: string;
+  pollId?: string;
+  optionId?: string;
 }
 
 export interface CreateGroupFormationRequest {

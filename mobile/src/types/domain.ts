@@ -36,7 +36,10 @@ export type PayoutReleaseScheduleStatus = 'Pending' | 'Released' | 'Frozen' | 'C
 export type ReliabilityPublicStatus = 'New' | 'BuildingTrust' | 'Trusted' | 'Restricted' | 'Banned';
 export type UserRestrictionStatus = 'Active' | 'ClearedByAdmin' | 'ClearedByRecovery' | 'EscalatedToBan';
 export type GroupFreezeEventStatus = 'Open' | 'UnderReview' | 'ResolvedContinue' | 'ResolvedKeepFrozen' | 'Cancelled';
-export type GroupFreezeResolutionAction = 'ContinueWithReserveFrozen' | 'KeepFrozenForReview';
+export type GroupFreezeResolutionAction = 'ContinueWithReserveFrozen' | 'KeepFrozenForReview' | 'CreateRefundTickets';
+export type GroupResolutionPollStatus = 'Open' | 'Closed' | 'Expired' | 'Cancelled';
+export type GroupResolutionPollAction = 'ContinueWithReserveFrozen' | 'KeepFrozenForReview' | 'CreateRefundTickets';
+export type RefundTicketStatus = 'Created' | 'PendingReview' | 'SimulatedCompleted' | 'Cancelled';
 export type KycSubmissionStatus = 'PendingReview' | 'Approved' | 'Rejected' | 'NeedsResubmission' | 'Superseded';
 export type KycDocumentKind = 'front_id' | 'back_id' | 'selfie' | 'legacy_student_id';
 
@@ -150,6 +153,8 @@ export interface GroupStatusSnapshot {
   totalMembers: number;
   winnerHistory: Array<{ roundNumber: number; winnerName: string }>;
   contributors?: GroupStatusContributor[];
+  activeResolutionPoll?: GroupResolutionPollSummary | null;
+  refundTickets?: RefundTicketRecord[];
   canCurrentUserPay: boolean;
   isFrozen: boolean;
 }
@@ -502,4 +507,64 @@ export interface GroupFreezeEventRecord {
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+}
+
+export interface GroupResolutionPollRecord {
+  id: string;
+  group_id: string;
+  freeze_event_id: string;
+  created_by_admin_id: string;
+  status: GroupResolutionPollStatus;
+  opens_at: string;
+  closes_at: string;
+  required_threshold_type: 'SimpleMajority';
+  eligible_voter_user_ids: string[];
+  winning_option_id: string | null;
+  closed_at: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GroupResolutionPollOptionRecord {
+  id: string;
+  poll_id: string;
+  option_label: string;
+  option_description: string | null;
+  resolution_action: GroupResolutionPollAction;
+  display_order: number;
+  created_at: string;
+}
+
+export interface GroupResolutionVoteRecord {
+  id: string;
+  poll_id: string;
+  voter_user_id: string;
+  option_id: string;
+  voted_at: string;
+}
+
+export interface GroupResolutionPollSummary {
+  poll: GroupResolutionPollRecord;
+  options: GroupResolutionPollOptionRecord[];
+  voteCounts: Record<string, number>;
+  requiredVotes: number;
+  eligibleVoterCount: number;
+  currentUserVote: GroupResolutionVoteRecord | null;
+}
+
+export interface RefundTicketRecord {
+  id: string;
+  group_id: string;
+  round_id: string | null;
+  user_id: string;
+  amount: number;
+  currency: string;
+  reason: string;
+  status: RefundTicketStatus;
+  calculation_snapshot: Record<string, unknown>;
+  offset_applied_amount: number;
+  created_by_event_id: string | null;
+  created_at: string;
+  processed_at: string | null;
 }

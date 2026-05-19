@@ -68,6 +68,10 @@ This repository is organized as an implementation workspace around the original 
 - `npm run qa:phase2-active-group-limit`
 - `npm run qa:phase2-reliability-updates`
 - `npm run qa:phase2-default-restriction`
+- `npm run qa:phase2-freeze-recovery`
+- `npm run qa:phase2-polls-refunds`
+- `npm run qa:phase2-durable-notifications`
+- `npm run qa:phase2-kyc-history`
 - `npm run qa:phase2-demo-readiness`
 - `npm run qa:phase2-in-app-demo`
 - `node .\mobile\scripts\seed-final-draw.js --phone 09XXXXXXXX --name "Your Name"`

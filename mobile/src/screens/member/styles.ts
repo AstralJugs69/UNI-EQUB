@@ -1101,6 +1101,45 @@ export const memberStyles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 2,
   },
+  pollCard: {
+    gap: spacing.sm,
+  },
+  pollTitle: {
+    color: palette.text,
+    fontWeight: '900',
+    fontSize: 17,
+  },
+  pollBody: {
+    color: palette.textMuted,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  pollOption: {
+    gap: spacing.sm,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.backgroundSoft,
+    padding: spacing.sm,
+  },
+  pollOptionText: {
+    gap: spacing.xxs,
+  },
+  pollOptionTitle: {
+    color: palette.text,
+    fontWeight: '900',
+    fontSize: 14,
+  },
+  pollOptionBody: {
+    color: palette.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  pollOptionMeta: {
+    color: palette.primary,
+    fontSize: 11,
+    fontWeight: '800',
+  },
   miniMetricCard: {
     flex: 1,
     minHeight: 78,

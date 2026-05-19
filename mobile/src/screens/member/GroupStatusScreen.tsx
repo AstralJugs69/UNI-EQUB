@@ -2,8 +2,8 @@ import React, { memo, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
-import { EmptyState, LoadingState, PrimaryCTA, ScreenScroll, SectionCard, StatusBanner } from '../../components/ui';
-import { useDashboardQuery, useGroupStatusQuery } from '../../hooks/useAppQueries';
+import { EmptyState, ListRow, LoadingState, Pill, PrimaryCTA, ScreenScroll, SecondaryCTA, SectionCard, StatusBanner } from '../../components/ui';
+import { useDashboardQuery, useGroupStatusQuery, useMemberActions } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { iconSize, palette } from '../../theme/tokens';
 import type { GroupStatusSnapshot } from '../../types/domain';
@@ -329,11 +329,90 @@ function Header({ title, status, onBack }: { title: string; status: string; onBa
   );
 }
 
+function ResolutionPollSection({
+  status,
+  onVote,
+  voting,
+}: {
+  status: GroupStatusSnapshot;
+  onVote: (pollId: string, optionId: string) => void;
+  voting: boolean;
+}) {
+  const poll = status.activeResolutionPoll;
+  if (!poll) {
+    return null;
+  }
+
+  const alreadyVoted = !!poll.currentUserVote;
+  const closesOn = poll.poll.closes_at.slice(0, 10);
+
+  return (
+    <SectionCard style={memberStyles.pollCard}>
+      <View style={memberStyles.rowBetween}>
+        <Text style={memberStyles.pollTitle}>Resolution vote</Text>
+        <Pill label={alreadyVoted ? 'Voted' : 'Open'} tone={alreadyVoted ? 'good' : 'warn'} />
+      </View>
+      <Text style={memberStyles.pollBody}>
+        {poll.eligibleVoterCount} eligible members. {poll.requiredVotes} votes are needed by {closesOn}.
+      </Text>
+      <View style={memberStyles.listGroup}>
+        {poll.options.map(option => {
+          const count = poll.voteCounts[option.id] ?? 0;
+          const selected = poll.currentUserVote?.option_id === option.id;
+          return (
+            <View key={option.id} style={memberStyles.pollOption}>
+              <View style={memberStyles.pollOptionText}>
+                <Text style={memberStyles.pollOptionTitle}>{option.option_label}</Text>
+                <Text style={memberStyles.pollOptionBody}>{option.option_description}</Text>
+                <Text style={memberStyles.pollOptionMeta}>{count}/{poll.requiredVotes} votes</Text>
+              </View>
+              <SecondaryCTA
+                label={selected ? 'Selected' : 'Vote'}
+                onPress={() => onVote(poll.poll.id, option.id)}
+                loading={voting && !alreadyVoted}
+                disabled={voting || alreadyVoted}
+              />
+            </View>
+          );
+        })}
+      </View>
+    </SectionCard>
+  );
+}
+
+function RefundTicketSection({ status }: { status: GroupStatusSnapshot }) {
+  const tickets = status.refundTickets ?? [];
+  if (!tickets.length) {
+    return null;
+  }
+
+  return (
+    <SectionCard style={memberStyles.winnerHistoryCard}>
+      <View style={memberStyles.rowBetween}>
+        <Text style={memberStyles.winnerHistoryTitle}>Refund tickets</Text>
+        <Pill label={`${tickets.length} simulated`} tone="neutral" />
+      </View>
+      <View style={memberStyles.listGroup}>
+        {tickets.map(ticket => (
+          <ListRow
+            key={ticket.id}
+            title={`${ticket.amount} ${ticket.currency}`}
+            subtitle={ticket.reason}
+            right={<Pill label={ticket.status} tone={ticket.status === 'Created' ? 'warn' : 'neutral'} />}
+            leadingIcon="receipt-long"
+          />
+        ))}
+      </View>
+    </SectionCard>
+  );
+}
+
 export function GroupStatusScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const { data: dashboard } = useDashboardQuery();
   const groupId = route.params?.groupId ?? dashboard?.currentGroup?.Group_ID ?? '';
   const { data: status } = useGroupStatusQuery(groupId);
+  const { voteResolutionPoll } = useMemberActions();
 
   if (!status) {
     return <LoadingState title="Loading group" subtitle="Pulling round progress, payment status, and winner history." />;
@@ -344,6 +423,12 @@ export function GroupStatusScreen({ route }: any) {
       <Header title={status.group.Group_Name} status={status.group.Status} onBack={() => navigation.goBack()} />
       <ContributionRing status={status} />
       {status.isFrozen ? <StatusBanner tone="danger" title="This group is currently frozen." body="Payments and round advancement stay paused until the compliance review is lifted." /> : null}
+      <ResolutionPollSection
+        status={status}
+        voting={voteResolutionPoll.isPending}
+        onVote={(pollId, optionId) => voteResolutionPoll.mutate({ groupId: status.group.Group_ID, pollId, optionId })}
+      />
+      <RefundTicketSection status={status} />
       <SectionCard style={memberStyles.winnerHistoryCard}>
         <Text style={memberStyles.winnerHistoryTitle}>Winner history</Text>
         {status.winnerHistory.length ? (

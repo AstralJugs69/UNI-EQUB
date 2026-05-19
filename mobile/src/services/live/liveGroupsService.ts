@@ -167,6 +167,31 @@ export const liveGroupsService: GroupService = {
     syncGroupShape(response.group);
   },
 
+  async createResolutionPoll(groupId: string): Promise<GroupStatusSnapshot['activeResolutionPoll']> {
+    const response = await invoke<Pick<GroupStatusSnapshot, 'activeResolutionPoll' | 'refundTickets'>>({
+      action: 'createResolutionPoll',
+      groupId,
+    });
+    return response.activeResolutionPoll ?? null;
+  },
+
+  async voteResolutionPoll(groupId: string, pollId: string, optionId: string): Promise<void> {
+    await invoke({
+      action: 'voteResolutionPoll',
+      groupId,
+      pollId,
+      optionId,
+    });
+  },
+
+  async closeResolutionPoll(groupId: string, pollId: string): Promise<void> {
+    await invoke({
+      action: 'closeResolutionPoll',
+      groupId,
+      pollId,
+    });
+  },
+
   async joinGroup(_userId: string, groupId: string): Promise<void> {
     const response = await invoke<{ membership: MembershipRecord; group: GroupRecord; currentRound: RoundRecord }>({ action: 'join', groupId });
     syncGroupShape(response.group);
