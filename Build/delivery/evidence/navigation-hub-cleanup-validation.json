@@ -1,0 +1,30 @@
+{
+  "scenario": "navigation-hub-cleanup-validation",
+  "validatedFiles": {
+    "routes": "mobile/src/navigation/routes.ts",
+    "navigator": "mobile/src/navigation/AppNavigator.tsx",
+    "notificationRoutes": "mobile/src/navigation/notificationRoutes.ts",
+    "dashboard": "mobile/src/screens/member/DashboardScreen.tsx",
+    "activeGroups": "mobile/src/screens/member/ActiveGroupsScreen.tsx",
+    "explore": "mobile/src/screens/member/ExploreScreen.tsx",
+    "paymentSuccess": "mobile/src/screens/member/PaymentSuccessScreen.tsx",
+    "kyc": "mobile/src/screens/auth/KycScreen.tsx",
+    "adminGroups": "mobile/src/screens/admin/AdminGroupsScreen.tsx",
+    "adminGroupReview": "mobile/src/screens/admin/AdminGroupReviewScreen.tsx",
+    "adminKyc": "mobile/src/screens/admin/AdminKycScreen.tsx",
+    "adminKycReview": "mobile/src/screens/admin/AdminKycReviewScreen.tsx",
+    "mockTest": "mobile/src/services/mock/mockBackend.test.ts",
+    "notificationRoutesTest": "mobile/src/navigation/notificationRoutes.test.ts"
+  },
+  "completedChecks": [
+    "role roots use nested bottom tab navigators",
+    "hub screens push detail and wizard routes above the tabs",
+    "payment success keeps stable groupId context",
+    "notifications use whitelist deep-link resolution",
+    "admin KYC and group queues open full detail pages",
+    "dashboard exposes active groups and KYC resubmission state"
+  ],
+  "requiresSupabaseCredentials": false,
+  "requiresDeviceValidation": true,
+  "validatedAt": "2026-05-19T15:18:06.650Z"
+}

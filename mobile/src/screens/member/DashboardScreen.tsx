@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { DemoModeBanner } from '../../components/DemoModeBanner';
@@ -8,45 +8,8 @@ import { useDashboardQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
 import { iconSize, palette } from '../../theme/tokens';
-import type { SessionUser } from '../../types/domain';
-import { MemberNav, formatCurrency } from './shared';
+import { formatCurrency } from './shared';
 import { memberStyles } from './styles';
-
-function ProfileHeader({
-  user,
-  expanded,
-  onToggle,
-}: {
-  user: SessionUser;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <>
-      <View style={memberStyles.dashboardHeader}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Show profile details"
-          onPress={onToggle}
-          style={memberStyles.profileIconButton}
-        >
-          <Icon name="person" size={iconSize.md} color={palette.primaryDark} />
-        </Pressable>
-      </View>
-      {expanded ? (
-        <View style={memberStyles.profileDetailsPanel}>
-          <View>
-            <Text style={memberStyles.profileName}>{user.fullName}</Text>
-            <Text style={memberStyles.profileMeta}>{user.phoneNumber}</Text>
-          </View>
-          <View style={memberStyles.profileStatusPill}>
-            <Text style={memberStyles.profileStatusText}>{user.kycStatus}</Text>
-          </View>
-        </View>
-      ) : null}
-    </>
-  );
-}
 
 function MiniMetric({
   icon,
@@ -94,11 +57,10 @@ function QuickActionTile({
   );
 }
 
-export function DashboardScreen() {
+export function DashboardScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const { session } = useAuth();
   const { data } = useDashboardQuery();
-  const [profileExpanded, setProfileExpanded] = useState(false);
   const group = data?.currentGroup;
   const recent = data?.recentTransactions?.[0];
 
@@ -107,21 +69,25 @@ export function DashboardScreen() {
   }
 
   const firstName = session.user.fullName.split(' ')[0];
+  const kycState = data.kycState ?? { status: session.user.kycStatus === 'Verified' ? 'Verified' : session.user.kycStatus === 'Banned' ? 'Banned' : 'PendingReview', canSubmit: session.user.kycStatus === 'Unverified' };
+  const kycBanner = kycState.status === 'NeedsResubmission'
+    ? { title: 'KYC needs resubmission.', body: kycState.decisionNote ?? 'Upload clearer student ID documents to unlock full member actions.' }
+    : kycState.status !== 'Verified'
+      ? { title: 'KYC review is still pending.', body: 'Group creation and payout withdrawal stay locked until an admin approves your ID review.' }
+      : null;
 
   if (!group) {
     return (
-      <AppScreen footer={<MemberNav active={routes.dashboard} />} footerFlush>
+      <AppScreen>
         <DemoModeBanner />
-        {session.user.kycStatus !== 'Verified' ? (
-          <StatusBanner tone="warning" title="KYC review is still pending." body="Group creation and payout withdrawal stay locked until an admin approves your ID review." />
-        ) : null}
-        <ProfileHeader user={session.user} expanded={profileExpanded} onToggle={() => setProfileExpanded(current => !current)} />
+        {route?.params?.flash ? <StatusBanner tone="success" title={route.params.flash} /> : null}
+        {kycBanner ? <StatusBanner tone="warning" title={kycBanner.title} body={kycBanner.body} /> : null}
         <HeroCard>
           <Text style={memberStyles.heroValue}>Hi {firstName}</Text>
           <Text style={memberStyles.heroBody}>Browse open groups or submit your own request when you are ready to begin saving.</Text>
           <View style={memberStyles.actionGroup}>
             <SecondaryCTA label="Browse Groups" onPress={() => navigation.navigate(routes.explore)} />
-            <SecondaryCTA label="Create Equb" onPress={() => navigation.navigate(routes.createBasics)} />
+            <SecondaryCTA label="Create Equb" onPress={() => navigation.navigate(routes.explore)} />
           </View>
         </HeroCard>
         <View style={memberStyles.metricsGrid}>
@@ -149,12 +115,10 @@ export function DashboardScreen() {
   const progressPercent = data.totalMembers > 0 ? Math.round((data.paidCount / data.totalMembers) * 100) : 0;
 
   return (
-    <AppScreen footer={<MemberNav active={routes.dashboard} />} footerFlush>
+    <AppScreen>
       <DemoModeBanner />
-      {session.user.kycStatus !== 'Verified' ? (
-        <StatusBanner tone="warning" title="KYC review is still pending." body="You can view your cycle, but group creation and payout withdrawal remain restricted until approval." />
-      ) : null}
-      <ProfileHeader user={session.user} expanded={profileExpanded} onToggle={() => setProfileExpanded(current => !current)} />
+      {route?.params?.flash ? <StatusBanner tone="success" title={route.params.flash} /> : null}
+      {kycBanner ? <StatusBanner tone="warning" title={kycBanner.title} body={kycBanner.body} /> : null}
       <View style={memberStyles.dashboardHeroCard}>
         <View pointerEvents="none" style={memberStyles.dashboardHeroArt}>
           <View style={memberStyles.dashboardVaultBody}>
@@ -181,14 +145,24 @@ export function DashboardScreen() {
         <Text style={memberStyles.dashboardHeroBody}>
           {group.Group_Name} is at <Text style={memberStyles.dashboardHeroBodyStrong}>{data.paidCount}/{data.totalMembers}</Text> paid. Your contribution is the fastest way to push the round forward.
         </Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => navigation.navigate(routes.payment, { groupId: group.Group_ID })}
-          style={memberStyles.heroPayButton}
-        >
-          <Text style={memberStyles.heroPayButtonText}>Pay This Round</Text>
-          <Icon name="arrow-forward" size={iconSize.md} color={palette.primary} />
-        </Pressable>
+        <View style={memberStyles.dashboardHeroActions}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.navigate(routes.payment, { groupId: group.Group_ID })}
+            style={memberStyles.heroPayButton}
+          >
+            <Icon name="account-balance-wallet" size={iconSize.md} color={palette.primary} />
+            <Text style={memberStyles.heroPayButtonText}>Pay</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.navigate(routes.groupStatus, { groupId: group.Group_ID })}
+            style={memberStyles.heroDetailsButton}
+          >
+            <Icon name="description" size={iconSize.md} color={palette.white} />
+            <Text style={memberStyles.heroDetailsButtonText}>Details</Text>
+          </Pressable>
+        </View>
         <View style={memberStyles.dashboardHeroDivider} />
         <View style={memberStyles.dashboardHeroDetailRow}>
           <View style={memberStyles.dashboardHeroIcon}>
@@ -237,7 +211,7 @@ export function DashboardScreen() {
         <View style={memberStyles.quickActionGrid}>
           <QuickActionTile icon="groups" label="Open Group" onPress={() => navigation.navigate(routes.groupStatus, { groupId: group.Group_ID })} />
           <QuickActionTile icon="travel-explore" label="Explore Groups" onPress={() => navigation.navigate(routes.explore)} />
-          <QuickActionTile icon="add-box" label="Create Equb" onPress={() => navigation.navigate(routes.createBasics)} />
+          <QuickActionTile icon="add-box" label="Create Equb" onPress={() => navigation.navigate(routes.explore)} />
           <QuickActionTile icon="notifications" label="Notifications" onPress={() => navigation.navigate(routes.notifications)} />
         </View>
       </SectionCard>

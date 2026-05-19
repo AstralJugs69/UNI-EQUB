@@ -20,7 +20,13 @@ export function MemberNav({ active }: { active: string }) {
 }
 
 export function paymentMethodLabel(method: PaymentMethod) {
-  return method === 'MockUSSD' ? 'Telebirr USSD' : method;
+  if (method === 'Telebirr') {
+    return 'Telebirr';
+  }
+  if (method === 'MockUSSD') {
+    return 'Telebirr USSD';
+  }
+  return 'Chapa Sandbox';
 }
 
 export function formatCurrency(value: number) {

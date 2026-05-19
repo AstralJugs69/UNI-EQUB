@@ -15,11 +15,19 @@ export function OtpScreen({ route }: any) {
   const [resending, setResending] = useState(false);
   const targetPhone = route?.params?.phoneNumber ?? pendingUser?.phoneNumber;
 
+  if (!targetPhone) {
+    return (
+      <ScreenScroll contentStyle={authStyles.centeredContent}>
+        <TopAppBar title="Verify Phone" onBack={() => navigation.goBack()} />
+        <TitleBlock title="No OTP challenge found" subtitle="Create an account first so UniEqub can send the phone verification code." />
+        <PrimaryCTA label="Create Account" onPress={() => navigation.navigate(routes.signup)} />
+        <SecondaryCTA label="Back To Login" onPress={() => navigation.navigate(routes.login)} />
+      </ScreenScroll>
+    );
+  }
+
   async function handleContinue() {
     try {
-      if (!targetPhone) {
-        throw new Error('No active OTP challenge was found. Start again.');
-      }
       setError('');
       setSubmitting(true);
       await verifyOtp(targetPhone, otp);

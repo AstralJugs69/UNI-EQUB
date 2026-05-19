@@ -184,15 +184,17 @@ async function notifyUsers(userIds: string[], input: {
   severity?: 'Info' | 'Success' | 'Warning' | 'Error';
   metadata?: Record<string, unknown>;
 }) {
+  const groupId = typeof input.metadata?.group_id === 'string' ? input.metadata.group_id : null;
   await Promise.all([...new Set(userIds)].map(userId => createNotification({
     userId,
     type: input.type,
     severity: input.severity ?? 'Info',
     title: input.title,
     message: input.message,
-    relatedEntityType: 'group_resolution_poll',
-    relatedEntityId: input.relatedEntityId,
-    metadata: input.metadata,
+    actionRoute: groupId ? 'member/group' : undefined,
+    relatedEntityType: groupId ? 'group' : 'group_resolution_poll',
+    relatedEntityId: groupId ?? input.relatedEntityId,
+    metadata: { ...(input.metadata ?? {}), poll_id: input.relatedEntityId },
   })));
 }
 

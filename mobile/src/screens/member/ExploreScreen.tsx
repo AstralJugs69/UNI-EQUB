@@ -7,7 +7,7 @@ import { useFormationGroupsQuery, useGroupsQuery, useMyFormationGroupsQuery } fr
 import { routes } from '../../navigation/routes';
 import { iconSize, palette } from '../../theme/tokens';
 import type { GroupFormationRequestSummary, GroupRecord } from '../../types/domain';
-import { MemberNav, formatCurrency } from './shared';
+import { formatCurrency } from './shared';
 import { memberStyles } from './styles';
 
 function ExploreHero({ onJoinCode, onCreate }: { onJoinCode: () => void; onCreate: () => void }) {
@@ -41,30 +41,6 @@ function ExploreHero({ onJoinCode, onCreate }: { onJoinCode: () => void; onCreat
         </Pressable>
       </View>
     </View>
-  );
-}
-
-function MyRequestsCard({
-  count,
-  onPress,
-}: {
-  count: number;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={memberStyles.exploreRequestsCard}>
-      <View style={memberStyles.exploreRequestsIcon}>
-        <Icon name="playlist-add-check" size={iconSize.md} color={palette.primary} />
-      </View>
-      <View style={memberStyles.exploreRequestsText}>
-        <Text style={memberStyles.exploreRequestsTitle}>My requests</Text>
-        <Text style={memberStyles.exploreRequestsBody}>Create a forming group to gather accepted members before it starts.</Text>
-      </View>
-      <View style={memberStyles.exploreCountPill}>
-        <Text style={memberStyles.exploreCountText}>{count} active</Text>
-      </View>
-      <Icon name="chevron-right" size={iconSize.md} color={palette.textSoft} />
-    </Pressable>
   );
 }
 
@@ -184,23 +160,39 @@ export function ExploreScreen() {
   const { data: formingGroups = [], error: formingError } = useFormationGroupsQuery();
   const { data: myRequests = [], error: myRequestsError } = useMyFormationGroupsQuery();
 
-  const openFirstRequest = () => {
-    if (myRequests[0]) {
-      navigation.navigate(routes.formationCreator, { requestId: myRequests[0].id });
-      return;
-    }
-    navigation.navigate(routes.createBasics);
-  };
-
   return (
-    <AppScreen footer={<MemberNav active={routes.explore} />} footerFlush>
+    <AppScreen>
       <Text style={memberStyles.exploreTitle}>Explore</Text>
       <ExploreHero
         onJoinCode={() => navigation.navigate(routes.formationJoinCode)}
         onCreate={() => navigation.navigate(routes.createBasics)}
       />
-      <MyRequestsCard count={myRequests.length} onPress={openFirstRequest} />
-      <InlineError message={myRequestsError instanceof Error ? myRequestsError.message : ''} />
+      <SectionCard style={memberStyles.exploreFormingPanel}>
+        <Text style={memberStyles.exploreSectionTitle}>My requests</Text>
+        <InlineError message={myRequestsError instanceof Error ? myRequestsError.message : ''} />
+        {myRequests.length ? (
+          <View style={memberStyles.exploreCardList}>
+            {myRequests.map(request => (
+              <FormingRequestCard
+                key={request.id}
+                request={request}
+                onPress={() => navigation.navigate(routes.formationCreator, { requestId: request.id })}
+              />
+            ))}
+          </View>
+        ) : (
+          <Pressable accessibilityRole="button" onPress={() => navigation.navigate(routes.createBasics)} style={memberStyles.exploreRequestsCard}>
+            <View style={memberStyles.exploreRequestsIcon}>
+              <Icon name="playlist-add-check" size={iconSize.md} color={palette.primary} />
+            </View>
+            <View style={memberStyles.exploreRequestsText}>
+              <Text style={memberStyles.exploreRequestsTitle}>No forming requests</Text>
+              <Text style={memberStyles.exploreRequestsBody}>Create a forming group to gather accepted members before it starts.</Text>
+            </View>
+            <Icon name="chevron-right" size={iconSize.md} color={palette.textSoft} />
+          </Pressable>
+        )}
+      </SectionCard>
       <SectionCard style={memberStyles.exploreFormingPanel}>
         <Text style={memberStyles.exploreSectionTitle}>Forming groups</Text>
         <InlineError message={formingError instanceof Error ? formingError.message : ''} />

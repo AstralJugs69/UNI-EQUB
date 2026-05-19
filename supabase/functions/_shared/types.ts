@@ -11,6 +11,7 @@ export type PaymentMethod = 'Telebirr' | 'MockUSSD' | 'ChapaSandbox';
 export type AppConfigValueType = 'integer' | 'number' | 'boolean' | 'string' | 'object' | 'placeholder';
 export type AuditActorRole = UserRole | 'System' | 'EdgeFunction';
 export type NotificationSeverity = 'Info' | 'Success' | 'Warning' | 'Error';
+export type MemberKycFlowStatus = 'NotSubmitted' | 'PendingReview' | 'NeedsResubmission' | 'Verified' | 'Banned';
 export type ContributionObligationStatus = 'Unpaid' | 'PendingPayment' | 'Paid' | 'Late' | 'Defaulted' | 'Waived' | 'RefundPending';
 export type PaymentProviderAttemptStatus = 'Initiated' | 'Pending' | 'Successful' | 'Failed' | 'Timeout' | 'Cancelled' | 'Duplicate' | 'InvalidAmount';
 export type LedgerDirection = 'Credit' | 'Debit' | 'Memo';

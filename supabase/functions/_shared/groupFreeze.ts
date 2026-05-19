@@ -58,9 +58,10 @@ async function notifyActiveMembers(groupId: string, input: {
     severity: input.severity,
     title: input.title,
     message: input.message,
-    relatedEntityType: input.freezeEventId ? 'group_freeze_event' : 'group',
-    relatedEntityId: input.freezeEventId ?? groupId,
-    metadata: input.metadata,
+    actionRoute: 'member/group',
+    relatedEntityType: 'group',
+    relatedEntityId: groupId,
+    metadata: { ...(input.metadata ?? {}), freeze_event_id: input.freezeEventId ?? null },
   })));
 }
 

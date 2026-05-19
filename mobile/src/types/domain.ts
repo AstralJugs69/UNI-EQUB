@@ -13,6 +13,7 @@ export type UssdSessionStage = 'AwaitMenu' | 'AwaitReference' | 'AwaitAmount' | 
 export type AppConfigValueType = 'integer' | 'number' | 'boolean' | 'string' | 'object' | 'placeholder';
 export type AuditActorRole = UserRole | 'System' | 'EdgeFunction';
 export type NotificationSeverity = 'Info' | 'Success' | 'Warning' | 'Error';
+export type MemberKycFlowStatus = 'NotSubmitted' | 'PendingReview' | 'NeedsResubmission' | 'Verified' | 'Banned';
 export type ContributionObligationStatus = 'Unpaid' | 'PendingPayment' | 'Paid' | 'Late' | 'Defaulted' | 'Waived' | 'RefundPending';
 export type PaymentProviderAttemptStatus = 'Initiated' | 'Pending' | 'Successful' | 'Failed' | 'Timeout' | 'Cancelled' | 'Duplicate' | 'InvalidAmount';
 export type LedgerDirection = 'Credit' | 'Debit' | 'Memo';
@@ -130,13 +131,24 @@ export interface AuthSession {
 
 export interface DashboardSnapshot {
   currentGroup: GroupRecord | null;
+  activeGroups: GroupRecord[];
   currentRound: RoundRecord | null;
   paidCount: number;
   totalMembers: number;
   totalSaved: number;
   readyPayout: number;
   recentTransactions: TransactionRecord[];
+  kycState: MemberKycState;
   reliabilityProfile?: UserReliabilityProfileRecord | null;
+}
+
+export interface MemberKycState {
+  status: MemberKycFlowStatus;
+  canSubmit: boolean;
+  latestSubmissionId?: string | null;
+  submittedAt?: string | null;
+  reviewedAt?: string | null;
+  decisionNote?: string | null;
 }
 
 export interface WalletSnapshot {

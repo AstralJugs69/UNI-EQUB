@@ -1,11 +1,13 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { LoadingState } from '../components/ui';
+import { BottomNav, LoadingState } from '../components/ui';
 import { useAuth } from '../providers/AuthProvider';
 import { routes } from './routes';
 import { DemoTourScreen, KycScreen, LoginScreen, OtpScreen, ResetPasswordScreen, SignupScreen, SplashScreen } from '../screens/auth';
 import {
+  ActiveGroupsScreen,
   CreateGroupBasicsScreen,
   CreateGroupRulesScreen,
   DashboardScreen,
@@ -21,15 +23,25 @@ import {
   PaymentScreen,
   PaymentSuccessScreen,
   ProfileScreen,
+  TransactionDetailScreen,
   WalletScreen,
   WithdrawScreen,
 } from '../screens/member';
-import { AdminDashboardScreen, AdminGroupsScreen, AdminKycScreen, AdminReportsScreen } from '../screens/admin';
+import { memberTabs } from '../screens/member/shared';
+import { AdminDashboardScreen, AdminGroupReviewScreen, AdminGroupsScreen, AdminKycReviewScreen, AdminKycScreen, AdminReportsScreen } from '../screens/admin';
+import { adminTabs } from '../screens/admin/shared';
 
 const Stack = createNativeStackNavigator();
+const MemberTab = createBottomTabNavigator();
+const AdminTab = createBottomTabNavigator();
 
 function LoadingScreen() {
   return <LoadingState title="Loading UniEqub..." subtitle="Restoring session state and preparing the current workspace." />;
+}
+
+function RoleTabBar({ state, navigation, items }: any) {
+  const activeKey = state.routes[state.index]?.name ?? state.routeNames[state.index];
+  return <BottomNav items={items} activeKey={activeKey} onPress={(key: string) => navigation.navigate(key)} />;
 }
 
 function AuthStack() {
@@ -46,11 +58,23 @@ function AuthStack() {
   );
 }
 
+function MemberTabs() {
+  return (
+    <MemberTab.Navigator screenOptions={{ headerShown: false }} tabBar={props => <RoleTabBar {...props} items={memberTabs} />}>
+      <MemberTab.Screen name={routes.dashboard} component={DashboardScreen} />
+      <MemberTab.Screen name={routes.explore} component={ExploreScreen} />
+      <MemberTab.Screen name={routes.history} component={HistoryScreen} />
+      <MemberTab.Screen name={routes.wallet} component={WalletScreen} />
+      <MemberTab.Screen name={routes.profile} component={ProfileScreen} />
+    </MemberTab.Navigator>
+  );
+}
+
 function MemberStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={routes.dashboard}>
-      <Stack.Screen name={routes.dashboard} component={DashboardScreen} />
-      <Stack.Screen name={routes.explore} component={ExploreScreen} />
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={routes.memberTabs}>
+      <Stack.Screen name={routes.memberTabs} component={MemberTabs} />
+      <Stack.Screen name={routes.activeGroups} component={ActiveGroupsScreen} />
       <Stack.Screen name={routes.groupDetail} component={GroupDetailScreen} />
       <Stack.Screen name={routes.formationDetail} component={FormationDetailScreen} />
       <Stack.Screen name={routes.formationCreator} component={FormationCreatorScreen} />
@@ -61,22 +85,31 @@ function MemberStack() {
       <Stack.Screen name={routes.payment} component={PaymentScreen} />
       <Stack.Screen name={routes.mockUssd} component={MockUssdScreen} />
       <Stack.Screen name={routes.paymentSuccess} component={PaymentSuccessScreen} />
-      <Stack.Screen name={routes.history} component={HistoryScreen} />
-      <Stack.Screen name={routes.wallet} component={WalletScreen} />
+      <Stack.Screen name={routes.transactionDetail} component={TransactionDetailScreen} />
       <Stack.Screen name={routes.withdraw} component={WithdrawScreen} />
       <Stack.Screen name={routes.notifications} component={NotificationsScreen} />
-      <Stack.Screen name={routes.profile} component={ProfileScreen} />
+      <Stack.Screen name={routes.kyc} component={KycScreen} />
     </Stack.Navigator>
+  );
+}
+
+function AdminTabs() {
+  return (
+    <AdminTab.Navigator screenOptions={{ headerShown: false }} tabBar={props => <RoleTabBar {...props} items={adminTabs} />}>
+      <AdminTab.Screen name={routes.adminDashboard} component={AdminDashboardScreen} />
+      <AdminTab.Screen name={routes.adminKyc} component={AdminKycScreen} />
+      <AdminTab.Screen name={routes.adminGroups} component={AdminGroupsScreen} />
+      <AdminTab.Screen name={routes.adminReports} component={AdminReportsScreen} />
+    </AdminTab.Navigator>
   );
 }
 
 function AdminStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={routes.adminDashboard}>
-      <Stack.Screen name={routes.adminDashboard} component={AdminDashboardScreen} />
-      <Stack.Screen name={routes.adminKyc} component={AdminKycScreen} />
-      <Stack.Screen name={routes.adminGroups} component={AdminGroupsScreen} />
-      <Stack.Screen name={routes.adminReports} component={AdminReportsScreen} />
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={routes.adminTabs}>
+      <Stack.Screen name={routes.adminTabs} component={AdminTabs} />
+      <Stack.Screen name={routes.adminKycReview} component={AdminKycReviewScreen} />
+      <Stack.Screen name={routes.adminGroupReview} component={AdminGroupReviewScreen} />
     </Stack.Navigator>
   );
 }

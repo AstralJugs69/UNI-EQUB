@@ -9,6 +9,7 @@ const liveServicePath = path.join(repoRoot, 'mobile/src/services/live/liveGroupF
 const mockBackendPath = path.join(repoRoot, 'mobile/src/services/mock/mockBackend.ts');
 const hooksPath = path.join(repoRoot, 'mobile/src/hooks/useAppQueries.ts');
 const adminGroupsPath = path.join(repoRoot, 'mobile/src/screens/admin/AdminGroupsScreen.tsx');
+const adminGroupReviewPath = path.join(repoRoot, 'mobile/src/screens/admin/AdminGroupReviewScreen.tsx');
 const mockTestPath = path.join(repoRoot, 'mobile/src/services/mock/mockBackend.test.ts');
 
 function parseArgs() {
@@ -45,6 +46,7 @@ function main() {
   const mockBackend = read(mockBackendPath);
   const hooks = read(hooksPath);
   const adminGroups = read(adminGroupsPath);
+  const adminGroupReview = read(adminGroupReviewPath);
   const mockTest = read(mockTestPath);
 
   assertIncludes(contracts, 'listPendingApproval', 'shared group formation action');
@@ -81,17 +83,24 @@ function main() {
 
   [
     'usePendingFormationGroupsQuery',
+    'Formation requests',
+    'Frozen recovery',
+    'Legacy MVP',
+    'navigation.navigate(routes.adminGroupReview',
+  ].forEach(token => assertIncludes(adminGroups, token, 'admin formation UI token'));
+
+  [
     'useFormationGroupQuery',
     'approveFormationGroup',
     'rejectFormationGroup',
-    'Phase 2',
     'Payout vesting',
     'Participants',
     'Review checks',
     'Approve Formation',
     'Reject Formation',
-    'Legacy MVP',
-  ].forEach(token => assertIncludes(adminGroups, token, 'admin formation UI token'));
+    'Open Member Vote',
+    'Resume Group',
+  ].forEach(token => assertIncludes(adminGroupReview, token, 'admin group review detail UI token'));
 
   [
     'exposes pending Phase 2 formation requests for admin approval',
@@ -110,13 +119,15 @@ function main() {
       mockBackend: 'mobile/src/services/mock/mockBackend.ts',
       hooks: 'mobile/src/hooks/useAppQueries.ts',
       adminGroups: 'mobile/src/screens/admin/AdminGroupsScreen.tsx',
+      adminGroupReview: 'mobile/src/screens/admin/AdminGroupReviewScreen.tsx',
       mockBackendTest: 'mobile/src/services/mock/mockBackend.test.ts',
     },
     completedChecks: [
       'Edge Function exposes admin-only pending formation queue',
       'mobile formation service exposes pending approval list and admin decisions',
-      'admin groups screen shows proposed terms, participants, risk, vesting, and review checks',
-      'admin groups screen can approve/reject Phase 2 formations while preserving legacy MVP queue',
+      'admin groups hub lists every formation, frozen, and legacy queue item',
+      'admin group review detail shows proposed terms, participants, risk, vesting, and review checks',
+      'admin group review detail can approve/reject Phase 2 formations while preserving legacy MVP queue',
       'mock backend regression covers pending queue and admin approval',
     ],
     requiresSupabaseCredentials: false,

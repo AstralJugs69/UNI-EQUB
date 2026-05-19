@@ -5,7 +5,6 @@ import { DemoModeBanner } from '../../components/DemoModeBanner';
 import { AppScreen, ListRow, LoadingState, MetricTile, Pill, PrimaryCTA, SectionCard, StatusBanner, TitleBlock, TopAppBar } from '../../components/ui';
 import { useAdminOverviewQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
-import { AdminNav } from './shared';
 import { adminStyles } from './styles';
 
 export function AdminDashboardScreen() {
@@ -17,7 +16,7 @@ export function AdminDashboardScreen() {
   }
 
   return (
-    <AppScreen footer={<AdminNav active={routes.adminDashboard} />} footerFlush>
+    <AppScreen>
       <DemoModeBanner />
       <TopAppBar title="Command Center" subtitle="Admin Workspace" rightLabel="Healthy" />
       <SectionCard>
@@ -61,7 +60,7 @@ export function AdminDashboardScreen() {
           <ListRow
             key={event.id}
             title={event.summary}
-            subtitle={`${event.actorName ?? event.actorRole} • ${event.createdAt}`}
+            subtitle={`${event.actorName ?? event.actorRole} - ${event.createdAt}`}
             leadingIcon="history"
           />
         )) : data.logs.map(log => (
@@ -72,7 +71,7 @@ export function AdminDashboardScreen() {
         <SectionCard variant="soft">
           <TitleBlock title="Provider activity" subtitle="Mock payment and reminder rails for the demo." />
           {data.providerLogs.slice(0, 3).map(log => (
-            <ListRow key={`${log.provider}-${log.createdAt}-${log.message}`} title={log.message} subtitle={`${log.provider} • ${log.status}`} leadingIcon="sync" />
+            <ListRow key={`${log.provider}-${log.createdAt}-${log.message}`} title={log.message} subtitle={`${log.provider} - ${log.status}`} leadingIcon="sync" />
           ))}
         </SectionCard>
       ) : null}

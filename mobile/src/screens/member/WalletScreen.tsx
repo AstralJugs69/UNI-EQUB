@@ -4,10 +4,10 @@ import { useNavigation } from '@react-navigation/native';
 import { AppScreen, HeroCard, LoadingState, MetricTile, PrimaryCTA, SectionCard, StatusBanner, TopAppBar } from '../../components/ui';
 import { useWalletQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
-import { MemberNav, formatCurrency } from './shared';
+import { formatCurrency } from './shared';
 import { memberStyles } from './styles';
 
-export function WalletScreen() {
+export function WalletScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const { data } = useWalletQuery();
 
@@ -16,8 +16,9 @@ export function WalletScreen() {
   }
 
   return (
-    <AppScreen footer={<MemberNav active={routes.wallet} />} footerFlush>
+    <AppScreen>
       <TopAppBar title="Payouts" subtitle="Wallet" rightLabel={data.readyPayout > 0 ? 'Ready' : data.reservedPayout > 0 ? 'Reserve' : 'Idle'} />
+      {route?.params?.flash ? <StatusBanner tone="success" title={route.params.flash} /> : null}
       <HeroCard>
         <Text style={memberStyles.heroBody}>Available balance</Text>
         <Text style={memberStyles.heroValue}>{formatCurrency(data.balance)}</Text>

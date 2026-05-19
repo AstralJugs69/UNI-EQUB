@@ -17,6 +17,7 @@ import type {
   GroupRequestRecord,
   GroupStatusSnapshot,
   KycReviewItem,
+  MemberKycState,
   MembershipRecord,
   PaymentMethod,
   PaymentResult,
@@ -86,6 +87,7 @@ interface DatabaseState {
   resolutionVotes: GroupResolutionVoteRecord[];
   refundTickets: RefundTicketRecord[];
   reliabilityProfiles: UserReliabilityProfileRecord[];
+  kycStates: Record<string, MemberKycState>;
 }
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -141,6 +143,10 @@ export class MockBackend implements AppServices {
       resolutionVotes: [],
       refundTickets: [],
       reliabilityProfiles: this.createReliabilityProfiles(),
+      kycStates: {
+        'user-meron': { status: 'PendingReview', canSubmit: false, submittedAt: nowIso(), decisionNote: null },
+        'user-hana': { status: 'PendingReview', canSubmit: false, submittedAt: nowIso(), decisionNote: null },
+      },
     };
   }
 
@@ -814,6 +820,7 @@ export class MockBackend implements AppServices {
       const user = this.requireUser(userId);
       user.Student_ID_Img = `storage://student-ids/${userId}/manifest-${input.documents.length}.json`;
       user.KYC_Status = 'Unverified';
+      this.db.kycStates[userId] = { status: 'PendingReview', canSubmit: false, submittedAt: nowIso(), decisionNote: null };
       this.pushNotification(userId, 'KYC submitted', 'Your student ID is waiting for admin review.');
       this.db.auditLogs.unshift(`KYC submitted for ${user.Full_Name}`);
       const token = `session-${user.User_ID}-${Date.now()}`;
@@ -821,15 +828,31 @@ export class MockBackend implements AppServices {
       return { token, user: this.toSessionUser(user) };
     },
 
+    resubmitKyc: async (userId: string, input: KycSubmissionInput): Promise<AuthSession> => {
+      const user = this.requireUser(userId);
+      if (user.KYC_Status === 'Banned') {
+        throw new Error('Banned accounts cannot resubmit KYC.');
+      }
+      user.Student_ID_Img = `storage://student-ids/${userId}/resubmission-${input.documents.length}.json`;
+      user.KYC_Status = 'Unverified';
+      this.db.kycStates[userId] = { status: 'PendingReview', canSubmit: false, submittedAt: nowIso(), decisionNote: null };
+      this.pushNotification(userId, 'KYC resubmitted', 'Your updated student ID documents are waiting for admin review.');
+      this.db.auditLogs.unshift(`KYC resubmitted for ${user.Full_Name}`);
+      const token = `session-${user.User_ID}-${Date.now()}`;
+      this.db.sessions[token] = { userId: user.User_ID, expiresAt: plusMinutes(60 * 24 * 7) };
+      return { token, user: this.toSessionUser(user) };
+    },
+
     listPendingReviews: async (): Promise<KycReviewItem[]> => {
       return this.db.users
-        .filter(user => user.Role === 'Member' && user.KYC_Status === 'Unverified')
+        .filter(user => user.Role === 'Member' && this.kycStateForUser(user.User_ID).status === 'PendingReview')
         .map(user => ({ user: clone(user), note: 'Front ID uploaded and pending manual review.' }));
     },
 
     approve: async (userId: string): Promise<void> => {
       const user = this.requireUser(userId);
       user.KYC_Status = 'Verified';
+      this.db.kycStates[userId] = { status: 'Verified', canSubmit: false, reviewedAt: nowIso(), decisionNote: 'Approved by admin.' };
       this.db.auditLogs.unshift(`KYC approved for ${user.Full_Name} • ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
       this.pushNotification(userId, 'KYC approved', 'Your account is now verified for group creation and payout withdrawal.');
     },
@@ -837,13 +860,20 @@ export class MockBackend implements AppServices {
     requestResubmission: async (userId: string): Promise<void> => {
       const user = this.requireUser(userId);
       user.KYC_Status = 'Unverified';
+      this.db.kycStates[userId] = { status: 'NeedsResubmission', canSubmit: true, reviewedAt: nowIso(), decisionNote: 'Admin requested clearer KYC documents.' };
       this.db.auditLogs.unshift(`KYC resubmission requested for ${user.Full_Name} • ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
-      this.pushNotification(userId, 'KYC needs resubmission', 'Please upload clearer student ID documents to continue verification.');
+      this.pushNotification(userId, 'KYC needs resubmission', 'Please upload clearer student ID documents to continue verification.', {
+        actionRoute: 'member/kyc',
+        relatedEntityType: 'user',
+        relatedEntityId: userId,
+        severity: 'Warning',
+      });
     },
 
     ban: async (userId: string): Promise<void> => {
       const user = this.requireUser(userId);
       user.KYC_Status = 'Banned';
+      this.db.kycStates[userId] = { status: 'Banned', canSubmit: false, reviewedAt: nowIso(), decisionNote: 'Rejected and account banned by admin.' };
       this.db.auditLogs.unshift(`Account banned for ${user.Full_Name} • ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
     },
   };
@@ -942,7 +972,12 @@ export class MockBackend implements AppServices {
       group.Status = 'Active';
       group.Virtual_Acc_Ref = group.Virtual_Acc_Ref || `UEQ-${Math.floor(1000 + Math.random() * 9000)}`;
       this.db.auditLogs.unshift(`Group approved: ${group.Group_Name}`);
-      this.pushNotification(group.Creator_ID, 'Group approved', 'Your Equb is now active and visible in browseable groups.');
+      this.pushNotification(group.Creator_ID, 'Group approved', 'Your Equb is now active and visible in browseable groups.', {
+        actionRoute: 'member/group',
+        relatedEntityType: 'EqubGroup',
+        relatedEntityId: group.Group_ID,
+        severity: 'Success',
+      });
     },
 
     reject: async (groupId: string): Promise<void> => {
@@ -958,14 +993,24 @@ export class MockBackend implements AppServices {
       const group = this.requireGroup(groupId);
       group.Status = 'Frozen';
       this.db.auditLogs.unshift(`Group frozen for compliance: ${group.Group_Name}`);
-      this.pushNotification(group.Creator_ID, 'Group frozen', 'Admin compliance review temporarily paused this group.');
+      this.pushNotification(group.Creator_ID, 'Group frozen', 'Admin compliance review temporarily paused this group.', {
+        actionRoute: 'member/group',
+        relatedEntityType: 'EqubGroup',
+        relatedEntityId: group.Group_ID,
+        severity: 'Warning',
+      });
     },
 
     resolveFreeze: async (groupId: string): Promise<void> => {
       const group = this.requireGroup(groupId);
       group.Status = 'Active';
       this.db.auditLogs.unshift(`Group freeze resolved manually: ${group.Group_Name}`);
-      this.pushNotification(group.Creator_ID, 'Group resumed', 'Admin reviewed the default case and resumed the group.');
+      this.pushNotification(group.Creator_ID, 'Group resumed', 'Admin reviewed the default case and resumed the group.', {
+        actionRoute: 'member/group',
+        relatedEntityType: 'EqubGroup',
+        relatedEntityId: group.Group_ID,
+        severity: 'Success',
+      });
     },
 
     createResolutionPoll: async (groupId: string): Promise<GroupStatusSnapshot['activeResolutionPoll']> => {
@@ -1094,11 +1139,20 @@ export class MockBackend implements AppServices {
         Joined_At: nowIso(),
         Status: 'Active',
       });
-      this.pushNotification(userId, 'Joined group', `You joined ${group.Group_Name} and can now contribute to the current round.`);
+      this.pushNotification(userId, 'Joined group', `You joined ${group.Group_Name} and can now contribute to the current round.`, {
+        actionRoute: 'member/group',
+        relatedEntityType: 'EqubGroup',
+        relatedEntityId: group.Group_ID,
+        severity: 'Success',
+      });
     },
 
     getDashboard: async (userId: string): Promise<DashboardSnapshot> => {
-      const groupId = this.db.memberships.find(item => item.User_ID === userId && item.Status === 'Active')?.Group_ID ?? null;
+      const activeGroups = this.db.memberships
+        .filter(item => item.User_ID === userId && item.Status === 'Active')
+        .map(item => clone(this.requireGroup(item.Group_ID)))
+        .filter(group => group.Status !== 'Completed');
+      const groupId = activeGroups[0]?.Group_ID ?? null;
       const currentGroup = groupId ? this.requireGroup(groupId) : null;
       const currentRound = currentGroup ? this.currentOpenRound(currentGroup.Group_ID) : null;
       const paidCount = currentRound ? this.successfulContributions(currentRound.Round_ID).length : 0;
@@ -1116,12 +1170,14 @@ export class MockBackend implements AppServices {
 
       return {
         currentGroup: currentGroup ? clone(currentGroup) : null,
+        activeGroups,
         currentRound: currentRound ? clone(currentRound) : null,
         paidCount,
         totalMembers,
         totalSaved,
         readyPayout,
         recentTransactions,
+        kycState: clone(this.kycStateForUser(userId)),
         reliabilityProfile: clone(reliabilityProfile),
       };
     },
@@ -1530,7 +1586,12 @@ export class MockBackend implements AppServices {
       payout.Status = 'Successful';
       payout.Date = nowIso();
       this.db.providerLogs.unshift({ provider: payout.Payment_Method, status: 'Successful', message: `Wallet cleared for payout ${userId}`, createdAt: nowIso() });
-      this.pushNotification(userId, 'Withdrawal recorded', 'Your wallet payout was cleared from the internal ledger.');
+      this.pushNotification(userId, 'Withdrawal recorded', 'Your wallet payout was cleared from the internal ledger.', {
+        actionRoute: 'member/wallet',
+        relatedEntityType: 'Transaction',
+        relatedEntityId: makeId('withdrawal'),
+        severity: 'Success',
+      });
     },
   };
 
@@ -1735,6 +1796,21 @@ export class MockBackend implements AppServices {
     };
   }
 
+  private kycStateForUser(userId: string): MemberKycState {
+    const user = this.requireUser(userId);
+    const existing = this.db.kycStates[userId];
+    if (existing) {
+      return existing;
+    }
+    if (user.KYC_Status === 'Verified') {
+      return { status: 'Verified', canSubmit: false };
+    }
+    if (user.KYC_Status === 'Banned') {
+      return { status: 'Banned', canSubmit: false };
+    }
+    return { status: user.Student_ID_Img ? 'PendingReview' : 'NotSubmitted', canSubmit: !user.Student_ID_Img };
+  }
+
   private reliabilityProfileForUser(userId: string) {
     const existing = this.db.reliabilityProfiles.find(profile => profile.user_id === userId);
     if (existing) {
@@ -1783,9 +1859,9 @@ export class MockBackend implements AppServices {
     }
   }
 
-  private pushNotification(userId: string, title: string, body: string) {
+  private pushNotification(userId: string, title: string, body: string, route?: Pick<AppNotification, 'actionRoute' | 'relatedEntityType' | 'relatedEntityId' | 'severity'>) {
     const target = this.db.notifications[userId] ?? [];
-    target.unshift({ id: makeId('notification'), title, body, createdAt: nowIso(), unread: true });
+    target.unshift({ id: makeId('notification'), title, body, createdAt: nowIso(), unread: true, ...route });
     this.db.notifications[userId] = target;
   }
 
@@ -1825,7 +1901,12 @@ export class MockBackend implements AppServices {
     };
     this.db.transactions.unshift(transaction);
     this.db.providerLogs.unshift({ provider: method, status: 'Successful', message: `Contribution reconciled for ${group.Group_Name}`, createdAt: nowIso() });
-    this.pushNotification(userId, 'Contribution received', `Your ${method} payment for ${group.Group_Name} was successfully reconciled.`);
+    this.pushNotification(userId, 'Contribution received', `Your ${method} payment for ${group.Group_Name} was successfully reconciled.`, {
+      actionRoute: 'member/group',
+      relatedEntityType: 'EqubGroup',
+      relatedEntityId: group.Group_ID,
+      severity: 'Success',
+    });
 
     const payoutAmount = this.tryCompleteRound(group, round, userId);
     return {
@@ -1947,7 +2028,12 @@ export class MockBackend implements AppServices {
         Status: 'Pending',
         Date: nowIso(),
       });
-      this.pushNotification(winnerId, 'Winner selected automatically', `${group.Group_Name} round ${round.Round_Number} completed and your payout is ready.`);
+      this.pushNotification(winnerId, 'Winner selected automatically', `${group.Group_Name} round ${round.Round_Number} completed and your payout is ready.`, {
+        actionRoute: 'member/wallet',
+        relatedEntityType: 'EqubGroup',
+        relatedEntityId: group.Group_ID,
+        severity: 'Success',
+      });
     }
 
     const nextRound: RoundRecord = {

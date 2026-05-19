@@ -202,6 +202,7 @@ export const liveGroupsService: GroupService = {
   async getDashboard(userId: string): Promise<DashboardSnapshot> {
     const response = await invoke<DashboardSnapshot>({ action: 'getDashboard' });
     syncGroupShape(response.currentGroup);
+    response.activeGroups?.forEach(syncGroupShape);
     syncRoundShape(response.currentRound);
     if (response.currentGroup) {
       mockBackend.syncExternalMembership({

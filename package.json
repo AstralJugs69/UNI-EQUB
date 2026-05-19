@@ -53,6 +53,7 @@
     "qa:phase2-durable-notifications": "node .\\mobile\\scripts\\validate-phase2-durable-notifications.js --output .\\Build\\delivery\\evidence\\phase2-durable-notifications-validation.json",
     "qa:phase2-kyc-history": "node .\\mobile\\scripts\\validate-phase2-kyc-history.js --output .\\Build\\delivery\\evidence\\phase2-kyc-history-validation.json",
     "qa:phase2-demo-readiness": "node .\\mobile\\scripts\\validate-phase2-demo-readiness.js --output .\\Build\\delivery\\evidence\\phase2-demo-readiness-validation.json",
-    "qa:phase2-in-app-demo": "node .\\mobile\\scripts\\validate-phase2-in-app-demo.js --output .\\Build\\delivery\\evidence\\phase2-in-app-demo-validation.json"
+    "qa:phase2-in-app-demo": "node .\\mobile\\scripts\\validate-phase2-in-app-demo.js --output .\\Build\\delivery\\evidence\\phase2-in-app-demo-validation.json",
+    "qa:navigation-hub": "node .\\mobile\\scripts\\validate-navigation-hub-cleanup.js --output .\\Build\\delivery\\evidence\\navigation-hub-cleanup-validation.json"
   }
 }

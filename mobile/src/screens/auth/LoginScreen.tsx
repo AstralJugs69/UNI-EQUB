@@ -60,6 +60,7 @@ export function LoginScreen({ route }: { route?: { params?: { roleHint?: 'Admin'
       <InlineError message={error} />
       <View style={authStyles.footerActions}>
         <PrimaryCTA label="Sign In" onPress={handleLogin} loading={submitting} disabled={!phoneNumber || !password} />
+        <SecondaryCTA label="Forgot Password" onPress={() => navigation.navigate(routes.reset)} disabled={submitting} />
         {role === 'Member' ? <SecondaryCTA label="Create New Account" onPress={() => navigation.navigate(routes.signup)} disabled={submitting} /> : null}
       </View>
     </ScreenScroll>

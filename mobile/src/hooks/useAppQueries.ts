@@ -295,6 +295,7 @@ export function useMemberActions() {
           queryClient.invalidateQueries({ queryKey: queryKeys.myFormationGroups }),
           queryClient.invalidateQueries({ queryKey: queryKeys.formationGroup(detail.groupRequest.id) }),
           queryClient.invalidateQueries({ queryKey: queryKeys.pendingGroups }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.pendingFormationGroups }),
         ]);
       },
     }),
@@ -314,6 +315,7 @@ export function useAdminActions() {
       queryClient.invalidateQueries({ queryKey: queryKeys.groups }),
       queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications }),
+      queryClient.invalidateQueries({ queryKey: ['group-status'] }),
       queryClient.invalidateQueries({ queryKey: queryKeys.reports }),
     ]);
   };

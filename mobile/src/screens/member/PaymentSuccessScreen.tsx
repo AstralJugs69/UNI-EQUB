@@ -13,10 +13,21 @@ export function PaymentSuccessScreen({ route }: any) {
   const amount = route.params?.amount ?? 0;
   const method: PaymentMethod = route.params?.method ?? 'Telebirr';
   const receiptRef = route.params?.receiptRef ?? 'TXN-882913';
+  const groupId = route.params?.groupId ?? '';
+
+  if (!groupId) {
+    return (
+      <ScreenScroll>
+        <TopAppBar title="Contribution Recorded" onBack={() => navigation.navigate(routes.memberTabs, { screen: routes.dashboard })} rightLabel="Success" />
+        <StatusBanner tone="warning" title="Group context missing" body="The payment was recorded, but no group was attached to this success route. Open Home to continue." />
+        <PrimaryCTA label="Back To Home" onPress={() => navigation.navigate(routes.memberTabs, { screen: routes.dashboard })} />
+      </ScreenScroll>
+    );
+  }
 
   return (
     <ScreenScroll>
-      <TopAppBar title="Contribution Recorded" onBack={() => navigation.navigate(routes.groupStatus)} rightLabel="Success" />
+      <TopAppBar title="Contribution Recorded" onBack={() => navigation.navigate(routes.groupStatus, { groupId })} rightLabel="Success" />
       <TitleBlock title="Payment received" subtitle="Your contribution is now visible to the rest of the group and the round state has been updated." align="center" />
       <SectionCard>
         <Pill label={paymentMethodLabel(method)} tone="active" />
@@ -26,8 +37,8 @@ export function PaymentSuccessScreen({ route }: any) {
       {route.params?.autoDrawTriggered ? (
         <StatusBanner tone="success" title="This payment completed the round." body={`Winner selection happened automatically. The payout total is ${payoutAmount.toLocaleString()} ETB; probationary winners may see part of it reserved until later contributions are completed.`} />
       ) : null}
-      <PrimaryCTA label="View Wallet" onPress={() => navigation.navigate(routes.wallet)} />
-      <SecondaryCTA label="Back To Group" onPress={() => navigation.navigate(routes.groupStatus)} />
+      <PrimaryCTA label="View Wallet" onPress={() => navigation.navigate(routes.memberTabs, { screen: routes.wallet })} />
+      <SecondaryCTA label="Back To Group" onPress={() => navigation.navigate(routes.groupStatus, { groupId })} />
     </ScreenScroll>
   );
 }

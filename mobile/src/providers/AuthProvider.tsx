@@ -26,6 +26,7 @@ interface AuthContextValue {
   requestOtp: (phoneNumber: string) => Promise<void>;
   verifyOtp: (phoneNumber: string, otp: string) => Promise<void>;
   submitPendingKyc: (input: KycSubmissionInput) => Promise<void>;
+  submitCurrentKyc: (input: KycSubmissionInput) => Promise<void>;
   startDemo: (role: 'Member' | 'Admin') => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -143,6 +144,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
         throw new Error('No pending registration is available.');
       }
       const nextSession = await services.kyc.submitKyc(pendingUser.userId, input, pendingKycToken);
+      await saveSessionToken(nextSession.token);
+      await saveLastActiveAt(new Date().toISOString());
+      setSession(nextSession);
+      setPendingUser(null);
+      setPendingKycToken(null);
+      setPendingLogin(null);
+    },
+    submitCurrentKyc: async input => {
+      if (!session) {
+        throw new Error('No active member session is available.');
+      }
+      const nextSession = await services.kyc.resubmitKyc(session.user.userId, input);
       await saveSessionToken(nextSession.token);
       await saveLastActiveAt(new Date().toISOString());
       setSession(nextSession);

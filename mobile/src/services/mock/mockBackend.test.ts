@@ -90,6 +90,31 @@ describe('MockBackend automatic draw flow', () => {
     }));
   });
 
+  it('exposes active groups and member KYC resubmission state in the dashboard contract', async () => {
+    const backend = new MockBackend();
+
+    await backend.groups.joinGroup('user-dawit', 'group-coders');
+    const dashboard = await backend.groups.getDashboard('user-dawit');
+    expect(dashboard.activeGroups.map(group => group.Group_ID)).toEqual(expect.arrayContaining(['group-dorm', 'group-coders']));
+    expect(dashboard.kycState.status).toBe('Verified');
+
+    await backend.kyc.requestResubmission('user-hana');
+    const needsResubmission = await backend.groups.getDashboard('user-hana');
+    expect(needsResubmission.kycState.status).toBe('NeedsResubmission');
+    expect(needsResubmission.kycState.canSubmit).toBe(true);
+
+    await backend.kyc.resubmitKyc('user-hana', {
+      documents: [
+        { kind: 'front_id', fileName: 'front.jpg', contentType: 'image/jpeg', base64: 'ZmFrZQ==' },
+        { kind: 'back_id', fileName: 'back.jpg', contentType: 'image/jpeg', base64: 'ZmFrZQ==' },
+        { kind: 'selfie', fileName: 'selfie.jpg', contentType: 'image/jpeg', base64: 'ZmFrZQ==' },
+      ],
+    });
+    const pendingAgain = await backend.groups.getDashboard('user-hana');
+    expect(pendingAgain.kycState.status).toBe('PendingReview');
+    expect(pendingAgain.kycState.canSubmit).toBe(false);
+  });
+
   it('supports frozen-group resolution poll and simulated refund ticket demo flow', async () => {
     const backend = new MockBackend();
 

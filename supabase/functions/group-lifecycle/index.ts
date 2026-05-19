@@ -7,7 +7,7 @@ import { getRoundObligationProgress } from '../_shared/obligations.ts';
 import { assertReliabilityAllowsNormalFlow, ensureReliabilityProfile, getReliabilityJoinGate } from '../_shared/reliability.ts';
 import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import type { GroupRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord, UserReliabilityProfileRecord } from '../_shared/types.ts';
+import type { GroupRecord, KycSubmissionRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord, UserReliabilityProfileRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,13 +21,24 @@ interface AppGroupRecord extends Omit<GroupRecord, 'Virtual_Acc_Ref'> {
 
 interface DashboardSnapshot {
   currentGroup: AppGroupRecord | null;
+  activeGroups: AppGroupRecord[];
   currentRound: RoundRecord | null;
   paidCount: number;
   totalMembers: number;
   totalSaved: number;
   readyPayout: number;
   recentTransactions: TransactionRecord[];
+  kycState: MemberKycState;
   reliabilityProfile: UserReliabilityProfileRecord;
+}
+
+interface MemberKycState {
+  status: 'NotSubmitted' | 'PendingReview' | 'NeedsResubmission' | 'Verified' | 'Banned';
+  canSubmit: boolean;
+  latestSubmissionId?: string | null;
+  submittedAt?: string | null;
+  reviewedAt?: string | null;
+  decisionNote?: string | null;
 }
 
 function toAppGroup(group: GroupRecord): AppGroupRecord {
@@ -253,6 +264,8 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
     throw membershipError;
   }
 
+  const activeGroups = (await Promise.all(((memberships ?? []) as MembershipRecord[]).map(membership => requireGroup(membership.Group_ID))))
+    .filter(group => group.Status !== 'Completed');
   let currentMembership: MembershipRecord | undefined;
   let currentGroup: GroupRecord | null = null;
   let currentRound: RoundRecord | null = null;
@@ -323,13 +336,71 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
 
   return {
     currentGroup: currentGroup ? toAppGroup(currentGroup) : null,
+    activeGroups: activeGroups.map(toAppGroup),
     currentRound,
     paidCount: obligationProgress.paidCount,
     totalMembers: obligationProgress.totalMembers,
     totalSaved: (savedTransactions ?? []).reduce((sum, item) => sum + Number(item.Amount ?? 0), 0),
     readyPayout: (payoutTransactions ?? []).reduce((sum, item) => sum + Number(item.Amount ?? 0), 0),
     recentTransactions: ((transactions ?? []) as TransactionRecord[]).map(toTransactionRecord),
+    kycState: await getMemberKycState(actor),
     reliabilityProfile: await ensureReliabilityProfile(actor.User_ID),
+  };
+}
+
+async function getMemberKycState(actor: UserRecord): Promise<MemberKycState> {
+  if (actor.KYC_Status === 'Verified') {
+    return { status: 'Verified', canSubmit: false };
+  }
+  if (actor.KYC_Status === 'Banned') {
+    return { status: 'Banned', canSubmit: false };
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('kyc_submissions')
+    .select('*')
+    .eq('user_id', actor.User_ID)
+    .order('submitted_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+
+  const latest = data as KycSubmissionRecord | null;
+  if (!latest) {
+    return { status: actor.Student_ID_Img ? 'PendingReview' : 'NotSubmitted', canSubmit: !actor.Student_ID_Img };
+  }
+
+  if (latest.status === 'PendingReview') {
+    return {
+      status: 'PendingReview',
+      canSubmit: false,
+      latestSubmissionId: latest.id,
+      submittedAt: latest.submitted_at,
+      reviewedAt: latest.reviewed_at,
+      decisionNote: latest.decision_note,
+    };
+  }
+
+  if (latest.status === 'NeedsResubmission' || latest.status === 'Rejected') {
+    return {
+      status: 'NeedsResubmission',
+      canSubmit: true,
+      latestSubmissionId: latest.id,
+      submittedAt: latest.submitted_at,
+      reviewedAt: latest.reviewed_at,
+      decisionNote: latest.decision_note,
+    };
+  }
+
+  return {
+    status: 'NotSubmitted',
+    canSubmit: true,
+    latestSubmissionId: latest.id,
+    submittedAt: latest.submitted_at,
+    reviewedAt: latest.reviewed_at,
+    decisionNote: latest.decision_note,
   };
 }
 

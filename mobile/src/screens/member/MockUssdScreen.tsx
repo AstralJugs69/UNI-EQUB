@@ -14,8 +14,8 @@ import { memberStyles } from './styles';
 export function MockUssdScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const { session } = useAuth();
-  const groupId = route.params.groupId as string;
-  const { data: group } = useGroupQuery(groupId);
+  const groupId = route.params?.groupId as string | undefined;
+  const { data: group } = useGroupQuery(groupId ?? '');
   const { payContribution } = useMemberActions();
   const method = (route.params?.method ?? 'MockUSSD') as PaymentMethod;
 
@@ -47,11 +47,15 @@ export function MockUssdScreen({ route }: any) {
       setRecording(true);
       setStatus('recording');
       setError('');
+      if (!groupId) {
+        throw new Error('No group selected for this payment.');
+      }
       const completedResult = await payContributionRef.current({ groupId, method });
       if (!mountedRef.current) {
         return;
       }
       navigation.replace(routes.paymentSuccess, {
+        groupId,
         autoDrawTriggered: completedResult.autoDrawTriggered,
         payoutAmount: completedResult.payoutAmount,
         receiptRef: completedResult.receiptRef,
@@ -136,6 +140,16 @@ export function MockUssdScreen({ route }: any) {
     };
   }, [openNativeDialup, recordContribution]);
 
+  if (!groupId) {
+    return (
+      <ScreenScroll>
+        <TopAppBar title="Telebirr USSD" onBack={() => navigation.goBack()} />
+        <InlineError message="No group was selected for this native payment test." />
+        <SecondaryCTA label="Back To Home" onPress={() => navigation.navigate(routes.memberTabs, { screen: routes.dashboard })} />
+      </ScreenScroll>
+    );
+  }
+
   if (!group || !session) {
     return <LoadingState title="Loading USSD payment" subtitle="Preparing the native testing dialup and contribution context." />;
   }
@@ -150,10 +164,10 @@ export function MockUssdScreen({ route }: any) {
 
   return (
     <ScreenScroll>
-      <TopAppBar title="Native *127# Test" onBack={() => navigation.goBack()} rightLabel="Testing only" />
+      <TopAppBar title="Telebirr USSD" onBack={() => navigation.goBack()} rightLabel="Testing mode" />
       <SectionCard style={memberStyles.experimentalCard}>
         <Pill label={statusLabel} tone="active" />
-        <Text style={memberStyles.experimentalTitle}>{paymentMethodLabel(method)} native shortcut</Text>
+        <Text style={memberStyles.experimentalTitle}>{paymentMethodLabel(method)} shortcut</Text>
         <Text style={memberStyles.experimentalBody}>
           UniEqub opens *127# once and waits for you to leave the native dialup. As soon as you close it and return to the app, this test build records the contribution as successful.
         </Text>

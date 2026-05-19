@@ -14,6 +14,7 @@ export function FormationDetailScreen({ route }: any) {
   const { data } = useFormationGroupQuery(requestId);
   const { requestJoinFormation } = useMemberActions();
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const currentUserJoin = useMemo(
     () => data?.joinRequests.find(item => item.user_id === session?.user.userId) ?? null,
@@ -21,7 +22,7 @@ export function FormationDetailScreen({ route }: any) {
   );
 
   if (!data || !session) {
-    return <LoadingState title="Loading request" subtitle="Checking current participants and group terms." />;
+    return <LoadingState title="Loading forming group" subtitle="Checking current participants and group terms." />;
   }
 
   const request = data.groupRequest;
@@ -35,10 +36,12 @@ export function FormationDetailScreen({ route }: any) {
   async function handleJoinRequest() {
     try {
       setError('');
+      setSuccess('');
       await requestJoinFormation.mutateAsync({
         requestId: request.id,
         acceptedTermsVersion: request.terms_version,
       });
+      setSuccess('Join request sent.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to send join request right now.');
     }
@@ -46,11 +49,12 @@ export function FormationDetailScreen({ route }: any) {
 
   return (
     <ScreenScroll>
-      <TopAppBar title="Forming Group" onBack={() => navigation.goBack()} />
+      <TopAppBar title="Join Forming Group" onBack={() => navigation.goBack()} />
       <TitleBlock
         title={request.proposed_group_name}
         subtitle={request.description ?? (isPrivate ? 'Private invite group gathering accepted members before it starts.' : 'Public group request gathering members before admin approval.')}
       />
+      {success ? <StatusBanner tone="success" title={success} /> : null}
       <View style={memberStyles.rowWrap}>
         <Pill label={request.status} tone={request.status === 'Forming' ? 'good' : 'warn'} />
         <Pill label={request.frequency} tone="active" />

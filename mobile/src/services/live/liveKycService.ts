@@ -57,43 +57,65 @@ function toSessionUser(user: UserRecord): SessionUser {
   };
 }
 
-export const liveKycService: KycService = {
-  async submitKyc(userId: string, input: KycSubmissionInput, pendingKycToken: string): Promise<AuthSession> {
-    const storedRefs: StoredKycDocumentRef[] = [];
+async function uploadKycDocumentRefs(userId: string, input: KycSubmissionInput, token: string): Promise<StoredKycDocumentRef[]> {
+  const storedRefs: StoredKycDocumentRef[] = [];
 
-    for (const document of input.documents) {
-      const upload = await invoke<{ bucket: string; path: string; token: string; contentType: string }>({
-        action: 'createUploadUrl',
-        token: pendingKycToken,
-        userId,
-        fileName: document.fileName,
-        contentType: document.contentType,
-        documentKind: document.kind,
-      });
+  for (const document of input.documents) {
+    const upload = await invoke<{ bucket: string; path: string; token: string; contentType: string }>({
+      action: 'createUploadUrl',
+      token,
+      userId,
+      fileName: document.fileName,
+      contentType: document.contentType,
+      documentKind: document.kind,
+    });
 
-      const { error: uploadError } = await supabase.storage
-        .from(upload.bucket)
-        .uploadToSignedUrl(upload.path, upload.token, decodeBase64(document.base64), {
-          contentType: document.contentType,
-        });
-
-      if (uploadError) {
-        throw new Error(uploadError.message);
-      }
-
-      storedRefs.push({
-        kind: document.kind,
-        storageRef: `storage://${upload.bucket}/${upload.path}`,
-        bucket: upload.bucket,
-        objectPath: upload.path,
-        fileName: document.fileName,
+    const { error: uploadError } = await supabase.storage
+      .from(upload.bucket)
+      .uploadToSignedUrl(upload.path, upload.token, decodeBase64(document.base64), {
         contentType: document.contentType,
       });
+
+    if (uploadError) {
+      throw new Error(uploadError.message);
     }
 
+    storedRefs.push({
+      kind: document.kind,
+      storageRef: `storage://${upload.bucket}/${upload.path}`,
+      bucket: upload.bucket,
+      objectPath: upload.path,
+      fileName: document.fileName,
+      contentType: document.contentType,
+    });
+  }
+
+  return storedRefs;
+}
+
+export const liveKycService: KycService = {
+  async submitKyc(userId: string, input: KycSubmissionInput, pendingKycToken: string): Promise<AuthSession> {
+    const storedRefs = await uploadKycDocumentRefs(userId, input, pendingKycToken);
     const response = await invoke<{ user: UserRecord; submission?: KycSubmissionRecord; token: string; sessionUser: SessionUser }>({
       action: 'submit',
       token: pendingKycToken,
+      userId,
+      imageRef: storedRefs[0]?.storageRef,
+      documentRefs: storedRefs,
+    });
+    mockBackend.setUserKycStatus(userId, response.user.KYC_Status, storedRefs[0]?.storageRef);
+    return { token: response.token, user: response.sessionUser };
+  },
+
+  async resubmitKyc(userId: string, input: KycSubmissionInput): Promise<AuthSession> {
+    const token = await loadSessionToken();
+    if (!token) {
+      throw new Error('No active session token was found.');
+    }
+    const storedRefs = await uploadKycDocumentRefs(userId, input, token);
+    const response = await invoke<{ user: UserRecord; submission?: KycSubmissionRecord; token: string; sessionUser: SessionUser }>({
+      action: 'submit',
+      token,
       userId,
       imageRef: storedRefs[0]?.storageRef,
       documentRefs: storedRefs,

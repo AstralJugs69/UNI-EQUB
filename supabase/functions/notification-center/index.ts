@@ -211,6 +211,9 @@ async function listNotificationsForUser(user: UserRecord) {
       createdAt: user.Created_At,
       unread: true,
       source: 'Derived',
+      actionRoute: 'member/kyc',
+      relatedEntityType: 'user',
+      relatedEntityId: user.User_ID,
     });
   }
 
@@ -224,6 +227,9 @@ async function listNotificationsForUser(user: UserRecord) {
         createdAt,
         unread: true,
         source: 'Derived',
+        actionRoute: 'member/group',
+        relatedEntityType: 'EqubGroup',
+        relatedEntityId: group.Group_ID,
       });
     }
     if (group.Status === 'Active') {
@@ -234,6 +240,9 @@ async function listNotificationsForUser(user: UserRecord) {
         createdAt,
         unread: true,
         source: 'Derived',
+        actionRoute: 'member/group',
+        relatedEntityType: 'EqubGroup',
+        relatedEntityId: group.Group_ID,
       });
     }
     if (group.Status === 'Frozen') {
@@ -244,6 +253,9 @@ async function listNotificationsForUser(user: UserRecord) {
         createdAt,
         unread: true,
         source: 'Derived',
+        actionRoute: 'member/group',
+        relatedEntityType: 'EqubGroup',
+        relatedEntityId: group.Group_ID,
       });
     }
     if (group.Status === 'Completed') {
@@ -254,6 +266,9 @@ async function listNotificationsForUser(user: UserRecord) {
         createdAt,
         unread: true,
         source: 'Derived',
+        actionRoute: 'member/group',
+        relatedEntityType: 'EqubGroup',
+        relatedEntityId: group.Group_ID,
       });
     }
   }
@@ -268,6 +283,9 @@ async function listNotificationsForUser(user: UserRecord) {
         createdAt: transaction.Date,
         unread: true,
         source: 'Derived',
+        actionRoute: 'member/wallet',
+        relatedEntityType: 'Transaction',
+        relatedEntityId: transaction.Trans_ID,
       });
     }
     if (transaction.Type === 'Payout' && transaction.Status === 'Pending') {
@@ -278,6 +296,9 @@ async function listNotificationsForUser(user: UserRecord) {
         createdAt: transaction.Date,
         unread: true,
         source: 'Derived',
+        actionRoute: 'member/wallet',
+        relatedEntityType: 'Transaction',
+        relatedEntityId: transaction.Trans_ID,
       });
     }
     if (transaction.Type === 'Payout' && transaction.Status === 'Successful') {
@@ -288,6 +309,9 @@ async function listNotificationsForUser(user: UserRecord) {
         createdAt: transaction.Date,
         unread: true,
         source: 'Derived',
+        actionRoute: 'member/wallet',
+        relatedEntityType: 'Transaction',
+        relatedEntityId: transaction.Trans_ID,
       });
     }
   }
@@ -307,6 +331,9 @@ async function listNotificationsForUser(user: UserRecord) {
         createdAt: membership.Joined_At,
         unread: true,
         source: 'Derived',
+        actionRoute: 'member/payment',
+        relatedEntityType: 'EqubGroup',
+        relatedEntityId: group.Group_ID,
       });
     }
   }

@@ -20,6 +20,7 @@ export function FormationCreatorScreen({ route }: any) {
   } = useMemberActions();
   const [inviteTarget, setInviteTarget] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const pendingRequests = useMemo(
     () => data?.joinRequests.filter(item => item.status === 'Requested') ?? [],
@@ -27,7 +28,7 @@ export function FormationCreatorScreen({ route }: any) {
   );
 
   if (!data) {
-    return <LoadingState title="Loading request" subtitle="Preparing creator controls and participant state." />;
+    return <LoadingState title="Loading forming group" subtitle="Preparing creator controls and participant state." />;
   }
 
   const request = data.groupRequest;
@@ -40,11 +41,13 @@ export function FormationCreatorScreen({ route }: any) {
   async function handleInvite() {
     try {
       setError('');
+      setSuccess('');
       await inviteFormation.mutateAsync({
         requestId: request.id,
         invitedPhoneOrStudentId: isPublicRequest ? undefined : inviteTarget.trim() || undefined,
       });
       setInviteTarget('');
+      setSuccess(isPublicRequest ? 'Invite code created.' : 'Invitation created.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create invitation.');
     }
@@ -53,7 +56,9 @@ export function FormationCreatorScreen({ route }: any) {
   async function handleAccept(joinRequestId: string) {
     try {
       setError('');
+      setSuccess('');
       await acceptFormationJoin.mutateAsync({ joinRequestId });
+      setSuccess('Participant accepted.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to accept participant.');
     }
@@ -62,7 +67,9 @@ export function FormationCreatorScreen({ route }: any) {
   async function handleRemove(joinRequestId: string) {
     try {
       setError('');
+      setSuccess('');
       await removeFormationParticipant.mutateAsync({ joinRequestId });
+      setSuccess('Participant removed.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update participant.');
     }
@@ -71,7 +78,9 @@ export function FormationCreatorScreen({ route }: any) {
   async function handleSubmit() {
     try {
       setError('');
+      setSuccess('');
       await submitFormationForApproval.mutateAsync(request.id);
+      setSuccess(isPrivate ? 'Private group started.' : 'Formation submitted for admin review.');
     } catch (err) {
       setError(err instanceof Error ? err.message : (isPrivate ? 'Unable to start private group.' : 'Unable to submit for approval.'));
     }
@@ -80,6 +89,7 @@ export function FormationCreatorScreen({ route }: any) {
   async function handleShareInvite(inviteCode: string) {
     try {
       setError('');
+      setSuccess('');
       await Share.share({
         title: 'UniEqub invite code',
         message: `Join ${request.proposed_group_name} on UniEqub with invite code ${inviteCode}.`,
@@ -91,8 +101,9 @@ export function FormationCreatorScreen({ route }: any) {
 
   return (
     <ScreenScroll>
-      <TopAppBar title="Manage Request" onBack={() => navigation.goBack()} />
+      <TopAppBar title="My Forming Group" onBack={() => navigation.goBack()} />
       <TitleBlock title={request.proposed_group_name} subtitle={request.description ?? undefined} />
+      {success ? <StatusBanner tone="success" title={success} /> : null}
       <View style={memberStyles.rowWrap}>
         <Pill label={request.status} tone={request.status === 'Forming' ? 'good' : request.status === 'PendingApproval' ? 'warn' : 'neutral'} />
         <Pill label={request.visibility} tone="active" />

@@ -55,6 +55,33 @@ async function requirePendingKycActor(token: string, expectedUserId?: string) {
   return data as UserRecord;
 }
 
+async function requireKycSubmissionActor(token: string, expectedUserId?: string) {
+  try {
+    return await requirePendingKycActor(token, expectedUserId);
+  } catch {
+    const payload = await verifySession(token);
+    const userId = payload.sub;
+    if (!userId) {
+      throw new Error('Invalid session token.');
+    }
+    if (expectedUserId && expectedUserId !== userId) {
+      throw new Error('Session token does not match the requested user.');
+    }
+    const { data, error } = await supabaseAdmin.from('User').select('*').eq('User_ID', userId).single();
+    if (error) {
+      throw error;
+    }
+    const user = data as UserRecord;
+    if (user.Role !== 'Member') {
+      throw new Error('Only members can submit KYC documents.');
+    }
+    if (user.KYC_Status === 'Banned') {
+      throw new Error('Banned accounts cannot submit KYC documents.');
+    }
+    return user;
+  }
+}
+
 async function requireAdminActor(token: string) {
   const payload = await verifySession(token);
   const userId = payload.sub;
@@ -247,7 +274,7 @@ Deno.serve(async request => {
         if (!body.userId || !body.token) {
           return fail('Missing userId for KYC upload.', 400);
         }
-        await requirePendingKycActor(body.token, body.userId);
+        await requireKycSubmissionActor(body.token, body.userId);
         const documentKind = body.documentKind ?? 'front_id';
         const fileName = (body.fileName ?? `${documentKind}.png`).replace(/[^a-zA-Z0-9._-]/g, '-');
         const objectPath = `${body.userId}/kyc/${documentKind}/${Date.now()}-${fileName}`;
@@ -268,7 +295,7 @@ Deno.serve(async request => {
         if (!body.userId || !body.token || (!body.imageRef && !body.documentRefs?.length)) {
           return fail('Missing KYC submit payload.', 400);
         }
-        const actor = await requirePendingKycActor(body.token, body.userId);
+        const actor = await requireKycSubmissionActor(body.token, body.userId);
         const documentRefs = body.documentRefs?.length
           ? body.documentRefs
           : [{ kind: 'legacy_student_id' as KycDocumentKind, storageRef: body.imageRef as string }];
@@ -284,6 +311,7 @@ Deno.serve(async request => {
           severity: 'Info',
           title: 'KYC submitted',
           message: 'Your student ID documents are waiting for admin review.',
+          actionRoute: 'member/kyc',
           relatedEntityType: 'kyc_submission',
           relatedEntityId: submission.id,
         });
@@ -319,6 +347,7 @@ Deno.serve(async request => {
           severity: 'Success',
           title: 'KYC approved',
           message: 'Your account is now verified for group creation and payout withdrawal.',
+          actionRoute: 'member/kyc',
           relatedEntityType: submission ? 'kyc_submission' : 'user',
           relatedEntityId: submission?.id ?? user.User_ID,
         });
@@ -345,6 +374,7 @@ Deno.serve(async request => {
           severity: 'Warning',
           title: 'KYC needs resubmission',
           message: 'Please upload clearer student ID documents to continue verification.',
+          actionRoute: 'member/kyc',
           relatedEntityType: submission ? 'kyc_submission' : 'user',
           relatedEntityId: submission?.id ?? user.User_ID,
         });
@@ -371,6 +401,7 @@ Deno.serve(async request => {
           severity: 'Error',
           title: 'KYC rejected',
           message: 'Your account was restricted after KYC review.',
+          actionRoute: 'member/kyc',
           relatedEntityType: submission ? 'kyc_submission' : 'user',
           relatedEntityId: submission?.id ?? user.User_ID,
         });

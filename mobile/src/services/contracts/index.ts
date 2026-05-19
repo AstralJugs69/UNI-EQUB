@@ -97,6 +97,7 @@ export interface AuthService {
 
 export interface KycService {
   submitKyc(userId: string, input: KycSubmissionInput, pendingKycToken: string): Promise<AuthSession>;
+  resubmitKyc(userId: string, input: KycSubmissionInput): Promise<AuthSession>;
   listPendingReviews(): Promise<KycReviewItem[]>;
   approve(userId: string): Promise<void>;
   requestResubmission(userId: string): Promise<void>;

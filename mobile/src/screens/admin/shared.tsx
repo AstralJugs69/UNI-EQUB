@@ -3,7 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import { BottomNav } from '../../components/ui';
 import { routes } from '../../navigation/routes';
 
-const adminTabs = [
+export const adminTabs = [
   { key: routes.adminDashboard, label: 'Overview', icon: 'dashboard' },
   { key: routes.adminKyc, label: 'KYC', icon: 'badge' },
   { key: routes.adminGroups, label: 'Groups', icon: 'groups' },

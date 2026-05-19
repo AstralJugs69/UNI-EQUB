@@ -27,7 +27,7 @@ export function GroupDetailScreen({ route }: any) {
     try {
       setError('');
       await joinGroup.mutateAsync(safeGroup.Group_ID);
-      navigation.navigate(routes.groupStatus, { groupId: safeGroup.Group_ID });
+      navigation.navigate(routes.groupStatus, { groupId: safeGroup.Group_ID, flash: 'Group joined.' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to join this group right now.');
     }
@@ -38,7 +38,7 @@ export function GroupDetailScreen({ route }: any) {
 
   return (
     <ScreenScroll>
-      <TopAppBar title="Group Details" onBack={() => navigation.goBack()} />
+      <TopAppBar title="Group Preview" onBack={() => navigation.goBack()} />
       <View style={memberStyles.imageHeroWrap}>
         <Image source={groupStudents} style={memberStyles.imageHero} resizeMode="cover" />
       </View>

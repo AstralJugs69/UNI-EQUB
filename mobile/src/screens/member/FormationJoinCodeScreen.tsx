@@ -15,6 +15,7 @@ export function FormationJoinCodeScreen() {
   const [inviteCode, setInviteCode] = useState('');
   const [preview, setPreview] = useState<GroupFormationDetail | null>(null);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const normalizedCode = inviteCode.trim().toUpperCase();
   const currentUserJoin = useMemo(
@@ -29,6 +30,7 @@ export function FormationJoinCodeScreen() {
   async function handleLookup() {
     try {
       setError('');
+      setSuccess('');
       const detail = await lookupFormationInviteCode.mutateAsync(normalizedCode);
       setPreview(detail);
     } catch (err) {
@@ -43,11 +45,13 @@ export function FormationJoinCodeScreen() {
     }
     try {
       setError('');
+      setSuccess('');
       const detail = await acceptFormationInviteCode.mutateAsync({
         inviteCode: normalizedCode,
         acceptedTermsVersion: preview.groupRequest.terms_version,
       });
       setPreview(detail);
+      setSuccess('Invite accepted. You are in the forming group.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to join with that invite code.');
     }
@@ -65,6 +69,7 @@ export function FormationJoinCodeScreen() {
     <ScreenScroll>
       <TopAppBar title="Join With Code" onBack={() => navigation.goBack()} />
       <TitleBlock title="Enter invite code" subtitle="Preview the forming group before accepting the current terms." />
+      {success ? <StatusBanner tone="success" title={success} /> : null}
       <SectionCard>
         <InputField
           label="Invite Code"

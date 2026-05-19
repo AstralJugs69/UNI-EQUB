@@ -329,6 +329,27 @@ function Header({ title, status, onBack }: { title: string; status: string; onBa
   );
 }
 
+function PayRoundButton({
+  disabled,
+  onPress,
+}: {
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      style={[memberStyles.groupCyclePayButton, disabled && memberStyles.groupCyclePayButtonDisabled]}
+    >
+      <Icon name="account-balance-wallet" size={iconSize.md} color={palette.white} />
+      <Text style={memberStyles.groupCyclePayButtonText}>{disabled ? 'Contribution Not Available' : 'Pay This Round'}</Text>
+      <Icon name="chevron-right" size={iconSize.md} color={palette.white} />
+    </Pressable>
+  );
+}
+
 function ResolutionPollSection({
   status,
   onVote,
@@ -414,14 +435,28 @@ export function GroupStatusScreen({ route }: any) {
   const { data: status } = useGroupStatusQuery(groupId);
   const { voteResolutionPoll } = useMemberActions();
 
+  if (!groupId && dashboard) {
+    return (
+      <ScreenScroll>
+        <StatusBanner tone="warning" title="No group cycle selected" body="Open one of your active groups before viewing cycle details." />
+        <PrimaryCTA label="My Active Groups" onPress={() => navigation.navigate(routes.activeGroups)} />
+      </ScreenScroll>
+    );
+  }
+
   if (!status) {
-    return <LoadingState title="Loading group" subtitle="Pulling round progress, payment status, and winner history." />;
+    return <LoadingState title="Loading group cycle" subtitle="Pulling round progress, payment status, and winner history." />;
   }
 
   return (
     <ScreenScroll>
       <Header title={status.group.Group_Name} status={status.group.Status} onBack={() => navigation.goBack()} />
+      {route.params?.flash ? <StatusBanner tone="success" title={route.params.flash} /> : null}
       <ContributionRing status={status} />
+      <PayRoundButton
+        disabled={!status.canCurrentUserPay}
+        onPress={() => navigation.navigate(routes.payment, { groupId: status.group.Group_ID })}
+      />
       {status.isFrozen ? <StatusBanner tone="danger" title="This group is currently frozen." body="Payments and round advancement stay paused until the compliance review is lifted." /> : null}
       <ResolutionPollSection
         status={status}
@@ -450,7 +485,6 @@ export function GroupStatusScreen({ route }: any) {
           <EmptyState icon="hourglass-top" title="No winners yet" subtitle="Winner history starts populating after the first round closes." />
         )}
       </SectionCard>
-      <PrimaryCTA label={status.canCurrentUserPay ? 'Pay Contribution' : 'Contribution Not Available'} onPress={() => navigation.navigate(routes.payment, { groupId: status.group.Group_ID })} disabled={!status.canCurrentUserPay} />
     </ScreenScroll>
   );
 }
