@@ -35,6 +35,8 @@ export type PayoutRequestStatus = 'Pending' | 'PartiallyReleased' | 'Completed' 
 export type PayoutReleaseScheduleStatus = 'Pending' | 'Released' | 'Frozen' | 'Cancelled';
 export type ReliabilityPublicStatus = 'New' | 'BuildingTrust' | 'Trusted' | 'Restricted' | 'Banned';
 export type UserRestrictionStatus = 'Active' | 'ClearedByAdmin' | 'ClearedByRecovery' | 'EscalatedToBan';
+export type KycSubmissionStatus = 'PendingReview' | 'Approved' | 'Rejected' | 'NeedsResubmission' | 'Superseded';
+export type KycDocumentKind = 'front_id' | 'back_id' | 'selfie' | 'legacy_student_id';
 
 export interface UserRecord {
   User_ID: string;
@@ -213,6 +215,35 @@ export interface AdminOverview {
 export interface KycReviewItem {
   user: UserRecord;
   note: string;
+  submission?: KycSubmissionRecord;
+  documents?: KycDocumentRecord[];
+}
+
+export interface KycSubmissionRecord {
+  id: string;
+  user_id: string;
+  status: KycSubmissionStatus;
+  submitted_at: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  decision_note: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KycDocumentRecord {
+  id: string;
+  submission_id: string;
+  user_id: string;
+  kind: KycDocumentKind;
+  storage_ref: string;
+  bucket: string | null;
+  object_path: string | null;
+  file_name: string | null;
+  content_type: string | null;
+  metadata: Record<string, unknown>;
+  uploaded_at: string;
 }
 
 export interface GroupApprovalItem {

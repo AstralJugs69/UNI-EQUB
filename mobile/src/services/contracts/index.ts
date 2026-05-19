@@ -11,6 +11,7 @@
   GroupRecord,
   GroupStatusSnapshot,
   KycReviewItem,
+  KycDocumentKind,
   PaymentMethod,
   PaymentResult,
   ReminderBatchResult,
@@ -33,7 +34,7 @@ export interface LoginInput {
 }
 
 export interface KycDocumentUpload {
-  kind: 'front_id' | 'back_id' | 'selfie';
+  kind: KycDocumentKind;
   fileName: string;
   contentType: string;
   base64: string;
@@ -97,6 +98,7 @@ export interface KycService {
   submitKyc(userId: string, input: KycSubmissionInput, pendingKycToken: string): Promise<AuthSession>;
   listPendingReviews(): Promise<KycReviewItem[]>;
   approve(userId: string): Promise<void>;
+  requestResubmission(userId: string): Promise<void>;
   ban(userId: string): Promise<void>;
 }
 

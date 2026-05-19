@@ -796,6 +796,13 @@ export class MockBackend implements AppServices {
       this.pushNotification(userId, 'KYC approved', 'Your account is now verified for group creation and payout withdrawal.');
     },
 
+    requestResubmission: async (userId: string): Promise<void> => {
+      const user = this.requireUser(userId);
+      user.KYC_Status = 'Unverified';
+      this.db.auditLogs.unshift(`KYC resubmission requested for ${user.Full_Name} • ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
+      this.pushNotification(userId, 'KYC needs resubmission', 'Please upload clearer student ID documents to continue verification.');
+    },
+
     ban: async (userId: string): Promise<void> => {
       const user = this.requireUser(userId);
       user.KYC_Status = 'Banned';

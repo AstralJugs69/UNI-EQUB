@@ -318,6 +318,10 @@ export function useAdminActions() {
       mutationFn: (userId: string) => services.kyc.approve(userId),
       onSuccess: refreshAdminData,
     }),
+    requestKycResubmission: useMutation({
+      mutationFn: (userId: string) => services.kyc.requestResubmission(userId),
+      onSuccess: refreshAdminData,
+    }),
     banUser: useMutation({
       mutationFn: (userId: string) => services.kyc.ban(userId),
       onSuccess: refreshAdminData,

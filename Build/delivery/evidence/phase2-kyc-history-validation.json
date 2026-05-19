@@ -1,0 +1,25 @@
+{
+  "scenario": "phase2-kyc-history-validation",
+  "validatedFiles": {
+    "migration": "supabase/migrations/20260519114500_phase2_kyc_history.sql",
+    "edgeFunction": "supabase/functions/kyc-submit-review/index.ts",
+    "liveService": "mobile/src/services/live/liveKycService.ts",
+    "mockService": "mobile/src/services/mock/mockBackend.ts",
+    "serviceContract": "mobile/src/services/contracts/index.ts",
+    "mobileTypes": "mobile/src/types/domain.ts",
+    "sharedTypes": "supabase/functions/_shared/types.ts",
+    "adminKycScreen": "mobile/src/screens/admin/AdminKycScreen.tsx"
+  },
+  "completedChecks": [
+    "KYC submissions and document metadata tables are additive Phase 2 companion tables",
+    "legacy User.Student_ID_Img compatibility field remains updated from the primary document reference",
+    "legacy unverified member KYC rows are backfilled into pending submission/document records during migration",
+    "new KYC submissions supersede prior pending submissions for the same user",
+    "admin review queue reads pending kyc_submissions and returns related document metadata",
+    "approve, needs-resubmission, and reject/ban decisions write durable notifications and audit events",
+    "live and mock mobile KYC services expose matching submit/list/approve/resubmit/ban behavior"
+  ],
+  "requiresSupabaseCredentials": false,
+  "requiresDeviceValidation": true,
+  "validatedAt": "2026-05-19T11:59:27.641Z"
+}
