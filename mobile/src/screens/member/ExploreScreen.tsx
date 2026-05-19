@@ -1,11 +1,182 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { AppScreen, EmptyState, InlineError, MetricTile, Pill, PrimaryCTA, SecondaryCTA, SectionCard, TopAppBar } from '../../components/ui';
+import { Icon } from '../../components/Icon';
+import { AppScreen, InlineError, SectionCard } from '../../components/ui';
 import { useFormationGroupsQuery, useGroupsQuery, useMyFormationGroupsQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
+import { iconSize, palette } from '../../theme/tokens';
+import type { GroupFormationRequestSummary, GroupRecord } from '../../types/domain';
 import { MemberNav, formatCurrency } from './shared';
 import { memberStyles } from './styles';
+
+function ExploreHero({ onJoinCode, onCreate }: { onJoinCode: () => void; onCreate: () => void }) {
+  return (
+    <View style={memberStyles.exploreHeroCard}>
+      <View pointerEvents="none" style={memberStyles.exploreHeroArt}>
+        <View style={memberStyles.exploreVaultBody}>
+          <View style={memberStyles.exploreVaultDoor}>
+            <View style={memberStyles.exploreVaultDial} />
+          </View>
+        </View>
+        <View style={memberStyles.exploreCoinStack}>
+          <View style={memberStyles.exploreCoin} />
+          <View style={[memberStyles.exploreCoin, memberStyles.exploreCoinOffset]} />
+          <View style={[memberStyles.exploreCoin, memberStyles.exploreCoinLower]} />
+        </View>
+      </View>
+      <View style={memberStyles.exploreHeroIcon}>
+        <Icon name="group-add" size={iconSize.md} color={palette.primary} />
+      </View>
+      <Text style={memberStyles.exploreHeroTitle}>Form or join an Equb</Text>
+      <Text style={memberStyles.exploreHeroBody}>Use an invite code, create a forming group, or browse approved groups.</Text>
+      <View style={memberStyles.exploreHeroActions}>
+        <Pressable accessibilityRole="button" onPress={onJoinCode} style={memberStyles.explorePrimaryAction}>
+          <Icon name="qr-code-2" size={iconSize.md} color={palette.white} />
+          <Text style={memberStyles.explorePrimaryActionText}>Join With Code</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={onCreate} style={memberStyles.exploreSecondaryAction}>
+          <Icon name="add-circle" size={iconSize.md} color={palette.primary} />
+          <Text style={memberStyles.exploreSecondaryActionText}>Create Equb</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function MyRequestsCard({
+  count,
+  onPress,
+}: {
+  count: number;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={memberStyles.exploreRequestsCard}>
+      <View style={memberStyles.exploreRequestsIcon}>
+        <Icon name="playlist-add-check" size={iconSize.md} color={palette.primary} />
+      </View>
+      <View style={memberStyles.exploreRequestsText}>
+        <Text style={memberStyles.exploreRequestsTitle}>My requests</Text>
+        <Text style={memberStyles.exploreRequestsBody}>Create a forming group to gather accepted members before it starts.</Text>
+      </View>
+      <View style={memberStyles.exploreCountPill}>
+        <Text style={memberStyles.exploreCountText}>{count} active</Text>
+      </View>
+      <Icon name="chevron-right" size={iconSize.md} color={palette.textSoft} />
+    </Pressable>
+  );
+}
+
+function ExploreSmallPill({
+  icon,
+  label,
+  tone = 'info',
+}: {
+  icon?: string;
+  label: string;
+  tone?: 'info' | 'success';
+}) {
+  return (
+    <View style={[memberStyles.exploreSmallPill, tone === 'success' && memberStyles.exploreSmallPillSuccess]}>
+      {icon ? <Icon name={icon} size={13} color={tone === 'success' ? palette.success : palette.primary} /> : null}
+      <Text style={[memberStyles.exploreSmallPillText, tone === 'success' && memberStyles.exploreSmallPillTextSuccess]}>{label}</Text>
+    </View>
+  );
+}
+
+function FormingRequestCard({
+  request,
+  onPress,
+}: {
+  request: GroupFormationRequestSummary;
+  onPress: () => void;
+}) {
+  return (
+    <View style={memberStyles.formingRequestCard}>
+      <View style={memberStyles.rowWrap}>
+        <ExploreSmallPill label={request.status} tone={request.status === 'Forming' ? 'success' : 'info'} />
+        <ExploreSmallPill icon="calendar-month" label={request.frequency} />
+      </View>
+      <Text style={memberStyles.approvedGroupTitle}>{request.proposed_group_name}</Text>
+      <Text style={memberStyles.approvedGroupDescription} numberOfLines={2}>
+        {request.description ?? 'Public forming group request.'}
+      </Text>
+      <View style={memberStyles.approvedStatsBox}>
+        <View style={memberStyles.approvedStatItem}>
+          <View style={memberStyles.approvedStatIcon}>
+            <Icon name="account-balance-wallet" size={iconSize.md} color={palette.primary} />
+          </View>
+          <View>
+            <Text style={memberStyles.approvedStatLabel}>Contribution</Text>
+            <Text style={memberStyles.approvedStatValue}>{formatCurrency(request.contribution_amount)}</Text>
+          </View>
+        </View>
+        <View style={memberStyles.approvedStatDivider} />
+        <View style={memberStyles.approvedStatItem}>
+          <View style={memberStyles.approvedStatIcon}>
+            <Icon name="groups" size={iconSize.md} color={palette.primary} />
+          </View>
+          <View>
+            <Text style={memberStyles.approvedStatLabel}>Accepted</Text>
+            <Text style={memberStyles.approvedStatValue}>{request.accepted_participant_count}/{request.min_members}</Text>
+          </View>
+        </View>
+      </View>
+      <Pressable accessibilityRole="button" onPress={onPress} style={memberStyles.approvedGroupButton}>
+        <Text style={memberStyles.approvedGroupButtonText}>Review Request</Text>
+        <Icon name="arrow-forward" size={iconSize.md} color={palette.white} />
+      </Pressable>
+    </View>
+  );
+}
+
+function ApprovedGroupCard({
+  group,
+  onPress,
+}: {
+  group: GroupRecord;
+  onPress: () => void;
+}) {
+  const isOpen = group.Status !== 'Completed';
+
+  return (
+    <View style={memberStyles.approvedGroupCard}>
+      <View style={memberStyles.rowWrap}>
+        <ExploreSmallPill label={isOpen ? 'Open' : 'Closed'} tone={isOpen ? 'success' : 'info'} />
+        <ExploreSmallPill icon="calendar-month" label={group.Frequency} />
+      </View>
+      <Text style={memberStyles.approvedGroupTitle}>{group.Group_Name}</Text>
+      <Text style={memberStyles.approvedGroupDescription} numberOfLines={3}>{group.Description}</Text>
+      <View style={memberStyles.approvedStatsBox}>
+        <View style={memberStyles.approvedStatItem}>
+          <View style={memberStyles.approvedStatIcon}>
+            <Icon name="account-balance-wallet" size={iconSize.md} color={palette.primary} />
+          </View>
+          <View>
+            <Text style={memberStyles.approvedStatLabel}>Contribution</Text>
+            <Text style={memberStyles.approvedStatValue}>{formatCurrency(group.Amount)}</Text>
+          </View>
+        </View>
+        <View style={memberStyles.approvedStatDivider} />
+        <View style={memberStyles.approvedStatItem}>
+          <View style={memberStyles.approvedStatIcon}>
+            <Icon name="groups" size={iconSize.md} color={palette.primary} />
+          </View>
+          <View>
+            <Text style={memberStyles.approvedStatLabel}>Slots</Text>
+            <Text style={memberStyles.approvedStatValue}>{group.Max_Members}</Text>
+            <Text style={memberStyles.approvedStatHelper}>Maximum members</Text>
+          </View>
+        </View>
+      </View>
+      <Pressable accessibilityRole="button" onPress={onPress} style={memberStyles.approvedGroupButton}>
+        <Text style={memberStyles.approvedGroupButtonText}>View Group</Text>
+        <Icon name="arrow-forward" size={iconSize.md} color={palette.white} />
+      </Pressable>
+    </View>
+  );
+}
 
 export function ExploreScreen() {
   const navigation = useNavigation<any>();
@@ -13,85 +184,66 @@ export function ExploreScreen() {
   const { data: formingGroups = [], error: formingError } = useFormationGroupsQuery();
   const { data: myRequests = [], error: myRequestsError } = useMyFormationGroupsQuery();
 
+  const openFirstRequest = () => {
+    if (myRequests[0]) {
+      navigation.navigate(routes.formationCreator, { requestId: myRequests[0].id });
+      return;
+    }
+    navigation.navigate(routes.createBasics);
+  };
+
   return (
     <AppScreen footer={<MemberNav active={routes.explore} />} footerFlush>
-      <TopAppBar title="Explore" />
-      <SectionCard variant="soft">
-        <Text style={memberStyles.sectionTitle}>Form or join an Equb</Text>
-        <Text style={memberStyles.mutedText}>Use an invite code, create a forming group, or browse approved groups.</Text>
-        <View style={memberStyles.twoCol}>
-          <SecondaryCTA label="Join With Code" onPress={() => navigation.navigate(routes.formationJoinCode)} />
-          <SecondaryCTA label="Create Equb" onPress={() => navigation.navigate(routes.createBasics)} />
-        </View>
-      </SectionCard>
-      <SectionCard>
-        <View style={memberStyles.rowBetween}>
-          <Text style={memberStyles.sectionTitle}>My requests</Text>
-          <Text style={memberStyles.mutedText}>{myRequests.length} active</Text>
-        </View>
-        <InlineError message={myRequestsError instanceof Error ? myRequestsError.message : ''} />
-        {!myRequests.length ? (
-          <Text style={memberStyles.mutedText}>Create a forming group to gather accepted members before it starts.</Text>
-        ) : myRequests.map(request => (
-          <View key={request.id} style={memberStyles.itemBlock}>
-            <View style={memberStyles.rowWrap}>
-              <Pill label={request.status} tone={request.status === 'Approved' ? 'good' : request.status === 'PendingApproval' ? 'warn' : request.status === 'Rejected' ? 'bad' : 'active'} />
-              <Pill label={request.visibility} tone="neutral" />
-              <Pill label={request.frequency} tone="active" />
-            </View>
-            <Text style={memberStyles.sectionTitle}>{request.proposed_group_name}</Text>
-            <Text style={memberStyles.mutedText}>{request.description ?? 'Your forming group request.'}</Text>
-            <View style={memberStyles.metricsGrid}>
-              <MetricTile label="Contribution" value={formatCurrency(request.contribution_amount)} />
-              <MetricTile label="Accepted" value={`${request.accepted_participant_count}/${request.min_members}`} helper={`${request.remaining_slots} slots left`} tone={request.accepted_participant_count >= request.min_members ? 'good' : 'neutral'} />
-            </View>
-            <PrimaryCTA label={request.status === 'Forming' ? 'Manage Request' : 'View Request'} onPress={() => navigation.navigate(routes.formationCreator, { requestId: request.id })} />
-          </View>
-        ))}
-      </SectionCard>
-      <SectionCard>
-        <View style={memberStyles.rowBetween}>
-          <Text style={memberStyles.sectionTitle}>Forming groups</Text>
-        </View>
+      <Text style={memberStyles.exploreTitle}>Explore</Text>
+      <ExploreHero
+        onJoinCode={() => navigation.navigate(routes.formationJoinCode)}
+        onCreate={() => navigation.navigate(routes.createBasics)}
+      />
+      <MyRequestsCard count={myRequests.length} onPress={openFirstRequest} />
+      <InlineError message={myRequestsError instanceof Error ? myRequestsError.message : ''} />
+      <SectionCard style={memberStyles.exploreFormingPanel}>
+        <Text style={memberStyles.exploreSectionTitle}>Forming groups</Text>
         <InlineError message={formingError instanceof Error ? formingError.message : ''} />
-        {formingGroups.map(request => (
-          <View key={request.id} style={memberStyles.itemBlock}>
-            <View style={memberStyles.rowWrap}>
-              <Pill label={request.status} tone={request.status === 'Forming' ? 'good' : 'warn'} />
-              <Pill label={request.frequency} tone="active" />
-              <Pill label={request.visibility} tone="neutral" />
-            </View>
-            <Text style={memberStyles.sectionTitle}>{request.proposed_group_name}</Text>
-            <Text style={memberStyles.mutedText}>{request.description ?? 'Public forming group request.'}</Text>
-            <View style={memberStyles.metricsGrid}>
-              <MetricTile label="Contribution" value={formatCurrency(request.contribution_amount)} />
-              <MetricTile label="Accepted" value={`${request.accepted_participant_count}/${request.min_members}`} helper={`${request.remaining_slots} slots left`} />
-            </View>
-            <PrimaryCTA label="Review Request" onPress={() => navigation.navigate(routes.formationDetail, { requestId: request.id })} />
+        {formingGroups.length ? (
+          <View style={memberStyles.exploreCardList}>
+            {formingGroups.map(request => (
+              <FormingRequestCard
+                key={request.id}
+                request={request}
+                onPress={() => navigation.navigate(routes.formationDetail, { requestId: request.id })}
+              />
+            ))}
           </View>
-        ))}
+        ) : (
+          <View style={memberStyles.exploreEmptyState}>
+            <View style={memberStyles.exploreEmptyIcon}>
+              <Icon name="group-add" size={32} color={palette.primary} />
+            </View>
+            <Text style={memberStyles.exploreEmptyTitle}>No forming groups yet</Text>
+            <Text style={memberStyles.exploreEmptyBody}>Public group requests will appear here while creators gather enough accepted members.</Text>
+          </View>
+        )}
       </SectionCard>
-      {!formingGroups.length ? (
-        <EmptyState icon="group-add" title="No forming groups yet" subtitle="Public group requests will appear here while creators gather enough accepted members." />
-      ) : null}
-      <Text style={memberStyles.sectionTitle}>Approved groups</Text>
+      <Text style={memberStyles.exploreSectionHeading}>Approved groups</Text>
       {!data.length ? (
-        <EmptyState icon="travel-explore" title="No open groups right now" subtitle="When admins approve new Equbs, they will appear here for members to review and join." />
-      ) : data.map(group => (
-        <SectionCard key={group.Group_ID}>
-          <View style={memberStyles.rowWrap}>
-            <Pill label={group.Status === 'Completed' ? 'Closed' : 'Open'} tone={group.Status === 'Completed' ? 'bad' : 'good'} />
-            <Pill label={group.Frequency} tone="active" />
+        <View style={memberStyles.exploreEmptyCard}>
+          <View style={memberStyles.exploreEmptyIcon}>
+            <Icon name="travel-explore" size={32} color={palette.primary} />
           </View>
-          <Text style={memberStyles.sectionTitle}>{group.Group_Name}</Text>
-          <Text style={memberStyles.mutedText}>{group.Description}</Text>
-          <View style={memberStyles.metricsGrid}>
-            <MetricTile label="Contribution" value={formatCurrency(group.Amount)} />
-            <MetricTile label="Slots" value={`${group.Max_Members}`} helper="Maximum members" />
-          </View>
-          <PrimaryCTA label="View Group" onPress={() => navigation.navigate(routes.groupDetail, { groupId: group.Group_ID })} />
-        </SectionCard>
-      ))}
+          <Text style={memberStyles.exploreEmptyTitle}>No open groups right now</Text>
+          <Text style={memberStyles.exploreEmptyBody}>When admins approve new Equbs, they will appear here for members to review and join.</Text>
+        </View>
+      ) : (
+        <View style={memberStyles.exploreCardList}>
+          {data.map(group => (
+            <ApprovedGroupCard
+              key={group.Group_ID}
+              group={group}
+              onPress={() => navigation.navigate(routes.groupDetail, { groupId: group.Group_ID })}
+            />
+          ))}
+        </View>
+      )}
     </AppScreen>
   );
 }

@@ -821,6 +821,27 @@ export class MockBackend implements AppServices {
       const currentRound = this.currentOpenRound(groupId);
       const paidCount = currentRound ? this.successfulContributions(currentRound.Round_ID).length : 0;
       const totalMembers = this.activeMembershipCount(groupId);
+      const paidUserIds = new Set(currentRound ? this.successfulContributions(currentRound.Round_ID).map(txn => txn.User_ID) : []);
+      const contributors = this.db.memberships
+        .filter(membership => membership.Group_ID === groupId && membership.Status === 'Active')
+        .map(membership => {
+          const user = this.requireUser(membership.User_ID);
+          const initials = user.Full_Name
+            .split(' ')
+            .map(part => part[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase();
+          return {
+            userId: user.User_ID,
+            fullName: user.Full_Name,
+            initials,
+            joinedAt: membership.Joined_At,
+            hasPaidCurrentRound: paidUserIds.has(user.User_ID),
+            isCurrentWinner: currentRound?.Winner_ID === user.User_ID,
+            cyclesWon: this.db.rounds.filter(round => round.Group_ID === groupId && round.Winner_ID === user.User_ID).length,
+          };
+        });
       const winnerHistory = this.db.rounds
         .filter(round => round.Group_ID === groupId && round.Winner_ID)
         .map(round => ({
@@ -834,6 +855,7 @@ export class MockBackend implements AppServices {
         paidCount,
         totalMembers,
         winnerHistory,
+        contributors,
         canCurrentUserPay,
         isFrozen: group.Status === 'Frozen',
       };

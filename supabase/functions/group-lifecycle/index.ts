@@ -156,6 +156,60 @@ async function getWinnerHistory(groupId: string) {
   }));
 }
 
+function initialsForName(name: string) {
+  return name
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+async function getStatusContributors(
+  groupId: string,
+  memberships: MembershipRecord[],
+  paidUserIds: Set<string>,
+  currentWinnerId: string | null | undefined,
+) {
+  const userIds = [...new Set(memberships.map(membership => membership.User_ID))];
+  if (!userIds.length) {
+    return [];
+  }
+
+  const [{ data: users, error: usersError }, { data: wonRounds, error: wonRoundsError }] = await Promise.all([
+    supabaseAdmin.from('User').select('User_ID, Full_Name').in('User_ID', userIds),
+    supabaseAdmin.from('Round').select('Winner_ID').eq('Group_ID', groupId).not('Winner_ID', 'is', null),
+  ]);
+  if (usersError) {
+    throw usersError;
+  }
+  if (wonRoundsError) {
+    throw wonRoundsError;
+  }
+
+  const userNames = new Map((users ?? []).map(user => [user.User_ID as string, user.Full_Name as string]));
+  const winsByUserId = new Map<string, number>();
+  for (const round of wonRounds ?? []) {
+    const winnerId = round.Winner_ID as string | null;
+    if (winnerId) {
+      winsByUserId.set(winnerId, (winsByUserId.get(winnerId) ?? 0) + 1);
+    }
+  }
+
+  return memberships.map(membership => {
+    const fullName = userNames.get(membership.User_ID) ?? 'Member';
+    return {
+      userId: membership.User_ID,
+      fullName,
+      initials: initialsForName(fullName),
+      joinedAt: membership.Joined_At,
+      hasPaidCurrentRound: paidUserIds.has(membership.User_ID),
+      isCurrentWinner: currentWinnerId === membership.User_ID,
+      cyclesWon: winsByUserId.get(membership.User_ID) ?? 0,
+    };
+  });
+}
+
 async function getGroupStatusSnapshot(actor: UserRecord, groupId: string) {
   const group = await requireGroup(groupId);
   const currentRound = await ensureOpenRoundForGroup(group);
@@ -175,6 +229,7 @@ async function getGroupStatusSnapshot(actor: UserRecord, groupId: string) {
     paidCount: obligationProgress.paidCount,
     totalMembers: obligationProgress.totalMembers,
     winnerHistory: await getWinnerHistory(groupId),
+    contributors: await getStatusContributors(groupId, memberships, obligationProgress.paidUserIds, currentRound?.Winner_ID),
     canCurrentUserPay,
     isFrozen: group.Status === 'Frozen',
   };

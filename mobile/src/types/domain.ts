@@ -140,8 +140,19 @@ export interface GroupStatusSnapshot {
   paidCount: number;
   totalMembers: number;
   winnerHistory: Array<{ roundNumber: number; winnerName: string }>;
+  contributors?: GroupStatusContributor[];
   canCurrentUserPay: boolean;
   isFrozen: boolean;
+}
+
+export interface GroupStatusContributor {
+  userId: string;
+  fullName: string;
+  initials: string;
+  joinedAt: string;
+  hasPaidCurrentRound: boolean;
+  isCurrentWinner: boolean;
+  cyclesWon: number;
 }
 
 export interface PaymentResult {

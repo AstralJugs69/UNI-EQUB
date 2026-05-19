@@ -1,0 +1,22 @@
+{
+  "scenario": "phase2-member-ui-polish-validation",
+  "validatedFiles": {
+    "dashboard": "mobile/src/screens/member/DashboardScreen.tsx",
+    "explore": "mobile/src/screens/member/ExploreScreen.tsx",
+    "groupStatus": "mobile/src/screens/member/GroupStatusScreen.tsx",
+    "styles": "mobile/src/screens/member/styles.ts",
+    "mobileTypes": "mobile/src/types/domain.ts",
+    "mockBackend": "mobile/src/services/mock/mockBackend.ts",
+    "groupLifecycle": "supabase/functions/group-lifecycle/index.ts"
+  },
+  "completedChecks": [
+    "member dashboard uses compact profile details, a consolidated contribution hero, compact metrics, and tile quick actions",
+    "Explore screen uses the redesigned formation hero, My requests row, forming empty state, and approved group cards",
+    "group status exposes a contribution ring with not-paid, paid, and winner pill states",
+    "group status contributor contract is represented in mobile types, mock backend state, and live group-lifecycle response shape",
+    "existing navigation targets for pay, group detail, invite code, and create Equb remain service-driven"
+  ],
+  "requiresSupabaseCredentials": false,
+  "requiresDeviceValidation": true,
+  "validatedAt": "2026-05-19T11:32:14.258Z"
+}
