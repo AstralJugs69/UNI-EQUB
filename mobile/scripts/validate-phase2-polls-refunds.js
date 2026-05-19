@@ -72,6 +72,8 @@ function main() {
 
   [
     'export async function createFrozenGroupResolutionPoll',
+    'isMissingResolutionTable',
+    'resolutionTablesMissingError',
     'eligibleVoterIds',
     'export async function voteOnResolutionPoll',
     'Only eligible non-defaulted members can vote',
@@ -83,6 +85,7 @@ function main() {
     'group_resolution_poll_opened',
     'group_resolution_vote_cast',
     'group_resolution_poll_closed',
+    'Phase 2 resolution poll tables are not deployed',
   ].forEach(token => assertIncludes(helper, token, 'poll/refund helper token'));
 
   [

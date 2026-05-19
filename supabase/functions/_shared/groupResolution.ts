@@ -60,6 +60,24 @@ function parseEligibleIds(value: unknown): string[] {
   return Array.isArray(value) ? value.filter(item => typeof item === 'string') : [];
 }
 
+function isMissingResolutionTable(error: unknown) {
+  if (typeof error !== 'object' || !error) {
+    return false;
+  }
+  const record = error as { code?: unknown; message?: unknown };
+  return record.code === 'PGRST205'
+    || (typeof record.message === 'string' && (
+      record.message.includes("Could not find the table 'public.group_resolution_polls'")
+      || record.message.includes("Could not find the table 'public.refund_tickets'")
+      || record.message.includes("Could not find the table 'public.group_resolution_poll_options'")
+      || record.message.includes("Could not find the table 'public.group_resolution_votes'")
+    ));
+}
+
+function resolutionTablesMissingError() {
+  return new Error('Phase 2 resolution poll tables are not deployed. Run `supabase db push` to apply 20260519131500_phase2_resolution_polls_refund_tickets.sql, then redeploy group-lifecycle.');
+}
+
 async function getGroup(groupId: string) {
   const { data, error } = await supabaseAdmin.from('EqubGroup').select('*').eq('Group_ID', groupId).single();
   if (error) {
@@ -121,6 +139,9 @@ async function findActivePoll(groupId: string) {
     .limit(1)
     .maybeSingle();
   if (error) {
+    if (isMissingResolutionTable(error)) {
+      return null;
+    }
     throw error;
   }
   return data as GroupResolutionPollRecord | null;
@@ -133,6 +154,9 @@ async function listPollOptions(pollId: string) {
     .eq('poll_id', pollId)
     .order('display_order', { ascending: true });
   if (error) {
+    if (isMissingResolutionTable(error)) {
+      throw resolutionTablesMissingError();
+    }
     throw error;
   }
   return (data ?? []) as GroupResolutionPollOptionRecord[];
@@ -144,6 +168,9 @@ async function listPollVotes(pollId: string) {
     .select('*')
     .eq('poll_id', pollId);
   if (error) {
+    if (isMissingResolutionTable(error)) {
+      throw resolutionTablesMissingError();
+    }
     throw error;
   }
   return (data ?? []) as GroupResolutionVoteRecord[];
@@ -222,6 +249,9 @@ export async function createFrozenGroupResolutionPoll(input: {
     .select('*')
     .single();
   if (pollError) {
+    if (isMissingResolutionTable(pollError)) {
+      throw resolutionTablesMissingError();
+    }
     throw pollError;
   }
 
@@ -230,6 +260,9 @@ export async function createFrozenGroupResolutionPoll(input: {
     .from('group_resolution_poll_options')
     .insert(DEFAULT_OPTIONS.map(option => ({ ...option, poll_id: pollRecord.id })));
   if (optionsError) {
+    if (isMissingResolutionTable(optionsError)) {
+      throw resolutionTablesMissingError();
+    }
     throw optionsError;
   }
 
@@ -265,6 +298,12 @@ export async function getGroupResolutionState(groupId: string, currentUserId?: s
     .eq('group_id', groupId)
     .order('created_at', { ascending: false });
   if (ticketsError) {
+    if (isMissingResolutionTable(ticketsError)) {
+      return {
+        activeResolutionPoll: null,
+        refundTickets: [] as RefundTicketRecord[],
+      };
+    }
     throw ticketsError;
   }
 
@@ -462,6 +501,9 @@ export async function closeResolutionPollIfReady(input: {
     .eq('status', 'Open')
     .maybeSingle();
   if (error) {
+    if (isMissingResolutionTable(error)) {
+      throw resolutionTablesMissingError();
+    }
     throw error;
   }
   if (!data) {
@@ -506,6 +548,9 @@ export async function voteOnResolutionPoll(input: {
     .eq('group_id', input.groupId)
     .single();
   if (pollError) {
+    if (isMissingResolutionTable(pollError)) {
+      throw resolutionTablesMissingError();
+    }
     throw pollError;
   }
   const poll = pollData as GroupResolutionPollRecord;
