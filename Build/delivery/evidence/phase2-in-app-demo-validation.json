@@ -36,5 +36,5 @@
     "this validation is static/Jest-backed and does not replace screenshots or on-device UAT",
     "demo mode intentionally uses seeded local mock data and simulated payment rails"
   ],
-  "validatedAt": "2026-05-18T06:32:38.501Z"
+  "validatedAt": "2026-05-19T13:01:54.689Z"
 }

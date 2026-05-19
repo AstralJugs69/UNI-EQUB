@@ -1,6 +1,6 @@
 # UniEqub Phase 2 Demo Operator Checklist
 
-Last Updated: 2026-05-18
+Last Updated: 2026-05-19
 
 ## Pre-Demo Setup
 
@@ -21,7 +21,8 @@ Last Updated: 2026-05-18
 - Confirm `mobile/.env` has:
   - `UNIEQUB_SUPABASE_URL`
   - `UNIEQUB_SUPABASE_ANON_KEY`
-- Confirm whether you are installing the standalone signed APK or using the Metro development flow.
+- Confirm whether you are installing the standalone APK or using the Metro development flow.
+- Confirm whether the APK was rebuilt with `UNIEQUB_RELEASE_*` signing env vars or debug fallback signing.
 - Confirm an OTP-capable phone is available if demonstrating registration/KYC phone verification.
 - Confirm the user understands payments/wallets are simulated.
 
@@ -32,8 +33,9 @@ Use this path when the goal is to show the working app flows on a device without
 1. Install `mobile/android/app/build/outputs/apk/release/app-release.apk` for a standalone demo, or start/install the debug app with `npm run android:dev` for development.
 2. On the splash screen, tap **Try Demo Mode**.
 3. Tap **Launch Member Demo** to show final contribution, mock/USSD payment, auto draw, wallet, history, notifications, Explore, Join With Code using `FORM-2026`, and member-side group creation.
-4. Log out, return to **Try Demo Mode**, and tap **Launch Admin Demo** to show KYC, legacy group approval, Phase 2 formation approval, reminders, and reports.
-5. Tell the audience this path uses seeded local mock data and simulated payment rails.
+4. Show member profile reliability label and group status contributor/frozen-state surfaces when relevant.
+5. Log out, return to **Try Demo Mode**, and tap **Launch Admin Demo** to show KYC, legacy group approval, Phase 2 formation approval, frozen-group recovery/member vote, reminders, reliability summary, audit timeline, and reports.
+6. Tell the audience this path uses seeded local mock data and simulated payment rails.
 
 ## Quick Validation Commands
 
@@ -42,6 +44,8 @@ Run before presenting:
 ```powershell
 npm run qa:phase2-demo-readiness
 npm run qa:phase2-in-app-demo
+npm run qa:phase2-final-ux-states
+npm run qa:phase2-final-handoff
 npm run qa:direct-login
 npm run mobile:typecheck
 npm run mobile:test
@@ -56,6 +60,10 @@ npm run qa:phase2-formation
 npm run qa:phase2-payment-outcomes
 npm run qa:phase2-payout-reserve-ui
 npm run qa:phase2-default-restriction
+npm run qa:phase2-freeze-recovery
+npm run qa:phase2-polls-refunds
+npm run qa:phase2-durable-notifications
+npm run qa:phase2-kyc-history
 ```
 
 ## Live Demo Accounts
@@ -79,7 +87,7 @@ Record locally before the demo. Do not commit private credentials.
 | Obligations/payment | 4 min | Pay current obligation | payment-attempt evidence files |
 | Draw/payout/reserve | 4 min | Seed final draw or show wallet | payout evidence files |
 | Reliability/default | 3 min | Run/show default maintenance | `phase2-default-restriction-validation.json` |
-| Reports | 2 min | Admin reports/export | `report-export-validation.json` |
+| Reports/audit | 2 min | Admin reports/export/audit timeline | `report-export-validation.json`, `phase2-final-ux-states-validation.json` |
 | Remaining work | 1 min | Tracker rows | `phase2_development_progress_tracker.md` |
 
 ## Live Final-Draw Shortcut
@@ -103,10 +111,11 @@ Then in the app:
 - Do not say payments are real.
 - Do not say wallet funds are held by the app.
 - Do not say emulator/device validation is complete unless fresh evidence exists.
-- Do not describe the demo signing key as production Play Store signing.
-- Do not say durable notification/audit UI is complete.
-- Do not say freeze polling/refund tickets are complete.
+- Do not describe debug fallback or demo signing as production Play Store signing.
+- Do not say durable notification/audit behavior is fully deployed or device-validated unless fresh evidence exists.
+- Do not say freeze polling/refund tickets are live-deployed or device-validated unless fresh evidence exists.
+- Do not say real refunds or real payment transfers occur.
 
 ## Best Defense Line
 
-> UniEqub demonstrates realistic Equb workflow controls without live financial risk: approval-based formation, obligation-based readiness, idempotent mock provider attempts, simulated ledger and payout reserves, reliability maturity, and default restrictions, while preserving the original MVP schema as the canonical core.
+> UniEqub demonstrates realistic Equb workflow controls without live financial risk: approval-based formation, obligation-based readiness, idempotent mock provider attempts, simulated ledger and payout reserves, reliability maturity, default restrictions, frozen-group recovery, member resolution votes, and audit evidence, while preserving the original MVP schema as the canonical core.

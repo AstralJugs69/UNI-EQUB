@@ -74,6 +74,42 @@ describe('MockBackend automatic draw flow', () => {
     expect(pendingAfterReset.some(item => item.id === 'formation-demo-review')).toBe(true);
   });
 
+  it('exposes final Phase 2 reliability labels and audit timeline in demo services', async () => {
+    const backend = new MockBackend();
+
+    const dashboard = await backend.groups.getDashboard('user-dawit');
+    expect(dashboard.reliabilityProfile?.public_status).toBe('BuildingTrust');
+
+    const overview = await backend.reports.getAdminOverview();
+    expect(overview.reliabilitySummary?.Trusted).toBeGreaterThanOrEqual(1);
+    expect(overview.reliabilitySummary?.BuildingTrust).toBeGreaterThanOrEqual(1);
+    expect(overview.auditTimeline?.length).toBeGreaterThanOrEqual(3);
+    expect(overview.auditTimeline?.[0]).toEqual(expect.objectContaining({
+      actorRole: expect.any(String),
+      summary: expect.any(String),
+    }));
+  });
+
+  it('supports frozen-group resolution poll and simulated refund ticket demo flow', async () => {
+    const backend = new MockBackend();
+
+    const poll = await backend.groups.createResolutionPoll('group-demo-frozen');
+    expect(poll?.eligibleVoterCount).toBeGreaterThanOrEqual(1);
+    expect(poll?.options.some(option => option.resolution_action === 'CreateRefundTickets')).toBe(true);
+
+    const refundOption = poll!.options.find(option => option.resolution_action === 'CreateRefundTickets')!;
+    await backend.groups.voteResolutionPoll('group-demo-frozen', poll!.poll.id, refundOption.id);
+    await expect(backend.groups.voteResolutionPoll('group-demo-frozen', poll!.poll.id, refundOption.id)).rejects.toThrow(
+      'You have already voted on this resolution poll.',
+    );
+
+    await backend.groups.closeResolutionPoll('group-demo-frozen', poll!.poll.id);
+    const status = await backend.groups.getGroupStatus('user-dawit', 'group-demo-frozen');
+    expect(status.activeResolutionPoll).toBeNull();
+    expect(status.refundTickets?.length).toBeGreaterThanOrEqual(1);
+    expect(status.refundTickets?.[0].status).toBe('Created');
+  });
+
   it('supports the Phase 2 formation service contract before UI migration', async () => {
     const backend = new MockBackend();
     const created = await backend.formation.createRequest('user-dawit', {

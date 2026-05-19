@@ -49,6 +49,7 @@
     "qa:phase2-freeze-recovery": "node .\\mobile\\scripts\\validate-phase2-freeze-recovery.js --output .\\Build\\delivery\\evidence\\phase2-freeze-recovery-validation.json",
     "qa:phase2-polls-refunds": "node .\\mobile\\scripts\\validate-phase2-polls-refunds.js --output .\\Build\\delivery\\evidence\\phase2-polls-refunds-validation.json",
     "qa:phase2-final-ux-states": "node .\\mobile\\scripts\\validate-phase2-final-ux-states.js --output .\\Build\\delivery\\evidence\\phase2-final-ux-states-validation.json",
+    "qa:phase2-final-handoff": "node .\\mobile\\scripts\\validate-phase2-final-handoff.js --output .\\Build\\delivery\\evidence\\phase2-final-handoff-validation.json",
     "qa:phase2-durable-notifications": "node .\\mobile\\scripts\\validate-phase2-durable-notifications.js --output .\\Build\\delivery\\evidence\\phase2-durable-notifications-validation.json",
     "qa:phase2-kyc-history": "node .\\mobile\\scripts\\validate-phase2-kyc-history.js --output .\\Build\\delivery\\evidence\\phase2-kyc-history-validation.json",
     "qa:phase2-demo-readiness": "node .\\mobile\\scripts\\validate-phase2-demo-readiness.js --output .\\Build\\delivery\\evidence\\phase2-demo-readiness-validation.json",

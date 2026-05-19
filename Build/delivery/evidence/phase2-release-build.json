@@ -1,17 +1,17 @@
 {
-  "scenario": "phase2-standalone-signed-release-apk",
+  "scenario": "phase2-standalone-release-apk",
   "artifact": "mobile/android/app/build/outputs/apk/release/app-release.apk",
   "absolutePath": "C:/dev/projects/UNI-EQUB/mobile/android/app/build/outputs/apk/release/app-release.apk",
-  "sizeBytes": 84550564,
-  "sha256": "09D663FDEED934523904BB0A7460878558A524609EE43A7BFD1EC8DD6789AB9B",
+  "sizeBytes": 84617380,
+  "sha256": "6F512E07B577BEF9C9CAEC349CCDF98EB7636DF5A57BE1FB3B088DD38CCE1267",
   "buildCommand": "powershell -ExecutionPolicy Bypass -File .\\scripts\\build-android-release.ps1",
   "signing": {
     "verified": true,
     "schemeV2": true,
-    "signerCertificateDn": "CN=UniEqub Demo, OU=Capstone, O=UniEqub, L=Addis Ababa, ST=Addis Ababa, C=ET",
-    "signerCertificateSha256": "b8129935b900783e36f2703308c33451ddbd1fcd87e5546608993ef0ba0ce981",
-    "keystoreTrackedInGit": false,
-    "notes": "Built with a local demo release keystore ignored by git. Replace with production/upload signing material before Play Store distribution."
+    "signerCertificateDn": "CN=Android Debug, OU=Android, O=Unknown, L=Unknown, ST=Unknown, C=US",
+    "signerCertificateSha256": "fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c",
+    "keystoreTrackedInGit": true,
+    "notes": "Latest Phase 9 rebuild succeeded and includes the packaged React Native bundle, but release signing env vars were not set, so Gradle fell back to the checked-in debug keystore. Set UNIEQUB_RELEASE_* env vars and rebuild for a demo/prod release key."
   },
   "standaloneChecks": {
     "reactNativeBundlePackaged": true,
@@ -26,7 +26,8 @@
   ],
   "limitations": [
     "No Android device was connected during this batch, so install/open walkthrough evidence is still pending.",
-    "This is demo signing, not production Play Store signing."
+    "The latest rebuild used debug fallback signing because release signing env vars were missing.",
+    "This is not production Play Store signing."
   ],
-  "validatedAt": "2026-05-18T02:20:00+03:00"
+  "validatedAt": "2026-05-19T16:03:16+03:00"
 }

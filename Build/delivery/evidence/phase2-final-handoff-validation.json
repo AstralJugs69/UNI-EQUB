@@ -1,0 +1,59 @@
+{
+  "scenario": "phase2-final-handoff-validation",
+  "requiredFiles": [
+    "Build/delivery/final_handoff.md",
+    "Build/delivery/uat_checklist.md",
+    "Build/delivery/demo/phase2_completed_features_demo.md",
+    "Build/delivery/demo/phase2_demo_operator_checklist.md",
+    "Build/delivery/phase2_development_progress_tracker.md",
+    "Build/delivery/progress_spec.md",
+    "Build/delivery/implementation_traceability_matrix.md",
+    "Build/delivery/evidence/phase2-foundation-validation.json",
+    "Build/delivery/evidence/phase2-shared-validation.json",
+    "Build/delivery/evidence/phase2-formation-validation.json",
+    "Build/delivery/evidence/phase2-mobile-formation-validation.json",
+    "Build/delivery/evidence/phase2-member-ui-polish-validation.json",
+    "Build/delivery/evidence/phase2-payment-attempt-initiation-validation.json",
+    "Build/delivery/evidence/phase2-provider-callback-idempotency-validation.json",
+    "Build/delivery/evidence/phase2-round-readiness-validation.json",
+    "Build/delivery/evidence/phase2-payout-reserve-ui-validation.json",
+    "Build/delivery/evidence/phase2-reliability-update-validation.json",
+    "Build/delivery/evidence/phase2-default-restriction-validation.json",
+    "Build/delivery/evidence/phase2-freeze-recovery-validation.json",
+    "Build/delivery/evidence/phase2-polls-refunds-validation.json",
+    "Build/delivery/evidence/phase2-durable-notifications-validation.json",
+    "Build/delivery/evidence/phase2-kyc-history-validation.json",
+    "Build/delivery/evidence/phase2-final-ux-states-validation.json",
+    "Build/delivery/evidence/phase2-demo-readiness-validation.json",
+    "Build/delivery/evidence/phase2-in-app-demo-validation.json",
+    "Build/delivery/evidence/phase2-release-build.json"
+  ],
+  "requiredScripts": [
+    "qa:phase2-final-handoff",
+    "qa:phase2-demo-readiness",
+    "qa:phase2-in-app-demo",
+    "qa:phase2-final-ux-states",
+    "mobile:typecheck",
+    "mobile:test",
+    "mobile:lint",
+    "mobile:apk:release"
+  ],
+  "completedChecks": [
+    "final handoff document exists with demo, validation, deployment, evidence, and defense-safe claim sections",
+    "UAT checklist includes final Phase 2 user-only evidence matrix and newest reliability/audit/freeze-poll/refund flows",
+    "critical Phase 2 validation evidence files are present",
+    "package scripts expose the final handoff and smoke validation commands",
+    "tracker references Phase 9 final handoff evidence without marking user-only UAT complete"
+  ],
+  "knownUserOnlyRemaining": [
+    "emulator UAT evidence",
+    "physical device UAT evidence",
+    "screenshots/videos",
+    "production signing decision",
+    "capstone report/diagram updates",
+    "supervisor approval"
+  ],
+  "requiresSupabaseCredentials": false,
+  "requiresDeviceValidation": true,
+  "validatedAt": "2026-05-19T13:06:50.701Z"
+}

@@ -71,6 +71,7 @@ This repository is organized as an implementation workspace around the original 
 - `npm run qa:phase2-freeze-recovery`
 - `npm run qa:phase2-polls-refunds`
 - `npm run qa:phase2-final-ux-states`
+- `npm run qa:phase2-final-handoff`
 - `npm run qa:phase2-durable-notifications`
 - `npm run qa:phase2-kyc-history`
 - `npm run qa:phase2-demo-readiness`
@@ -78,6 +79,7 @@ This repository is organized as an implementation workspace around the original 
 - `node .\mobile\scripts\seed-final-draw.js --phone 09XXXXXXXX --name "Your Name"`
 
 ## Phase 2 demo
+- Final handoff: [final_handoff.md](C:/dev/projects/UNI-EQUB/Build/delivery/final_handoff.md)
 - Demo runbook: [phase2_completed_features_demo.md](C:/dev/projects/UNI-EQUB/Build/delivery/demo/phase2_completed_features_demo.md)
 - Operator checklist: [phase2_demo_operator_checklist.md](C:/dev/projects/UNI-EQUB/Build/delivery/demo/phase2_demo_operator_checklist.md)
 - Readiness validation: `npm run qa:phase2-demo-readiness`

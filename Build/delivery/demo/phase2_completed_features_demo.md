@@ -1,6 +1,6 @@
 # UniEqub Phase 2 Completed Features Demo
 
-Last Updated: 2026-05-18
+Last Updated: 2026-05-19
 
 ## Demo Positioning
 
@@ -10,7 +10,7 @@ Use this wording during the demo:
 
 > UniEqub is demonstrated as a capstone-safe Equb simulation platform. It preserves the original MVP core tables while adding Phase 2 companion workflows for group formation, contribution obligations, mock payment attempts, payout maturity/reserves, reliability, and default restriction handling. Payments and wallet behavior are simulated for academic defense and do not represent real custody or live financial rails.
 
-Do not claim that real payment processing, real wallet custody, durable notification/audit UI, freeze polling, refund tickets, production Play Store signing, or full UAT are finished.
+Do not claim that real payment processing, real wallet custody, production Play Store signing, remote deployment freshness, screenshots, emulator/physical-device UAT, or supervisor approval are finished unless fresh evidence exists.
 
 ## Demo Modes
 
@@ -21,9 +21,10 @@ Use this as the preferred phone-ready showcase when you want completed flows con
 1. Install/run the app with the standalone release APK or use `npm run android:dev` during development.
 2. On the splash screen, tap **Try Demo Mode**.
 3. Tap **Launch Member Demo** to enter Dawit's seeded member workspace.
-4. Show Dashboard -> Pay This Round -> direct mock payment or USSD -> Payment Success -> Wallet -> History/Notifications.
-5. Return with logout, tap **Try Demo Mode**, then tap **Launch Admin Demo** for Saba Admin.
-6. Show Admin Dashboard -> Review KYC -> Approve Groups -> Reports.
+4. Show Dashboard -> reliability label -> Pay This Round -> direct mock payment or USSD -> Payment Success -> Wallet -> History/Notifications.
+5. Show Explore -> Join With Code -> `FORM-2026`; then Profile reliability label and Group Status contributor ring.
+6. Return with logout, tap **Try Demo Mode**, then tap **Launch Admin Demo** for Saba Admin.
+7. Show Admin Dashboard -> Review KYC -> Approve Groups -> frozen recovery/member vote -> reliability summary -> audit timeline -> Reports.
 
 The in-app demo uses the mock service layer intentionally. It is repeatable, resets seeded state on each launch, and keeps live Supabase behavior available through the normal sign-in path.
 
@@ -32,7 +33,7 @@ Standalone APK evidence:
 - `mobile/android/app/build/outputs/apk/release/app-release.apk`
 - `Build/delivery/evidence/phase2-release-build.json`
 
-This APK is demo-signed, contains `assets/index.android.bundle`, and does not require Metro to launch. It is not production Play Store signing.
+This APK contains `assets/index.android.bundle` and does not require Metro to launch. The latest Phase 9 rebuild used debug fallback signing because release signing env vars were not set; rebuild with `UNIEQUB_RELEASE_*` values before presenting it as a demo/prod release-key artifact.
 
 ### Live Mobile Demo
 
@@ -76,6 +77,12 @@ npm run qa:phase2-payout-idempotency-reserve-release
 npm run qa:phase2-payout-reserve-ui
 npm run qa:phase2-reliability-updates
 npm run qa:phase2-default-restriction
+npm run qa:phase2-freeze-recovery
+npm run qa:phase2-polls-refunds
+npm run qa:phase2-durable-notifications
+npm run qa:phase2-kyc-history
+npm run qa:phase2-final-ux-states
+npm run qa:phase2-final-handoff
 ```
 
 ## Live Demo Storyboard
@@ -198,6 +205,8 @@ Evidence:
 
 Show:
 
+- Member public reliability label on dashboard/profile
+- Admin reliability summary
 - Reliability profile update evidence
 - Default maintenance evidence
 - Restricted user blocking normal create/pay/payout paths
@@ -214,27 +223,50 @@ Evidence:
 - `Build/delivery/evidence/phase2-active-group-limit-validation.json`
 - `Build/delivery/evidence/phase2-reliability-update-validation.json`
 - `Build/delivery/evidence/phase2-default-restriction-validation.json`
+- `Build/delivery/evidence/phase2-final-ux-states-validation.json`
 
-### 7. Admin Reports And Export
+### 7. Frozen-Group Recovery, Polls, And Refund Tickets
+
+Show:
+
+- Admin frozen-group recovery controls
+- Member resolution vote state
+- Simulated refund ticket visibility after unresolved/frozen resolution
+
+Important narration:
+
+- Frozen-group recovery is a controlled Phase 2 companion workflow.
+- Refund tickets are simulated records for defense; no real money moves.
+- The canonical `EqubGroup` status is not overloaded with request-only rejection/disbandment states.
+
+Evidence:
+
+- `Build/delivery/evidence/phase2-freeze-recovery-validation.json`
+- `Build/delivery/evidence/phase2-polls-refunds-validation.json`
+
+### 8. Admin Reports, Audit, And Export
 
 Show:
 
 - Admin overview
+- Reliability summary
+- Read-only audit timeline
 - Report list
 - CSV/PDF export evidence
 
 Evidence:
 
 - `Build/delivery/evidence/report-export-validation.json`
+- `Build/delivery/evidence/phase2-final-ux-states-validation.json`
+- `Build/delivery/evidence/phase2-final-handoff-validation.json`
 
 ## Demo Close
 
 End with the honest remaining work:
 
-- Durable notifications and audit timeline are not finished.
-- Freeze events, frozen-group resolution, polls, and refund tickets are still staged.
+- Remote deployment proof for the latest migrations/functions is still user-run.
 - Full emulator/physical-device UAT, screenshots, production Play Store signing, and final report/diagram updates remain user-facing delivery work.
 
 Recommended close:
 
-> The completed work demonstrates the core Phase 2 architecture and the highest-risk backend workflows. The remaining work is mainly durable notification/audit polish, frozen-group extensions, UI evidence, and final delivery packaging.
+> The completed work demonstrates the core Phase 2 architecture and the highest-risk backend workflows. The remaining work is mainly deployment confirmation, device evidence, screenshots, report updates, and supervisor approval.
