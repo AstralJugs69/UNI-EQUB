@@ -1,0 +1,20 @@
+{
+  "scenario": "phase2-durable-notifications-validation",
+  "validatedFiles": {
+    "notificationCenter": "supabase/functions/notification-center/index.ts",
+    "helper": "supabase/functions/_shared/notifications.ts",
+    "liveService": "mobile/src/services/live/liveNotificationsService.ts",
+    "mobileTypes": "mobile/src/types/domain.ts",
+    "migration": "supabase/migrations/20260513090000_phase2_foundation_companion_tables.sql"
+  },
+  "completedChecks": [
+    "notification-center reads durable notifications rows before returning derived fallback notifications",
+    "durable notification rows carry read state, delivery timestamp, severity, action route, and related entity metadata into mobile payloads",
+    "derived fallback notifications remain available during the writer migration",
+    "mobile markAllRead updates durable rows through the Edge Function and stores local read state only for derived fallback rows",
+    "durable notification table and inbox indexes exist in the Phase 2 foundation migration"
+  ],
+  "requiresSupabaseCredentials": false,
+  "requiresDeviceValidation": true,
+  "validatedAt": "2026-05-19T11:41:31.884Z"
+}

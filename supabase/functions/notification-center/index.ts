@@ -1,7 +1,8 @@
 import { fail, failFromError, json } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
+import { markUserNotificationsRead } from '../_shared/notifications.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import type { GroupRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
+import type { DurableNotificationRecord, GroupRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,7 +10,7 @@ const corsHeaders = {
 };
 
 interface NotificationPayload {
-  action: 'listForUser' | 'sendReminderBatch';
+  action: 'listForUser' | 'markAllRead' | 'sendReminderBatch';
   token: string;
 }
 
@@ -19,6 +20,11 @@ interface AppNotification {
   body: string;
   createdAt: string;
   unread: boolean;
+  source: 'Durable' | 'Derived';
+  severity?: DurableNotificationRecord['severity'];
+  actionRoute?: string | null;
+  relatedEntityType?: string | null;
+  relatedEntityId?: string | null;
 }
 
 function toIsoDate(value?: string | null) {
@@ -37,6 +43,21 @@ function normalizeTransaction(transaction: TransactionRecord): TransactionRecord
 
 function sortNotifications(items: AppNotification[]) {
   return [...items].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+function toAppNotification(row: DurableNotificationRecord): AppNotification {
+  return {
+    id: row.id,
+    title: row.title,
+    body: row.message,
+    createdAt: row.created_at,
+    unread: !row.read_at,
+    source: 'Durable',
+    severity: row.severity,
+    actionRoute: row.action_route,
+    relatedEntityType: row.related_entity_type,
+    relatedEntityId: row.related_entity_id,
+  };
 }
 
 async function requireActor(token: string) {
@@ -106,6 +127,34 @@ async function fetchReminderQueue() {
 }
 
 async function listNotificationsForUser(user: UserRecord) {
+  const now = new Date().toISOString();
+  const { data: durableRows, error: durableError } = await supabaseAdmin
+    .from('notifications')
+    .select('*')
+    .eq('user_id', user.User_ID)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (durableError) {
+    throw durableError;
+  }
+
+  const durableNotifications = ((durableRows ?? []) as DurableNotificationRecord[])
+    .filter(item => !item.expires_at || item.expires_at > now)
+    .map(toAppNotification);
+
+  const undeliveredIds = ((durableRows ?? []) as DurableNotificationRecord[])
+    .filter(item => !item.delivered_in_app_at)
+    .map(item => item.id);
+  if (undeliveredIds.length) {
+    const { error: deliveryError } = await supabaseAdmin
+      .from('notifications')
+      .update({ delivered_in_app_at: now })
+      .in('id', undeliveredIds);
+    if (deliveryError) {
+      throw deliveryError;
+    }
+  }
+
   const [{ data: createdGroups, error: createdGroupsError }, { data: memberships, error: membershipsError }, { data: transactions, error: transactionError }] = await Promise.all([
     supabaseAdmin.from('EqubGroup').select('*').eq('Creator_ID', user.User_ID),
     supabaseAdmin.from('GroupMembers').select('*').eq('User_ID', user.User_ID).eq('Status', 'Active'),
@@ -161,6 +210,7 @@ async function listNotificationsForUser(user: UserRecord) {
       body: 'Your account is in limited mode until identity verification is approved.',
       createdAt: user.Created_At,
       unread: true,
+      source: 'Derived',
     });
   }
 
@@ -173,6 +223,7 @@ async function listNotificationsForUser(user: UserRecord) {
         body: `${group.Group_Name} is still pending admin approval and is not public yet.`,
         createdAt,
         unread: true,
+        source: 'Derived',
       });
     }
     if (group.Status === 'Active') {
@@ -182,6 +233,7 @@ async function listNotificationsForUser(user: UserRecord) {
         body: `${group.Group_Name} is active and now visible to members.`,
         createdAt,
         unread: true,
+        source: 'Derived',
       });
     }
     if (group.Status === 'Frozen') {
@@ -191,6 +243,7 @@ async function listNotificationsForUser(user: UserRecord) {
         body: `${group.Group_Name} is paused for compliance review.`,
         createdAt,
         unread: true,
+        source: 'Derived',
       });
     }
     if (group.Status === 'Completed') {
@@ -200,6 +253,7 @@ async function listNotificationsForUser(user: UserRecord) {
         body: `${group.Group_Name} has completed its current cycle.`,
         createdAt,
         unread: true,
+        source: 'Derived',
       });
     }
   }
@@ -213,6 +267,7 @@ async function listNotificationsForUser(user: UserRecord) {
         body: `${transaction.Amount} ETB was recorded successfully through ${transaction.Payment_Method}.`,
         createdAt: transaction.Date,
         unread: true,
+        source: 'Derived',
       });
     }
     if (transaction.Type === 'Payout' && transaction.Status === 'Pending') {
@@ -222,6 +277,7 @@ async function listNotificationsForUser(user: UserRecord) {
         body: `${transaction.Amount} ETB is ready for wallet clearance.`,
         createdAt: transaction.Date,
         unread: true,
+        source: 'Derived',
       });
     }
     if (transaction.Type === 'Payout' && transaction.Status === 'Successful') {
@@ -231,6 +287,7 @@ async function listNotificationsForUser(user: UserRecord) {
         body: `${transaction.Amount} ETB was cleared from your wallet successfully.`,
         createdAt: transaction.Date,
         unread: true,
+        source: 'Derived',
       });
     }
   }
@@ -249,11 +306,12 @@ async function listNotificationsForUser(user: UserRecord) {
         body: `${group.Group_Name} round ${round.Round_Number} is still waiting for your ${group.Amount} ETB contribution.`,
         createdAt: membership.Joined_At,
         unread: true,
+        source: 'Derived',
       });
     }
   }
 
-  return sortNotifications(notificationItems);
+  return sortNotifications([...durableNotifications, ...notificationItems]);
 }
 
 Deno.serve(async request => {
@@ -271,6 +329,8 @@ Deno.serve(async request => {
     switch (body.action) {
       case 'listForUser':
         return json({ notifications: await listNotificationsForUser(actor) });
+      case 'markAllRead':
+        return json(await markUserNotificationsRead(actor.User_ID));
       case 'sendReminderBatch':
         assertAdmin(actor);
         return json({ queue: await fetchReminderQueue(), sentAt: new Date().toISOString() });

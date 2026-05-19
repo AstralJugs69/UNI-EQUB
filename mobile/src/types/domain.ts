@@ -95,6 +95,11 @@ export interface AppNotification {
   body: string;
   createdAt: string;
   unread: boolean;
+  source?: 'Durable' | 'Derived';
+  severity?: NotificationSeverity;
+  actionRoute?: string | null;
+  relatedEntityType?: string | null;
+  relatedEntityId?: string | null;
 }
 
 export interface ReportSummary {

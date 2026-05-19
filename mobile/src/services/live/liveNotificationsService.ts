@@ -37,14 +37,19 @@ export const liveNotificationsService: NotificationService = {
     return sortNotifications(
       response.notifications.map(item => ({
         ...item,
-        unread: !readIds.has(item.id),
+        unread: item.source === 'Durable' ? item.unread : !readIds.has(item.id),
       })),
     );
   },
 
   async markAllRead(userId: string): Promise<void> {
     const items = await liveNotificationsService.listForUser(userId);
-    await saveReadNotificationIds(userId, items.map(item => item.id));
+    await invoke<{ readAt: string }>({ action: 'markAllRead' });
+    const existingReadIds = await loadReadNotificationIds(userId);
+    await saveReadNotificationIds(userId, [
+      ...existingReadIds,
+      ...items.filter(item => item.source !== 'Durable').map(item => item.id),
+    ]);
   },
 
   async sendReminderBatch(): Promise<ReminderBatchResult> {
