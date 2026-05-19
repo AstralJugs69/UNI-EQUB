@@ -1,7 +1,8 @@
 param(
     [switch]$Clean,
     [switch]$ResetCache,
-    [switch]$Debug
+    [switch]$Debug,
+    [switch]$Release
 )
 
 $ErrorActionPreference = 'Stop'
@@ -124,19 +125,18 @@ function Ensure-DeviceOrEmulator([string]$AdbPath, [string]$EmulatorPath) {
 function Install-BuildVariant {
     param(
         [string]$GradleWrapper,
-        [bool]$DebugMode
+        [bool]$ReleaseMode
     )
 
-    if ($DebugMode) {
+    if ($ReleaseMode) {
+        Write-Step 'Installing packaged release build'
+        & $GradleWrapper installRelease
+        if ($LASTEXITCODE -ne 0) { throw 'Gradle installRelease failed.' }
+    } else {
         Write-Step 'Installing debug build'
         & $GradleWrapper installDebug
         if ($LASTEXITCODE -ne 0) { throw 'Gradle installDebug failed.' }
-        return
     }
-
-    Write-Step 'Installing packaged release build'
-    & $GradleWrapper installRelease
-    if ($LASTEXITCODE -ne 0) { throw 'Gradle installRelease failed.' }
 }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -147,6 +147,11 @@ $javaHome = Get-JavaHome
 $adbPath = Join-Path $sdkPath 'platform-tools\adb.exe'
 $emulatorPath = Join-Path $sdkPath 'emulator\emulator.exe'
 $gradleWrapper = Join-Path $androidDir 'gradlew.bat'
+$releaseMode = [bool]$Release
+
+if ($Debug -and $Release) {
+    throw 'Choose either -Debug or -Release, not both.'
+}
 
 if (-not (Test-Path $adbPath)) {
     throw "adb.exe not found at $adbPath"
@@ -162,12 +167,12 @@ $env:Path = "$javaHome\bin;$sdkPath\platform-tools;$sdkPath\emulator;$env:Path"
 
 Write-Step "Android SDK: $sdkPath"
 Write-Step "Java Home: $javaHome"
-Write-Step ($(if ($Debug) { 'Build mode: debug (Metro required)' } else { 'Build mode: release (Metro not required)' }))
+Write-Step ($(if ($releaseMode) { 'Build mode: release (Metro not required)' } else { 'Build mode: debug (Metro required)' }))
 
 $devices = Ensure-DeviceOrEmulator $adbPath $emulatorPath
 Write-Step ("Connected targets: " + ($devices -join ', '))
 
-if ($Debug) {
+if (-not $releaseMode) {
     if (-not (Test-MetroRunning)) {
         Write-Step 'Starting Metro in a new PowerShell window'
         Start-MetroWindow -MobileDir $mobileDir -ResetCache:$ResetCache
@@ -194,7 +199,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Gradle clean failed.' }
     }
 
-    Install-BuildVariant -GradleWrapper $gradleWrapper -DebugMode:$Debug
+    Install-BuildVariant -GradleWrapper $gradleWrapper -ReleaseMode:$releaseMode
 }
 finally {
     Pop-Location
@@ -204,8 +209,8 @@ foreach ($device in $devices) {
     & $adbPath -s $device shell am start -n com.uniequb/com.uniequb.MainActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER | Out-Null
 }
 
-if ($Debug) {
-    Write-Step 'UniEqub debug app launched successfully'
-} else {
+if ($releaseMode) {
     Write-Step 'UniEqub packaged release app launched successfully'
+} else {
+    Write-Step 'UniEqub debug app launched successfully'
 }

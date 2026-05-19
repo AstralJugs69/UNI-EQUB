@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "test": "npm run mobile:test",
-    "android:app": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-android-dev.ps1",
-    "android:app:clean": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-android-dev.ps1 -Clean",
+    "android:app": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-android-dev.ps1 -Debug",
+    "android:app:clean": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-android-dev.ps1 -Debug -Clean",
     "android:dev": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-android-dev.ps1 -Debug",
     "android:dev:clean": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-android-dev.ps1 -Debug -Clean",
     "mobile:start": "npm --prefix mobile run start",
