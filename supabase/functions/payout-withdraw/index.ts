@@ -1,4 +1,4 @@
-import { fail, json } from '../_shared/contracts.ts';
+import { fail, failFromError, json } from '../_shared/contracts.ts';
 import type { PayoutWithdrawPayload } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
 import { assertReliabilityAllowsNormalFlow } from '../_shared/reliability.ts';
@@ -77,10 +77,6 @@ Deno.serve(async request => {
 
     return json({ payout: updated as TransactionRecord });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unexpected payout withdraw error.';
-    return new Response(JSON.stringify({ ok: false, error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return failFromError(error, 'Unexpected payout withdraw error.', 500, { functionName: 'payout-withdraw' });
   }
 });

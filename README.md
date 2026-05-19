@@ -25,6 +25,7 @@ This repository is organized as an implementation workspace around the original 
 - The original five core MVP tables remain canonical: `User`, `EqubGroup`, `GroupMembers`, `Round`, and `Transaction`.
 - The initial Phase 2 foundation migration adds group formation, contribution obligation, mock provider attempt, wallet/simulated ledger, payout request/schedule, reliability restriction, durable notification, audit event, and app configuration tables.
 - The shared Phase 2 backend helper batch adds config, audit, notification, reliability, obligation, payment attempt, ledger, and payout vesting scaffolding while leaving sensitive writes behind Edge Functions.
+- Edge Functions return structured error envelopes with an `errorId`, response headers, and `[uniequb-edge-error]` logs; live mobile services read those JSON error bodies so the app can show the real backend failure message instead of a generic Supabase invoke error.
 - The `group-formation` Edge Function provides the Phase 2 command boundary for public admin approval/rejection, private invite-based auto-start, reusable invite-code lookup/redemption, and canonical MVP group/member/round creation when a request is activated; the member and creator UI paths are wired through the service contracts.
 - Payment behavior remains sandbox/mock for the capstone; real payment provider integration is future work only.
 

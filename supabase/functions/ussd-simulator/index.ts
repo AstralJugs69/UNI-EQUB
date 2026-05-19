@@ -354,7 +354,9 @@ Deno.serve(async request => {
         return respond(input, 'Invalid menu option.', false);
     }
   } catch (error) {
+    const errorId = crypto.randomUUID();
     const message = error instanceof Error ? error.message : 'Unexpected USSD simulator error.';
-    return plainText(`END ${message}`, 500);
+    console.error(`[uniequb-edge-error] ${JSON.stringify({ level: 'error', functionName: 'ussd-simulator', errorId, status: 500, message })}`);
+    return plainText(`END ${message} (${errorId})`, 500);
   }
 });

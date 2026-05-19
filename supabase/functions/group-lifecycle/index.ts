@@ -1,4 +1,4 @@
-import { fail, json } from '../_shared/contracts.ts';
+import { fail, failFromError, json } from '../_shared/contracts.ts';
 import type { CreateGroupRequest, GroupLifecyclePayload } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
 import { getRoundObligationProgress } from '../_shared/obligations.ts';
@@ -445,10 +445,6 @@ Deno.serve(async request => {
         return fail('Unsupported group lifecycle action.', 400);
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unexpected group lifecycle error.';
-    return new Response(JSON.stringify({ ok: false, error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return failFromError(error, 'Unexpected group lifecycle error.', 500, { functionName: 'group-lifecycle' });
   }
 });

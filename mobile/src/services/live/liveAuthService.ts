@@ -2,6 +2,7 @@
 import type { AuthService, LoginChallenge, LoginInput, RegisterInput } from '../contracts';
 import type { AuthSession, SessionUser } from '../../types/domain';
 import { mockBackend } from '../mock/mockBackend';
+import { assertLiveEnvelope, readLiveFunctionError } from './liveFunctionError';
 
 interface Envelope<T> {
   ok: boolean;
@@ -12,12 +13,9 @@ interface Envelope<T> {
 async function invoke<T>(body: unknown): Promise<T> {
   const { data, error } = await supabase.functions.invoke<Envelope<T>>('register-login', { body });
   if (error) {
-    throw new Error(error.message);
+    throw new Error(await readLiveFunctionError(error, 'Register/login invocation failed.'));
   }
-  if (!data?.ok || !data.data) {
-    throw new Error(data?.error ?? 'Edge Function invocation failed.');
-  }
-  return data.data;
+  return assertLiveEnvelope(data, 'Register/login invocation failed.');
 }
 
 export const liveAuthService: AuthService = {

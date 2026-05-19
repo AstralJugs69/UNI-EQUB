@@ -4,6 +4,7 @@
     "contracts": "mobile/src/services/contracts/index.ts",
     "domain": "mobile/src/types/domain.ts",
     "liveService": "mobile/src/services/live/liveGroupFormationService.ts",
+    "liveError": "mobile/src/services/live/liveFunctionError.ts",
     "provider": "mobile/src/providers/ServicesProvider.tsx",
     "mockBackend": "mobile/src/services/mock/mockBackend.ts",
     "mockBackendTest": "mobile/src/services/mock/mockBackend.test.ts",
@@ -20,5 +21,5 @@
     "Edge Function getRequest route returns usable formation detail instead of the pending stub"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-18T06:26:53.809Z"
+  "validatedAt": "2026-05-19T07:58:44.943Z"
 }

@@ -5,6 +5,7 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 const contractsPath = path.join(repoRoot, 'mobile/src/services/contracts/index.ts');
 const domainPath = path.join(repoRoot, 'mobile/src/types/domain.ts');
 const liveServicePath = path.join(repoRoot, 'mobile/src/services/live/liveGroupFormationService.ts');
+const liveErrorPath = path.join(repoRoot, 'mobile/src/services/live/liveFunctionError.ts');
 const providerPath = path.join(repoRoot, 'mobile/src/providers/ServicesProvider.tsx');
 const mockBackendPath = path.join(repoRoot, 'mobile/src/services/mock/mockBackend.ts');
 const mockTestPath = path.join(repoRoot, 'mobile/src/services/mock/mockBackend.test.ts');
@@ -40,6 +41,7 @@ function main() {
   const contracts = read(contractsPath);
   const domain = read(domainPath);
   const liveService = read(liveServicePath);
+  const liveError = read(liveErrorPath);
   const provider = read(providerPath);
   const mockBackend = read(mockBackendPath);
   const mockTest = read(mockTestPath);
@@ -83,9 +85,14 @@ function main() {
     "action: 'acceptInvite'",
     "action: 'submitForApproval'",
     'toDetail(response)',
-    'readFunctionError',
-    'context.clone().json()',
+    'readLiveFunctionError',
+    'assertLiveEnvelope',
   ].forEach(token => assertIncludes(liveService, token, 'live mobile formation implementation token'));
+
+  [
+    'context.clone().json()',
+    'errorId',
+  ].forEach(token => assertIncludes(liveError, token, 'shared live error extraction token'));
 
   [
     'liveGroupFormationService',
@@ -123,6 +130,7 @@ function main() {
       contracts: 'mobile/src/services/contracts/index.ts',
       domain: 'mobile/src/types/domain.ts',
       liveService: 'mobile/src/services/live/liveGroupFormationService.ts',
+      liveError: 'mobile/src/services/live/liveFunctionError.ts',
       provider: 'mobile/src/providers/ServicesProvider.tsx',
       mockBackend: 'mobile/src/services/mock/mockBackend.ts',
       mockBackendTest: 'mobile/src/services/mock/mockBackend.test.ts',

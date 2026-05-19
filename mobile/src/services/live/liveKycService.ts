@@ -4,6 +4,7 @@ import { loadSessionToken } from '../storage';
 import { mockBackend } from '../mock/mockBackend';
 import type { KycService, KycSubmissionInput } from '../contracts';
 import type { AuthSession, KycReviewItem, SessionUser, UserRecord } from '../../types/domain';
+import { assertLiveEnvelope, readLiveFunctionError } from './liveFunctionError';
 
 interface Envelope<T> {
   ok: boolean;
@@ -14,12 +15,9 @@ interface Envelope<T> {
 async function invoke<T>(body: unknown): Promise<T> {
   const { data, error } = await supabase.functions.invoke<Envelope<T>>('kyc-submit-review', { body });
   if (error) {
-    throw new Error(error.message);
+    throw new Error(await readLiveFunctionError(error, 'KYC function invocation failed.'));
   }
-  if (!data?.ok || !data.data) {
-    throw new Error(data?.error ?? 'KYC function invocation failed.');
-  }
-  return data.data;
+  return assertLiveEnvelope(data, 'KYC function invocation failed.');
 }
 
 async function invokeWithSession<T>(body: Record<string, unknown>): Promise<T> {

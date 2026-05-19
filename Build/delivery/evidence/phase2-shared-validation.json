@@ -19,8 +19,9 @@
     "Phase 2 companion record types exist in mobile and shared Edge Function types",
     "Config, audit, notifications, reliability, obligations, payment attempts, ledger, and payout vesting helper scaffolds exist",
     "Group formation, payment attempt, and payout backend command payload scaffolds exist",
+    "Shared Edge Function errors include structured envelopes, error ids, response headers, and console log payloads",
     "Rejected is not modeled as canonical EqubGroup.Status"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-16T10:34:22.834Z"
+  "validatedAt": "2026-05-19T07:58:20.255Z"
 }

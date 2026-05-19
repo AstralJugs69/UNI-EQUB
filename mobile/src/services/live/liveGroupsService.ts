@@ -3,6 +3,7 @@ import { loadSessionToken } from '../storage';
 import { mockBackend } from '../mock/mockBackend';
 import type { GroupService } from '../contracts';
 import type { DashboardSnapshot, GroupApprovalItem, GroupRecord, GroupStatusSnapshot, MembershipRecord, RoundRecord, SessionUser } from '../../types/domain';
+import { assertLiveEnvelope, readLiveFunctionError } from './liveFunctionError';
 
 interface Envelope<T> {
   ok: boolean;
@@ -38,12 +39,9 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(await readLiveFunctionError(error, 'Group lifecycle invocation failed.'));
   }
-  if (!data?.ok || !data.data) {
-    throw new Error(data?.error ?? 'Group lifecycle invocation failed.');
-  }
-  return data.data;
+  return assertLiveEnvelope(data, 'Group lifecycle invocation failed.');
 }
 
 function toSessionUser(user: PendingApprovalResponse['items'][number]['creator']): SessionUser {

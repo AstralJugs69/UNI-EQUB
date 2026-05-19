@@ -2,6 +2,7 @@ import { supabase } from '../supabaseClient';
 import { loadSessionToken } from '../storage';
 import type { PaymentService } from '../contracts';
 import type { PaymentMethod, PaymentResult, TransactionRecord, UssdSessionState, WalletSnapshot } from '../../types/domain';
+import { assertLiveEnvelope, readLiveFunctionError } from './liveFunctionError';
 
 interface Envelope<T> {
   ok: boolean;
@@ -30,12 +31,9 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(await readLiveFunctionError(error, 'Contribution reconcile invocation failed.'));
   }
-  if (!data?.ok || !data.data) {
-    throw new Error(data?.error ?? 'Contribution reconcile invocation failed.');
-  }
-  return data.data;
+  return assertLiveEnvelope(data, 'Contribution reconcile invocation failed.');
 }
 
 async function invokeWalletClearance<T>(body: Record<string, unknown>): Promise<T> {
@@ -49,12 +47,9 @@ async function invokeWalletClearance<T>(body: Record<string, unknown>): Promise<
   });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(await readLiveFunctionError(error, 'Wallet clearance invocation failed.'));
   }
-  if (!data?.ok || !data.data) {
-    throw new Error(data?.error ?? 'Wallet clearance invocation failed.');
-  }
-  return data.data;
+  return assertLiveEnvelope(data, 'Wallet clearance invocation failed.');
 }
 
 export const livePaymentsService: PaymentService = {

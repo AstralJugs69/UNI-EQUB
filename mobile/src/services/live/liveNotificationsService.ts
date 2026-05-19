@@ -2,6 +2,7 @@ import { supabase } from '../supabaseClient';
 import { loadSessionToken, loadReadNotificationIds, saveReadNotificationIds } from '../storage';
 import type { NotificationService } from '../contracts';
 import type { AppNotification, ReminderBatchResult } from '../../types/domain';
+import { assertLiveEnvelope, readLiveFunctionError } from './liveFunctionError';
 
 interface Envelope<T> {
   ok: boolean;
@@ -20,12 +21,9 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(await readLiveFunctionError(error, 'Notification center invocation failed.'));
   }
-  if (!data?.ok || !data.data) {
-    throw new Error(data?.error ?? 'Notification center invocation failed.');
-  }
-  return data.data;
+  return assertLiveEnvelope(data, 'Notification center invocation failed.');
 }
 
 function sortNotifications(items: AppNotification[]) {

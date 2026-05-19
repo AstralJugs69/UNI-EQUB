@@ -7,6 +7,8 @@ const files = {
   loginScreen: 'mobile/src/screens/auth/LoginScreen.tsx',
   otpScreen: 'mobile/src/screens/auth/OtpScreen.tsx',
   authProvider: 'mobile/src/providers/AuthProvider.tsx',
+  liveAuthService: 'mobile/src/services/live/liveAuthService.ts',
+  liveFunctionError: 'mobile/src/services/live/liveFunctionError.ts',
   mockBackend: 'mobile/src/services/mock/mockBackend.ts',
   mockTests: 'mobile/src/services/mock/mockBackend.test.ts',
 };
@@ -52,6 +54,7 @@ function main() {
     'signSession(user)',
     'validateCredentials(body.login.phoneNumber',
     'OTP login completion is no longer required. Use direct login.',
+    'failFromError',
   ].forEach(token => assertIncludes(content.edge, token, 'direct login edge token'));
 
   [
@@ -73,6 +76,18 @@ function main() {
   ].forEach(token => assertIncludes(content.authProvider, token, 'auth provider direct login token'));
 
   [
+    'readLiveFunctionError',
+    'assertLiveEnvelope',
+    'register-login',
+  ].forEach(token => assertIncludes(content.liveAuthService, token, 'live auth error extraction token'));
+
+  [
+    'context.clone().json()',
+    'errorId',
+    'withErrorId',
+  ].forEach(token => assertIncludes(content.liveFunctionError, token, 'shared live error reader token'));
+
+  [
     'rejects direct login for wrong password, wrong role, and banned users',
     'issues and verifies OTP challenges for pending registration flows',
   ].forEach(token => assertIncludes(content.mockTests, token, 'direct login Jest token'));
@@ -89,6 +104,7 @@ function main() {
     validatedFiles: files,
     completedChecks: [
       'register-login action login returns a signed session after phone/password/role validation',
+      'register-login and live auth service expose backend error messages with error ids',
       'member and admin login screens call direct auth login without navigating to OTP',
       'OTP screen remains available for registration/KYC phone verification',
       'mock backend tests cover direct login failures and signup OTP success',

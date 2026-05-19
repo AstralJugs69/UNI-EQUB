@@ -1,4 +1,4 @@
-﻿import { fail, json } from '../_shared/contracts.ts';
+﻿import { fail, failFromError, json } from '../_shared/contracts.ts';
 import type { RegisterLoginPayload } from '../_shared/contracts.ts';
 import { hashPassword, signPendingKycToken, signSession, verifyPassword, verifySession } from '../_shared/auth.ts';
 import { normalizePhone } from '../_shared/phone.ts';
@@ -163,10 +163,6 @@ Deno.serve(async request => {
         return fail('Unsupported register-login action.', 400);
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unexpected register-login error.';
-    return new Response(JSON.stringify({ ok: false, error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return failFromError(error, 'Unexpected register-login error.', 500, { functionName: 'register-login' });
   }
 });

@@ -1,6 +1,6 @@
 import { verifySession } from '../_shared/auth.ts';
 import { writeAuditEvent } from '../_shared/audit.ts';
-import { fail, json } from '../_shared/contracts.ts';
+import { fail, failFromError, json } from '../_shared/contracts.ts';
 import type { CreateGroupFormationRequest, GroupFormationAction, GroupFormationPayload } from '../_shared/contracts.ts';
 import { loadConfigValue } from '../_shared/config.ts';
 import { createNotification } from '../_shared/notifications.ts';
@@ -1505,11 +1505,7 @@ Deno.serve(async request => {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected group formation error.';
-    console.error('group-formation failed', { message });
-    return new Response(JSON.stringify({ ok: false, error: message }), {
-      status: statusForError(message),
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return failFromError(error, 'Unexpected group formation error.', statusForError(message), { functionName: 'group-formation' });
   }
 });
 

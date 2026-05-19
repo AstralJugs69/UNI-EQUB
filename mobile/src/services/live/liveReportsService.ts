@@ -2,6 +2,7 @@ import { supabase } from '../supabaseClient';
 import { loadSessionToken } from '../storage';
 import type { ReportService } from '../contracts';
 import type { AdminOverview, ExportedReport, ReportSummary } from '../../types/domain';
+import { assertLiveEnvelope, readLiveFunctionError } from './liveFunctionError';
 
 interface Envelope<T> {
   ok: boolean;
@@ -20,12 +21,9 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(await readLiveFunctionError(error, 'Report export invocation failed.'));
   }
-  if (!data?.ok || !data.data) {
-    throw new Error(data?.error ?? 'Report export invocation failed.');
-  }
-  return data.data;
+  return assertLiveEnvelope(data, 'Report export invocation failed.');
 }
 
 export const liveReportsService: ReportService = {

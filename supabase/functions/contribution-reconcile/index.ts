@@ -1,4 +1,4 @@
-import { fail, json } from '../_shared/contracts.ts';
+import { fail, failFromError, json } from '../_shared/contracts.ts';
 import type { ContributionPayload } from '../_shared/contracts.ts';
 import { signContributionSession, verifyContributionSession, verifySession } from '../_shared/auth.ts';
 import { listLedgerEntriesForReference, recordLedgerEntry } from '../_shared/ledger.ts';
@@ -849,10 +849,6 @@ Deno.serve(async request => {
         return fail('Unsupported contribution action.', 400);
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unexpected contribution error.';
-    return new Response(JSON.stringify({ ok: false, error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return failFromError(error, 'Unexpected contribution error.', 500, { functionName: 'contribution-reconcile' });
   }
 });

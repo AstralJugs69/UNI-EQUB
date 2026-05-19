@@ -1,4 +1,4 @@
-import { fail, json } from '../_shared/contracts.ts';
+import { fail, failFromError, json } from '../_shared/contracts.ts';
 import type { PaymentAttemptOutcome, PaymentAttemptPayload } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
 import { listLedgerEntriesForReference, recordLedgerEntry } from '../_shared/ledger.ts';
@@ -328,10 +328,6 @@ Deno.serve(async request => {
         return fail('Unsupported payment attempt action.', 400);
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unexpected payment attempt error.';
-    return new Response(JSON.stringify({ ok: false, error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return failFromError(error, 'Unexpected payment attempt error.', 500, { functionName: 'payment-attempt' });
   }
 });

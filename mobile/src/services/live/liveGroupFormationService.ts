@@ -17,11 +17,13 @@ import type {
   MembershipRecord,
   RoundRecord,
 } from '../../types/domain';
+import { assertLiveEnvelope, readLiveFunctionError } from './liveFunctionError';
 
 interface Envelope<T> {
   ok: boolean;
   data?: T;
   error?: string;
+  errorId?: string;
 }
 
 interface FormationDetailEnvelope {
@@ -49,28 +51,6 @@ interface FormationApprovalResponse extends FormationDetailEnvelope {
   obligations?: ContributionObligationRecord[];
 }
 
-async function readFunctionError(error: unknown): Promise<string> {
-  const context = (error as { context?: Response }).context;
-  if (context) {
-    try {
-      const payload = await context.clone().json() as Envelope<unknown>;
-      if (payload.error) {
-        return payload.error;
-      }
-    } catch {
-      try {
-        const text = await context.clone().text();
-        if (text) {
-          return text;
-        }
-      } catch {
-        // Fall through to the Supabase client error message.
-      }
-    }
-  }
-  return error instanceof Error ? error.message : 'Group formation invocation failed.';
-}
-
 async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   const token = await loadSessionToken();
   if (!token) {
@@ -82,12 +62,9 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   });
 
   if (error) {
-    throw new Error(await readFunctionError(error));
+    throw new Error(await readLiveFunctionError(error, 'Group formation invocation failed.'));
   }
-  if (!data?.ok || !data.data) {
-    throw new Error(data?.error ?? 'Group formation invocation failed.');
-  }
-  return data.data;
+  return assertLiveEnvelope(data, 'Group formation invocation failed.');
 }
 
 function toDetail(response: FormationDetailEnvelope): GroupFormationDetail {

@@ -1,5 +1,5 @@
 import { verifySession } from '../_shared/auth.ts';
-import { fail, json } from '../_shared/contracts.ts';
+import { fail, failFromError, json } from '../_shared/contracts.ts';
 import { processDueContributionObligations } from '../_shared/obligations.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import type { UserRecord } from '../_shared/types.ts';
@@ -74,10 +74,6 @@ Deno.serve(async request => {
         return fail('Unsupported default maintenance action.', 400);
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unexpected default maintenance error.';
-    return new Response(JSON.stringify({ ok: false, error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return failFromError(error, 'Unexpected default maintenance error.', 500, { functionName: 'default-maintenance' });
   }
 });
