@@ -15,5 +15,5 @@
     "USSD and external provider callback branches remain present while direct payContribution uses provider attempts"
   ],
   "requiresSupabaseCredentials": false,
-  "validatedAt": "2026-05-16T05:38:37.643Z"
+  "validatedAt": "2026-05-19T13:35:34.987Z"
 }

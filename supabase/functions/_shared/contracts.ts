@@ -5,6 +5,12 @@
   errorCode?: string;
   errorId?: string;
   status?: number;
+  action?: string;
+  details?: {
+    code?: string;
+    details?: string;
+    hint?: string;
+  };
 }
 
 export type RegisterLoginAction = 'register' | 'requestOtp' | 'verifyOtp' | 'beginLogin' | 'completeLogin' | 'login' | 'restore';
@@ -212,6 +218,19 @@ function errorDetails(error: unknown) {
   };
 }
 
+function publicErrorDetails(error: unknown) {
+  const details = errorDetails(error);
+  if (!details) {
+    return undefined;
+  }
+  const publicDetails = {
+    code: details.code,
+    details: details.details,
+    hint: details.hint,
+  };
+  return Object.values(publicDetails).some(Boolean) ? publicDetails : undefined;
+}
+
 export function fail(message: string, status = 400, context?: EdgeErrorContext): Response {
   const errorId = crypto.randomUUID();
   const payload = {
@@ -219,7 +238,9 @@ export function fail(message: string, status = 400, context?: EdgeErrorContext):
     error: message,
     errorId,
     status,
+    ...(context?.action && typeof context.action === 'string' ? { action: context.action } : {}),
     ...(context?.errorCode && typeof context.errorCode === 'string' ? { errorCode: context.errorCode } : {}),
+    ...(context?.details && typeof context.details === 'object' ? { details: context.details } : {}),
   };
   const logPayload = {
     level: status >= 500 ? 'error' : 'warn',
@@ -251,6 +272,7 @@ export function failFromError(error: unknown, fallback: string, status = 500, co
   return fail(errorText(error, fallback), status, {
     ...context,
     errorCode: errorCode(error),
+    details: publicErrorDetails(error),
     error: errorDetails(error),
   });
 }

@@ -47,7 +47,7 @@ const requiredExports = {
     'UserReliabilityProfileRecord',
     'UserRestrictionRecord',
   ],
-  sharedContracts: ['GroupFormationAction', 'CreateGroupFormationRequest', 'GroupFormationPayload', 'PaymentAttemptAction', 'PaymentAttemptPayload', 'PayoutAction', 'PayoutPayload', 'failFromError', 'X-UniEqub-Error-Id'],
+  sharedContracts: ['GroupFormationAction', 'CreateGroupFormationRequest', 'GroupFormationPayload', 'PaymentAttemptAction', 'PaymentAttemptPayload', 'PayoutAction', 'PayoutPayload', 'failFromError', 'publicErrorDetails', 'X-UniEqub-Error-Id'],
   config: ['PHASE2_DEFAULT_APP_CONFIG', 'loadAppConfig', 'loadConfigValue', 'readPositiveIntegerConfig'],
   audit: ['AuditEventInput', 'writeAuditEvent', 'auditMetadata'],
   notifications: ['CreateNotificationInput', 'createNotification', 'markUserNotificationsRead'],

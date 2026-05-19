@@ -82,9 +82,11 @@ function main() {
   ].forEach(token => assertIncludes(content.liveAuthService, token, 'live auth error extraction token'));
 
   [
-    'context.clone().json()',
+    '(context as Response).clone().json()',
     'errorId',
     'withErrorId',
+    'describeEnvelope',
+    'details?.hint',
   ].forEach(token => assertIncludes(content.liveFunctionError, token, 'shared live error reader token'));
 
   [

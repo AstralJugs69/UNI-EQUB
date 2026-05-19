@@ -77,6 +77,9 @@ function main() {
     'await finalizeRoundIfReady(input.group, input.round)',
     "event: 'direct_mock_success'",
     'return json(await payContributionThroughProviderAttempt(actor, body.groupId, body.method))',
+    'function statusForContributionError',
+    'function contributionErrorContext',
+    "return failFromError(error, 'Unexpected contribution error.', statusForContributionError(error), contributionErrorContext(body))",
   ].forEach(token => assertIncludes(contribution, token, 'direct contribution provider-attempt token'));
 
   [

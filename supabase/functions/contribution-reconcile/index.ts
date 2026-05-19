@@ -143,6 +143,64 @@ function buildReceipt(prefix: string) {
   return `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
+function contributionErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
+    return (error as { message: string }).message;
+  }
+  return '';
+}
+
+function statusForContributionError(error: unknown) {
+  const message = contributionErrorMessage(error).toLowerCase();
+  if (!message) {
+    return 500;
+  }
+  if (message.includes('invalid session token') || message.includes('expired')) {
+    return 401;
+  }
+  if (message.includes('banned') || message.includes('restriction') || message.includes('active membership')) {
+    return 403;
+  }
+  if (message.includes('not found') || message.includes('no active group member')) {
+    return 404;
+  }
+  if (
+    message.includes('already paid') ||
+    message.includes('already settled') ||
+    message.includes('only active groups') ||
+    message.includes('no open round') ||
+    message.includes('round changed') ||
+    message.includes('does not belong to this group') ||
+    message.includes('duplicate key')
+  ) {
+    return 409;
+  }
+  if (
+    message.includes('missing') ||
+    message.includes('invalid') ||
+    message.includes('unsupported') ||
+    message.includes('amount must match') ||
+    message.includes('exactly')
+  ) {
+    return 400;
+  }
+  return 500;
+}
+
+function contributionErrorContext(body: Partial<ContributionPayload> | null) {
+  return {
+    functionName: 'contribution-reconcile',
+    action: body?.action ?? 'unknown',
+    groupId: body?.groupId,
+    method: body?.method,
+    hasSessionId: Boolean(body?.sessionId),
+    hasGatewayRef: Boolean(body?.gatewayRef),
+  };
+}
+
 async function requirePayableObligation(roundId: string, group: GroupRecord, userId: string) {
   const obligation = await getContributionObligationForUserRound(roundId, userId);
   if (!obligation) {
@@ -666,17 +724,32 @@ Deno.serve(async request => {
     return new Response('ok', { headers: corsHeaders });
   }
   if (request.method !== 'POST') {
-    return fail('Method not allowed', 405);
+    return fail('Method not allowed', 405, { functionName: 'contribution-reconcile', action: 'methodCheck' });
+  }
+
+  let body: Partial<ContributionPayload> | null = null;
+  try {
+    body = (await request.json()) as ContributionPayload;
+  } catch (error) {
+    return failFromError(error, 'Request body must be valid JSON.', 400, {
+      functionName: 'contribution-reconcile',
+      action: 'parseJson',
+    });
   }
 
   try {
-    const body = (await request.json()) as ContributionPayload;
+    if (!body.action) {
+      return fail('Missing contribution action.', 400, contributionErrorContext(body));
+    }
+    if (!body.token) {
+      return fail('Missing session token.', 401, contributionErrorContext(body));
+    }
     const actor = await requireActor(body.token);
 
     switch (body.action) {
       case 'payContribution': {
         if (!body.groupId || !body.method) {
-          return fail('Missing direct contribution payload.', 400);
+          return fail('Missing direct contribution payload.', 400, contributionErrorContext(body));
         }
         return json(await payContributionThroughProviderAttempt(actor, body.groupId, body.method));
       }
@@ -689,7 +762,7 @@ Deno.serve(async request => {
 
       case 'startContributionUssd': {
         if (!body.groupId) {
-          return fail('Missing groupId for USSD start.', 400);
+          return fail('Missing groupId for USSD start.', 400, contributionErrorContext(body));
         }
         const { group, round } = await assertContributionReady(actor, body.groupId);
         const { attempt, obligation } = await initiateUssdContributionAttempt(actor, group, round);
@@ -709,12 +782,12 @@ Deno.serve(async request => {
 
       case 'submitContributionUssd': {
         if (!body.sessionId) {
-          return fail('Missing USSD session id.', 400);
+          return fail('Missing USSD session id.', 400, contributionErrorContext(body));
         }
         const payload = await verifyContributionSession(body.sessionId);
         const userId = payload.sub;
         if (!userId || userId !== actor.User_ID) {
-          return fail('Contribution session does not belong to the active user.', 403);
+          return fail('Contribution session does not belong to the active user.', 403, contributionErrorContext(body));
         }
         const stage = payload.stage as UssdStage | undefined;
         const groupId = payload.groupId as string | undefined;
@@ -724,12 +797,12 @@ Deno.serve(async request => {
         const obligationId = payload.obligationId as string | undefined;
         const amount = Number(payload.amount ?? 0);
         if (!stage || !groupId || !roundId || !merchantRef || !amount || !attemptId || !obligationId) {
-          return fail('Contribution session is invalid.', 400);
+          return fail('Contribution session is invalid.', 400, contributionErrorContext(body));
         }
         const group = await requireGroup(groupId);
         const round = await getOpenRound(groupId);
         if (!round || round.Round_ID !== roundId) {
-          return fail('The round changed while this USSD session was open. Start again.', 409);
+          return fail('The round changed while this USSD session was open. Start again.', 409, contributionErrorContext(body));
         }
         const input = body.input?.trim() ?? '';
 
@@ -828,13 +901,13 @@ Deno.serve(async request => {
             });
           }
           default:
-            return fail('Unsupported USSD session stage.', 400);
+            return fail('Unsupported USSD session stage.', 400, contributionErrorContext(body));
         }
       }
 
       case 'reconcileProviderCallback': {
         if (!body.groupId || !body.method || !body.senderPhone) {
-          return fail('Missing callback reconciliation payload.', 400);
+          return fail('Missing callback reconciliation payload.', 400, contributionErrorContext(body));
         }
         return json(await reconcileProviderCallbackThroughAttempt({
           groupId: body.groupId,
@@ -846,9 +919,9 @@ Deno.serve(async request => {
       }
 
       default:
-        return fail('Unsupported contribution action.', 400);
+        return fail('Unsupported contribution action.', 400, contributionErrorContext(body));
     }
   } catch (error) {
-    return failFromError(error, 'Unexpected contribution error.', 500, { functionName: 'contribution-reconcile' });
+    return failFromError(error, 'Unexpected contribution error.', statusForContributionError(error), contributionErrorContext(body));
   }
 });
