@@ -1,6 +1,7 @@
 import { fail, failFromError, json } from '../_shared/contracts.ts';
 import type { CreateGroupRequest, GroupLifecyclePayload } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
+import { freezeGroupForAdminReview, resolveOpenGroupFreeze } from '../_shared/groupFreeze.ts';
 import { getRoundObligationProgress } from '../_shared/obligations.ts';
 import { assertReliabilityAllowsNormalFlow, getReliabilityJoinGate } from '../_shared/reliability.ts';
 import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
@@ -396,7 +397,7 @@ Deno.serve(async request => {
 
       case 'listPending': {
         assertAdmin(actor);
-        const { data, error } = await supabaseAdmin.from('EqubGroup').select('*').eq('Status', 'Pending').order('Start_Date', { ascending: false });
+        const { data, error } = await supabaseAdmin.from('EqubGroup').select('*').in('Status', ['Pending', 'Frozen']).order('Start_Date', { ascending: false });
         if (error) {
           throw error;
         }
@@ -405,7 +406,9 @@ Deno.serve(async request => {
           pendingGroups.map(async group => ({
             group: toAppGroup(group),
             creator: await getCreator(group.Creator_ID),
-            note: 'Pending review against KYC, amount, frequency, and membership rules.',
+            note: group.Status === 'Frozen'
+              ? 'Frozen group pending manual recovery resolution.'
+              : 'Pending review against KYC, amount, frequency, and membership rules.',
           })),
         );
         return json({ items });
@@ -450,11 +453,27 @@ Deno.serve(async request => {
         if (!body.groupId) {
           return fail('Missing groupId for freeze.', 400);
         }
-        const { data, error } = await supabaseAdmin.from('EqubGroup').update({ Status: 'Frozen' }).eq('Group_ID', body.groupId).select('*').single();
-        if (error) {
-          throw error;
+        const result = await freezeGroupForAdminReview({
+          groupId: body.groupId,
+          reason: 'ManualAdminFreeze',
+          actor,
+          metadata: { source: 'group-lifecycle.freeze' },
+        });
+        return json({ group: toAppGroup(result.group), freezeEvent: result.freezeEvent });
+      }
+
+      case 'resolveFreeze': {
+        assertAdmin(actor);
+        if (!body.groupId) {
+          return fail('Missing groupId for freeze resolution.', 400);
         }
-        return json({ group: toAppGroup(data as GroupRecord) });
+        const result = await resolveOpenGroupFreeze({
+          groupId: body.groupId,
+          admin: actor,
+          resolutionAction: body.resolutionAction ?? 'ContinueWithReserveFrozen',
+          resolutionNote: body.resolutionNote,
+        });
+        return json({ group: toAppGroup(result.group), freezeEvent: result.freezeEvent });
       }
 
       case 'join': {

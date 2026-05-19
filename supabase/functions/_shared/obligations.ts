@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabaseAdmin.ts';
+import { freezeGroupIfDefaultReserveInsufficient } from './groupFreeze.ts';
 import { ensureActiveRestriction, recordDefaultReliability, recordLatePaymentReliability } from './reliability.ts';
 import type { ContributionObligationRecord, ContributionObligationStatus, GroupRecord, MembershipRecord, RoundRecord, TransactionRecord } from './types.ts';
 
@@ -152,6 +153,7 @@ export async function markContributionObligationDefaulted(obligationId: string, 
     restrictionType: 'DefaultedContribution',
     reason: `Contribution obligation ${obligation.id} defaulted after the configured grace period.`,
   });
+  await freezeGroupIfDefaultReserveInsufficient(obligation);
   return obligation;
 }
 

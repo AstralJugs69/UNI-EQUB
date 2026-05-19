@@ -101,7 +101,7 @@ function main() {
       'restricted users are blocked from legacy create, contribution, payment-attempt, and payout-clearance paths',
     ],
     limitations: [
-      'group freeze events and frozen-group resolution remain pending under P2-701 and P2-704+',
+      'group freeze events and manual recovery are covered by qa:phase2-freeze-recovery',
       'default-maintenance deployment/scheduling requires Supabase function deployment outside this local validation',
     ],
     requiresSupabaseCredentials: false,

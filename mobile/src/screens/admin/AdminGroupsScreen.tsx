@@ -18,6 +18,7 @@ export function AdminGroupsScreen() {
     freezeGroup,
     rejectFormationGroup,
     rejectGroup,
+    resolveFrozenGroup,
   } = useAdminActions();
   const [adminNote, setAdminNote] = useState('');
   const legacyItem = legacyData?.[0];
@@ -25,6 +26,7 @@ export function AdminGroupsScreen() {
   const busy = approveGroup.isPending
     || rejectGroup.isPending
     || freezeGroup.isPending
+    || resolveFrozenGroup.isPending
     || approveFormationGroup.isPending
     || rejectFormationGroup.isPending;
 
@@ -101,15 +103,32 @@ export function AdminGroupsScreen() {
             <ListRow title="Frequency" subtitle={legacyItem.group.Frequency} leadingIcon="repeat" />
             <ListRow title="Summary" subtitle={legacyItem.group.Description} leadingIcon="notes" />
           </SectionCard>
-          <StatusBanner tone="warning" title="Legacy request path" body="This queue is preserved during migration while new group formation moves through group_requests." />
-          <PrimaryCTA label="Approve Legacy Group" onPress={() => approveGroup.mutate(legacyItem.group.Group_ID)} loading={approveGroup.isPending} disabled={busy} />
-          <SecondaryCTA
-            label="Return Legacy Request"
-            onPress={() => rejectGroup.mutate(legacyItem.group.Group_ID, { onSuccess: () => setAdminNote('Legacy request returned to pending review and hidden from members.') })}
-            loading={rejectGroup.isPending}
-            disabled={busy}
-          />
-          <SecondaryCTA label="Freeze Legacy Group" onPress={() => freezeGroup.mutate(legacyItem.group.Group_ID)} loading={freezeGroup.isPending} disabled={busy} />
+          {legacyItem.group.Status === 'Frozen' ? (
+            <>
+              <StatusBanner tone="warning" title="Manual recovery" body="This group is frozen while admin resolves the default case. Continuing keeps reserved payouts frozen for audit review." />
+              <PrimaryCTA
+                label="Resume Group"
+                onPress={() => resolveFrozenGroup.mutate({
+                  groupId: legacyItem.group.Group_ID,
+                  resolutionNote: 'Manual admin recovery: continue group with reserve held frozen.',
+                })}
+                loading={resolveFrozenGroup.isPending}
+                disabled={busy}
+              />
+            </>
+          ) : (
+            <>
+              <StatusBanner tone="warning" title="Legacy request path" body="This queue is preserved during migration while new group formation moves through group_requests." />
+              <PrimaryCTA label="Approve Legacy Group" onPress={() => approveGroup.mutate(legacyItem.group.Group_ID)} loading={approveGroup.isPending} disabled={busy} />
+              <SecondaryCTA
+                label="Return Legacy Request"
+                onPress={() => rejectGroup.mutate(legacyItem.group.Group_ID, { onSuccess: () => setAdminNote('Legacy request returned to pending review and hidden from members.') })}
+                loading={rejectGroup.isPending}
+                disabled={busy}
+              />
+              <SecondaryCTA label="Freeze Legacy Group" onPress={() => freezeGroup.mutate(legacyItem.group.Group_ID)} loading={freezeGroup.isPending} disabled={busy} />
+            </>
+          )}
           <InlineError message={adminNote} />
         </>
       ) : null}

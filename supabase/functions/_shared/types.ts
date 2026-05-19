@@ -33,6 +33,8 @@ export type PayoutRequestStatus = 'Pending' | 'PartiallyReleased' | 'Completed' 
 export type PayoutReleaseScheduleStatus = 'Pending' | 'Released' | 'Frozen' | 'Cancelled';
 export type ReliabilityPublicStatus = 'New' | 'BuildingTrust' | 'Trusted' | 'Restricted' | 'Banned';
 export type UserRestrictionStatus = 'Active' | 'ClearedByAdmin' | 'ClearedByRecovery' | 'EscalatedToBan';
+export type GroupFreezeEventStatus = 'Open' | 'UnderReview' | 'ResolvedContinue' | 'ResolvedKeepFrozen' | 'Cancelled';
+export type GroupFreezeResolutionAction = 'ContinueWithReserveFrozen' | 'KeepFrozenForReview';
 export type KycSubmissionStatus = 'PendingReview' | 'Approved' | 'Rejected' | 'NeedsResubmission' | 'Superseded';
 export type KycDocumentKind = 'front_id' | 'back_id' | 'selfie' | 'legacy_student_id';
 
@@ -350,4 +352,22 @@ export interface UserRestrictionRecord {
   cleared_at: string | null;
   required_recovery_groups: number;
   completed_recovery_groups: number;
+}
+
+export interface GroupFreezeEventRecord {
+  id: string;
+  group_id: string;
+  trigger_user_id: string | null;
+  trigger_round_id: string | null;
+  trigger_obligation_id: string | null;
+  reason: string;
+  status: GroupFreezeEventStatus;
+  frozen_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  resolution_action: GroupFreezeResolutionAction | null;
+  resolution_note: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
 }

@@ -2,7 +2,7 @@ import { supabase } from '../supabaseClient';
 import { loadSessionToken } from '../storage';
 import { mockBackend } from '../mock/mockBackend';
 import type { GroupService } from '../contracts';
-import type { DashboardSnapshot, GroupApprovalItem, GroupRecord, GroupStatusSnapshot, MembershipRecord, RoundRecord, SessionUser } from '../../types/domain';
+import type { DashboardSnapshot, GroupApprovalItem, GroupRecord, GroupStatusSnapshot, MembershipRecord, RoundRecord, SessionUser, GroupFreezeEventRecord, GroupFreezeResolutionAction } from '../../types/domain';
 import { assertLiveEnvelope, readLiveFunctionError } from './liveFunctionError';
 
 interface Envelope<T> {
@@ -153,7 +153,17 @@ export const liveGroupsService: GroupService = {
   },
 
   async freeze(groupId: string): Promise<void> {
-    const response = await invoke<{ group: GroupRecord }>({ action: 'freeze', groupId });
+    const response = await invoke<{ group: GroupRecord; freezeEvent?: GroupFreezeEventRecord }>({ action: 'freeze', groupId });
+    syncGroupShape(response.group);
+  },
+
+  async resolveFreeze(groupId: string, resolutionAction: GroupFreezeResolutionAction = 'ContinueWithReserveFrozen', resolutionNote?: string): Promise<void> {
+    const response = await invoke<{ group: GroupRecord; freezeEvent?: GroupFreezeEventRecord }>({
+      action: 'resolveFreeze',
+      groupId,
+      resolutionAction,
+      resolutionNote,
+    });
     syncGroupShape(response.group);
   },
 

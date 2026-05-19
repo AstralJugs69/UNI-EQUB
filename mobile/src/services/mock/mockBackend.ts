@@ -919,6 +919,13 @@ export class MockBackend implements AppServices {
       this.pushNotification(group.Creator_ID, 'Group frozen', 'Admin compliance review temporarily paused this group.');
     },
 
+    resolveFreeze: async (groupId: string): Promise<void> => {
+      const group = this.requireGroup(groupId);
+      group.Status = 'Active';
+      this.db.auditLogs.unshift(`Group freeze resolved manually: ${group.Group_Name}`);
+      this.pushNotification(group.Creator_ID, 'Group resumed', 'Admin reviewed the default case and resumed the group.');
+    },
+
     joinGroup: async (userId: string, groupId: string): Promise<void> => {
       const user = this.requireUser(userId);
       this.assertVerifiedMember(user);

@@ -1,0 +1,31 @@
+{
+  "scenario": "phase2-freeze-recovery-validation",
+  "validatedFiles": {
+    "migration": "supabase/migrations/20260519123000_phase2_group_freeze_events.sql",
+    "helper": "supabase/functions/_shared/groupFreeze.ts",
+    "obligations": "supabase/functions/_shared/obligations.ts",
+    "groupLifecycle": "supabase/functions/group-lifecycle/index.ts",
+    "edgeContracts": "supabase/functions/_shared/contracts.ts",
+    "liveGroups": "mobile/src/services/live/liveGroupsService.ts",
+    "mockBackend": "mobile/src/services/mock/mockBackend.ts",
+    "mobileContracts": "mobile/src/services/contracts/index.ts",
+    "adminGroups": "mobile/src/screens/admin/AdminGroupsScreen.tsx",
+    "mobileTypes": "mobile/src/types/domain.ts",
+    "sharedTypes": "supabase/functions/_shared/types.ts"
+  },
+  "completedChecks": [
+    "group_freeze_events companion table exists with one open freeze per group",
+    "defaulted obligations freeze defaulter reserves and freeze the group only when reserve coverage is insufficient",
+    "freeze events write durable notifications and audit events",
+    "manual admin freeze uses the same freeze event path",
+    "admin manual resolution can resume a frozen group while keeping reserved payouts frozen for audit follow-up",
+    "live and mock mobile group services expose matching freeze-resolution behavior"
+  ],
+  "limitations": [
+    "poll tables, refund tickets, and terminal disbandment handling remain deferred under P2-706 through P2-709",
+    "remote migration/function deployment and device screenshots remain user/Both validation work"
+  ],
+  "requiresSupabaseCredentials": false,
+  "requiresDeviceValidation": true,
+  "validatedAt": "2026-05-19T12:10:25.968Z"
+}

@@ -338,6 +338,11 @@ export function useAdminActions() {
       mutationFn: (groupId: string) => services.groups.freeze(groupId),
       onSuccess: refreshAdminData,
     }),
+    resolveFrozenGroup: useMutation({
+      mutationFn: ({ groupId, resolutionNote }: { groupId: string; resolutionNote?: string }) =>
+        services.groups.resolveFreeze(groupId, 'ContinueWithReserveFrozen', resolutionNote),
+      onSuccess: refreshAdminData,
+    }),
     approveFormationGroup: useMutation({
       mutationFn: ({ requestId, decisionReason }: { requestId: string; decisionReason?: string }) =>
         services.formation.adminApprove(requestId, decisionReason),

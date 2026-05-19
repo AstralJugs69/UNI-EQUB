@@ -10,6 +10,7 @@
   GroupInvitationRecord,
   GroupRecord,
   GroupStatusSnapshot,
+  GroupFreezeResolutionAction,
   KycReviewItem,
   KycDocumentKind,
   PaymentMethod,
@@ -111,6 +112,7 @@ export interface GroupService {
   approve(groupId: string): Promise<void>;
   reject(groupId: string): Promise<void>;
   freeze(groupId: string): Promise<void>;
+  resolveFreeze(groupId: string, resolutionAction?: GroupFreezeResolutionAction, resolutionNote?: string): Promise<void>;
   joinGroup(userId: string, groupId: string): Promise<void>;
   getDashboard(userId: string): Promise<DashboardSnapshot>;
 }
