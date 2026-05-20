@@ -30,20 +30,47 @@ function describeEnvelope(payload: ErrorEnvelope) {
   return withErrorId(parts.join(' | ') || 'Edge Function request failed.', payload.errorId);
 }
 
+function headerValue(headers: Headers, name: string) {
+  return headers.get(name) ?? headers.get(name.toLowerCase());
+}
+
+function describeNonJsonResponse(response: Response, text: string, fallback: string) {
+  const parts = [
+    `${fallback} HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`,
+  ];
+  const supabaseCode = headerValue(response.headers, 'sb_error_code');
+  const edgeRegion = headerValue(response.headers, 'x_sb_edge_region');
+  const requestId = headerValue(response.headers, 'x-sb-request-id') ?? headerValue(response.headers, 'sb_request_id');
+  if (supabaseCode) {
+    parts.push(`Supabase ${supabaseCode}`);
+  }
+  if (edgeRegion) {
+    parts.push(`edge ${edgeRegion}`);
+  }
+  if (requestId) {
+    parts.push(`request ${requestId}`);
+  }
+  if (text.trim()) {
+    parts.push(text.trim());
+  } else {
+    parts.push('The Edge Function returned a non-JSON error before the app error envelope was created.');
+  }
+  return parts.join(' | ');
+}
+
 export async function readLiveFunctionError(error: unknown, fallback: string): Promise<string> {
   const context = (error as { context?: Response | { status?: number; statusText?: string } }).context;
   if (context && typeof (context as Response).clone === 'function') {
+    const response = context as Response;
     try {
-      const payload = await (context as Response).clone().json() as ErrorEnvelope;
+      const payload = await response.clone().json() as ErrorEnvelope;
       if (payload.error) {
         return describeEnvelope(payload);
       }
     } catch {
       try {
-        const text = await (context as Response).clone().text();
-        if (text) {
-          return text;
-        }
+        const text = await response.clone().text();
+        return describeNonJsonResponse(response, text, fallback);
       } catch {
         // Fall through to the Supabase client error message.
       }

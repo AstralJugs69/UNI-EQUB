@@ -178,7 +178,11 @@ export interface ReportExportPayload {
 export function json<T>(data: T, status = 200): Response {
   return new Response(JSON.stringify({ ok: true, data }), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+      'Content-Type': 'application/json',
+    },
   });
 }
 
@@ -275,4 +279,14 @@ export function failFromError(error: unknown, fallback: string, status = 500, co
     details: publicErrorDetails(error),
     error: errorDetails(error),
   });
+}
+
+export function edgeRequestSummary(request: Request) {
+  const url = new URL(request.url);
+  return {
+    method: request.method,
+    path: url.pathname,
+    userAgent: request.headers.get('user-agent'),
+    xClientInfo: request.headers.get('x-client-info'),
+  };
 }

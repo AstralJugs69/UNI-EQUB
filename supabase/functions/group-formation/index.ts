@@ -1,6 +1,6 @@
 import { verifySession } from '../_shared/auth.ts';
 import { writeAuditEvent } from '../_shared/audit.ts';
-import { fail, failFromError, json } from '../_shared/contracts.ts';
+import { edgeRequestSummary, fail, failFromError, json } from '../_shared/contracts.ts';
 import type { CreateGroupFormationRequest, GroupFormationAction, GroupFormationPayload } from '../_shared/contracts.ts';
 import { loadConfigValue } from '../_shared/config.ts';
 import { createNotification } from '../_shared/notifications.ts';
@@ -1425,6 +1425,7 @@ function pendingImplementation(action: GroupFormationAction, actor: UserRecord) 
 }
 
 Deno.serve(async request => {
+  let actionForError: string | undefined;
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -1434,6 +1435,7 @@ Deno.serve(async request => {
 
   try {
     const body = (await request.json()) as GroupFormationPayload;
+    actionForError = body.action;
     if (!body.token) {
       return fail('Missing session token.', 401);
     }
@@ -1505,7 +1507,11 @@ Deno.serve(async request => {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected group formation error.';
-    return failFromError(error, 'Unexpected group formation error.', statusForError(message), { functionName: 'group-formation' });
+    return failFromError(error, 'Unexpected group formation error.', statusForError(message), {
+      functionName: 'group-formation',
+      action: actionForError,
+      request: edgeRequestSummary(request),
+    });
   }
 });
 
