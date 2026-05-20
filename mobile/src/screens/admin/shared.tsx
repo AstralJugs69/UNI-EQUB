@@ -8,6 +8,7 @@ export const adminTabs = [
   { key: routes.adminKyc, label: 'KYC', icon: 'badge' },
   { key: routes.adminGroups, label: 'Groups', icon: 'groups' },
   { key: routes.adminReports, label: 'Reports', icon: 'summarize' },
+  { key: routes.adminProfile, label: 'Profile', icon: 'person' },
 ];
 
 export function AdminNav({ active }: { active: string }) {

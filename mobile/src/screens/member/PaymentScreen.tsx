@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
-import { InlineError, LoadingState, PrimaryCTA, ScreenScroll, SecondaryCTA, SectionCard, StatusBanner, TopAppBar } from '../../components/ui';
-import { useGroupQuery } from '../../hooks/useAppQueries';
+import { InlineError, InputField, LoadingState, PrimaryCTA, ScreenScroll, SecondaryCTA, SectionCard, StatusBanner, TopAppBar } from '../../components/ui';
+import { useGroupQuery, useGroupStatusQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
+import { useAuth } from '../../providers/AuthProvider';
 import { iconSize, palette } from '../../theme/tokens';
 import type { PaymentMethod } from '../../types/domain';
 import { formatCurrency } from './shared';
@@ -34,25 +35,131 @@ function PaymentMetaTile({
 
 export function PaymentScreen({ route }: any) {
   const navigation = useNavigation<any>();
+  const { session, getOtpGate, requestOtp, verifyOtp } = useAuth();
   const groupId = route.params?.groupId ?? '';
   const { data: group } = useGroupQuery(groupId);
+  const { data: status } = useGroupStatusQuery(groupId);
   const [error, setError] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpRequired, setOtpRequired] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [checkingOtp, setCheckingOtp] = useState(true);
+  const [otpBusy, setOtpBusy] = useState(false);
   const method: PaymentMethod = 'Telebirr';
+  const resetToGroup = () => {
+    if (!groupId) {
+      navigation.goBack();
+      return;
+    }
+    navigation.dispatch(CommonActions.reset({
+      index: 1,
+      routes: [
+        { name: routes.memberTabs },
+        { name: routes.groupStatus, params: { groupId } },
+      ],
+    }));
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    async function prepareOtpGate() {
+      if (!session?.token) {
+        setCheckingOtp(false);
+        return;
+      }
+      try {
+        setCheckingOtp(true);
+        const gate = await getOtpGate({ token: session.token });
+        if (cancelled) {
+          return;
+        }
+        setOtpRequired(gate.requiresOtp);
+        setOtpVerified(!gate.requiresOtp);
+        if (gate.requiresOtp) {
+          await requestOtp(gate.phoneNumber ?? session.user.phoneNumber);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Unable to prepare payment verification.');
+        }
+      } finally {
+        if (!cancelled) {
+          setCheckingOtp(false);
+        }
+      }
+    }
+    prepareOtpGate();
+    return () => {
+      cancelled = true;
+    };
+  }, [getOtpGate, requestOtp, session?.token, session?.user.phoneNumber]);
+
+  async function handleVerifyPaymentOtp() {
+    try {
+      setOtpBusy(true);
+      setError('');
+      await verifyOtp(session?.user.phoneNumber ?? '', otp);
+      setOtpVerified(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to verify payment OTP.');
+    } finally {
+      setOtpBusy(false);
+    }
+  }
 
   if (!groupId) {
     return (
       <ScreenScroll>
-        <TopAppBar title="Pay Contribution" onBack={() => navigation.goBack()} />
+        <TopAppBar title="Pay Contribution" onBack={() => navigation.navigate(routes.memberTabs, { screen: routes.dashboard })} />
         <StatusBanner tone="warning" title="No group selected" body="Open a group cycle first, then start the payment from that group." />
         <SecondaryCTA label="Back To Home" onPress={() => navigation.navigate(routes.memberTabs, { screen: routes.dashboard })} />
       </ScreenScroll>
     );
   }
 
-  if (!group) {
+  if (!group || !status) {
     return <LoadingState title="Loading payment" subtitle="Preparing Telebirr contribution details." />;
   }
   const safeGroup = group;
+
+  if (!status.currentRound || safeGroup.Status !== 'Active') {
+    return (
+      <ScreenScroll>
+        <TopAppBar title="Pay Contribution" onBack={resetToGroup} rightLabel="Closed" />
+        <StatusBanner tone="warning" title="No open round" body="This Equb cycle is not accepting contributions. It may already be completed." />
+        <SecondaryCTA label="Back to Group" onPress={resetToGroup} />
+      </ScreenScroll>
+    );
+  }
+
+  if (!status.canCurrentUserPay) {
+    return (
+      <ScreenScroll>
+        <TopAppBar title="Pay Contribution" onBack={resetToGroup} rightLabel="Paid" />
+        <StatusBanner tone="success" title="Already paid this round" body="Your contribution is already recorded for the current open round." />
+        <SecondaryCTA label="Back to Group" onPress={resetToGroup} />
+      </ScreenScroll>
+    );
+  }
+
+  if (checkingOtp) {
+    return <LoadingState title="Checking payment verification" subtitle="Preparing the secure payment gate." />;
+  }
+
+  if (otpRequired && !otpVerified) {
+    return (
+      <ScreenScroll>
+        <TopAppBar title="Payment Verification" onBack={resetToGroup} rightLabel="OTP" />
+        <StatusBanner tone="info" title="OTP required before payment" body="Only the first registered test account is challenged before opening the payment screen." />
+        <SectionCard>
+          <InputField label="OTP Code" value={otp} onChangeText={setOtp} keyboardType="number-pad" leadingIcon="password" />
+        </SectionCard>
+        <InlineError message={error} />
+        <PrimaryCTA label="Verify And Continue" onPress={handleVerifyPaymentOtp} loading={otpBusy} disabled={!otp || otpBusy} />
+        <SecondaryCTA label="Back to Group" onPress={resetToGroup} />
+      </ScreenScroll>
+    );
+  }
 
   function handleTelebirrPay() {
     try {
@@ -65,7 +172,7 @@ export function PaymentScreen({ route }: any) {
 
   return (
     <ScreenScroll>
-      <TopAppBar title="Pay Contribution" onBack={() => navigation.goBack()} rightLabel={safeGroup.Frequency} />
+      <TopAppBar title="Pay Contribution" onBack={resetToGroup} rightLabel={safeGroup.Frequency} />
       <SectionCard style={memberStyles.paymentSummaryCard}>
         <View style={memberStyles.paymentAmountRow}>
           <View style={memberStyles.paymentAmountIcon}>
@@ -101,7 +208,7 @@ export function PaymentScreen({ route }: any) {
 
       <InlineError message={error} />
       <PrimaryCTA label="Pay with Telebirr" icon="open-in-new" onPress={handleTelebirrPay} />
-      <SecondaryCTA label="Back to Group" onPress={() => navigation.navigate(routes.groupStatus, { groupId: safeGroup.Group_ID })} />
+      <SecondaryCTA label="Back to Group" onPress={resetToGroup} />
     </ScreenScroll>
   );
 }

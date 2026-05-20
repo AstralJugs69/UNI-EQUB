@@ -32,6 +32,20 @@ describe('resolveNotificationRoute', () => {
       relatedEntityType: 'Transaction',
       relatedEntityId: 'txn-1',
     }))).toEqual({ name: routes.memberTabs, params: { screen: routes.wallet } });
+
+    expect(resolveNotificationRoute(notification({
+      type: 'group_join_requested',
+      actionRoute: 'member/group-formation',
+      relatedEntityType: 'group_requests',
+      relatedEntityId: 'request-1',
+    }))).toEqual({ name: routes.formationCreator, params: { requestId: 'request-1' } });
+
+    expect(resolveNotificationRoute(notification({
+      type: 'group_join_accepted',
+      actionRoute: 'member/group-formation',
+      relatedEntityType: 'group_requests',
+      relatedEntityId: 'request-1',
+    }))).toEqual({ name: routes.formationDetail, params: { requestId: 'request-1' } });
   });
 
   it('routes admin review notifications without trusting raw route names', () => {

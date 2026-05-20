@@ -195,8 +195,20 @@ async function listPendingSubmissions() {
   }
 
   const usersById = new Map(((users ?? []) as UserRecord[]).map(user => [user.User_ID, user]));
+  const signedDocuments = await Promise.all(((documents ?? []) as KycDocumentRecord[]).map(async document => {
+    if (!document.bucket || !document.object_path) {
+      return document;
+    }
+    const { data } = await supabaseAdmin.storage.from(document.bucket).createSignedUrl(document.object_path, 60 * 60);
+    return {
+      ...document,
+      signed_url: data?.signedUrl ?? null,
+      signedUrl: data?.signedUrl ?? null,
+    };
+  }));
+
   const documentsBySubmission = new Map<string, KycDocumentRecord[]>();
-  for (const document of (documents ?? []) as KycDocumentRecord[]) {
+  for (const document of signedDocuments) {
     const current = documentsBySubmission.get(document.submission_id) ?? [];
     current.push(document);
     documentsBySubmission.set(document.submission_id, current);

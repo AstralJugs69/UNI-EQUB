@@ -1,12 +1,13 @@
 import { MockBackend } from './mockBackend';
 
 async function createVerifiedMember(backend: MockBackend, phone = '0911223344') {
-  const user = await backend.auth.register({
+  const registration = await backend.auth.register({
     fullName: 'Test Student',
     phoneNumber: phone,
     password: 'secret123',
     studentIdImage: 'storage://students/test.png',
   });
+  const user = registration.user;
   await backend.kyc.approve(user.userId);
   return user;
 }
@@ -36,8 +37,8 @@ describe('MockBackend seedless auth flow', () => {
       studentIdImage: 'storage://students/test.png',
     });
 
-    expect(pending.fullName).toBe('Test Student');
-    expect(pending.kycStatus).toBe('Unverified');
+    expect(pending.user.fullName).toBe('Test Student');
+    expect(pending.user.kycStatus).toBe('Unverified');
 
     const session = await backend.auth.login({ phoneNumber: '0911223344', password: 'secret123' }, 'Member');
     expect(session.user.fullName).toBe('Test Student');
@@ -51,6 +52,27 @@ describe('MockBackend seedless auth flow', () => {
 
     await expect(backend.auth.verifyOtp('0911223344', '4719')).resolves.toEqual({ pendingKycToken: 'mock-pending-kyc-0911223344' });
     await expect(backend.auth.verifyOtp('0911223344', '0000')).rejects.toThrow('No OTP challenge is active for this number.');
+  });
+
+  it('requires OTP only for the first registered member during testing', async () => {
+    const backend = new MockBackend();
+    const first = await backend.auth.register({
+      fullName: 'First Student',
+      phoneNumber: '0911223301',
+      password: 'secret123',
+      studentIdImage: 'storage://students/first.png',
+    });
+    const second = await backend.auth.register({
+      fullName: 'Second Student',
+      phoneNumber: '0911223302',
+      password: 'secret123',
+      studentIdImage: 'storage://students/second.png',
+    });
+
+    expect(first.requiresOtp).toBe(true);
+    expect(first.pendingKycToken).toBeUndefined();
+    expect(second.requiresOtp).toBe(false);
+    expect(second.pendingKycToken).toBe('mock-pending-kyc-0911223302');
   });
 
   it('exposes active groups and member KYC resubmission state only from explicit setup', async () => {

@@ -66,10 +66,12 @@ export interface CreateGroupFormationInput {
   frequency: GroupRecord['Frequency'];
   minMembers?: number;
   maxMembers: number;
+  totalCycles?: number;
   visibility: 'Public' | 'Private';
   inviteMode?: 'PublicRequest' | 'InviteCode' | 'DirectInvite' | 'InviteCodeAndDirect';
   vestingEnabled?: boolean;
   riskWarningAccepted?: boolean;
+  gracePeriodHours?: number;
   termsVersion?: string;
 }
 
@@ -90,13 +92,21 @@ export interface LoginChallenge {
   phoneNumber: string;
 }
 
+export interface RegisterResult {
+  user: SessionUser;
+  requiresOtp: boolean;
+  pendingKycToken?: string;
+}
+
 export interface AuthService {
-  register(input: RegisterInput): Promise<SessionUser>;
+  register(input: RegisterInput): Promise<RegisterResult>;
   requestOtp(phoneNumber: string): Promise<{ challengeId: string }>;
   verifyOtp(phoneNumber: string, otp: string): Promise<{ pendingKycToken?: string }>;
   beginLogin(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<LoginChallenge>;
   completeLogin(challengeToken: string, otp: string): Promise<AuthSession>;
   login(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<AuthSession>;
+  getOtpGate(input: { token?: string; phoneNumber?: string }): Promise<{ requiresOtp: boolean; phoneNumber?: string | null }>;
+  resetPassword(input: { phoneNumber: string; newPassword: string; otp?: string }): Promise<{ requiresOtp: boolean; reset: boolean }>;
   restore(token: string): Promise<AuthSession | null>;
   logout(): Promise<void>;
 }
@@ -175,9 +185,17 @@ export interface ProfileUpdateInput {
   avatarSeed?: string;
 }
 
+export interface ProfileImageUploadInput {
+  fileName: string;
+  contentType: string;
+  base64: string;
+}
+
 export interface ProfileService {
   getProfile(userId: string): Promise<UserProfile>;
   updateProfile(userId: string, input: ProfileUpdateInput): Promise<UserProfile>;
+  uploadProfileImage(userId: string, input: ProfileImageUploadInput): Promise<UserProfile>;
+  removeProfileImage(userId: string): Promise<UserProfile>;
   ensureAvatarSeed(userId: string): Promise<UserProfile['avatar']>;
 }
 

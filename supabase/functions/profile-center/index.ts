@@ -40,6 +40,8 @@ function toProfile(row: Record<string, unknown>) {
     theme: row.theme,
     notificationPreference: row.notification_preference,
     walletLabel: row.wallet_label,
+    profileImagePath: row.profile_image_path,
+    profileImageUrl: row.profile_image_signed_url ?? null,
     avatar: {
       seed: row.avatar_seed,
       style: row.avatar_style,
@@ -48,6 +50,19 @@ function toProfile(row: Record<string, unknown>) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+async function toProfileWithImage(row: Record<string, unknown>) {
+  const path = typeof row.profile_image_path === 'string' ? row.profile_image_path : null;
+  if (!path) {
+    return toProfile(row);
+  }
+  const bucket = typeof row.profile_image_bucket === 'string' ? row.profile_image_bucket : 'profile-pictures';
+  const { data } = await supabaseAdmin.storage.from(bucket).createSignedUrl(path, 60 * 60);
+  return toProfile({
+    ...row,
+    profile_image_signed_url: data?.signedUrl ?? null,
+  });
 }
 
 async function ensureProfile(userId: string) {
@@ -79,6 +94,96 @@ async function ensureProfile(userId: string) {
   return data as Record<string, unknown>;
 }
 
+function bytesFromBase64(base64: string) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function extensionFor(contentType: string, fileName?: string) {
+  const fromName = fileName?.split('.').pop()?.toLowerCase();
+  if (fromName && /^[a-z0-9]{2,5}$/.test(fromName)) {
+    return fromName === 'jpeg' ? 'jpg' : fromName;
+  }
+  if (contentType === 'image/png') {
+    return 'png';
+  }
+  if (contentType === 'image/webp') {
+    return 'webp';
+  }
+  return 'jpg';
+}
+
+async function uploadProfileImage(userId: string, image: Record<string, unknown>) {
+  const contentType = typeof image.contentType === 'string' ? image.contentType : 'image/jpeg';
+  if (!contentType.startsWith('image/')) {
+    throw new Error('Profile image must be an image file.');
+  }
+  const base64 = typeof image.base64 === 'string' ? image.base64 : '';
+  if (!base64) {
+    throw new Error('Profile image data is missing.');
+  }
+  const fileName = typeof image.fileName === 'string' ? image.fileName : undefined;
+  const objectPath = `${userId}/${crypto.randomUUID()}.${extensionFor(contentType, fileName)}`;
+  const bucket = 'profile-pictures';
+  const bytes = bytesFromBase64(base64);
+
+  const existing = await ensureProfile(userId);
+  const existingPath = typeof existing.profile_image_path === 'string' ? existing.profile_image_path : null;
+
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from(bucket)
+    .upload(objectPath, bytes, { contentType, upsert: true });
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('user_profiles')
+    .update({
+      profile_image_bucket: bucket,
+      profile_image_path: objectPath,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+    .select('*')
+    .single();
+  if (error) {
+    throw error;
+  }
+
+  if (existingPath && existingPath !== objectPath) {
+    await supabaseAdmin.storage.from(bucket).remove([existingPath]);
+  }
+
+  return data as Record<string, unknown>;
+}
+
+async function removeProfileImage(userId: string) {
+  const existing = await ensureProfile(userId);
+  const bucket = typeof existing.profile_image_bucket === 'string' ? existing.profile_image_bucket : 'profile-pictures';
+  const path = typeof existing.profile_image_path === 'string' ? existing.profile_image_path : null;
+  const { data, error } = await supabaseAdmin
+    .from('user_profiles')
+    .update({
+      profile_image_path: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+    .select('*')
+    .single();
+  if (error) {
+    throw error;
+  }
+  if (path) {
+    await supabaseAdmin.storage.from(bucket).remove([path]);
+  }
+  return data as Record<string, unknown>;
+}
+
 Deno.serve(async request => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -95,7 +200,7 @@ Deno.serve(async request => {
 
     switch (body.action) {
       case 'getProfile': {
-        return json({ profile: toProfile(await ensureProfile(userId)) });
+        return json({ profile: await toProfileWithImage(await ensureProfile(userId)) });
       }
       case 'ensureAvatarSeed': {
         const row = await ensureProfile(userId);
@@ -129,7 +234,13 @@ Deno.serve(async request => {
         if (error) {
           throw error;
         }
-        return json({ profile: toProfile(data as Record<string, unknown>) });
+        return json({ profile: await toProfileWithImage(data as Record<string, unknown>) });
+      }
+      case 'uploadProfileImage': {
+        return json({ profile: await toProfileWithImage(await uploadProfileImage(userId, body.image ?? {})) });
+      }
+      case 'removeProfileImage': {
+        return json({ profile: await toProfileWithImage(await removeProfileImage(userId)) });
       }
       default:
         return fail('Unsupported profile action.', 400);

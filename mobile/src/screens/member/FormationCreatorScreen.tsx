@@ -5,8 +5,51 @@ import { InlineError, InputField, ListRow, LoadingState, MetricTile, Pill, Prima
 import { Icon } from '../../components/Icon';
 import { useFormationGroupQuery, useGroupAnnouncementsQuery, useMemberActions } from '../../hooks/useAppQueries';
 import { iconSize, palette } from '../../theme/tokens';
+import type { GroupJoinRequestRecord, KycStatus, ReliabilityPublicStatus } from '../../types/domain';
 import { formatCurrency } from './shared';
 import { memberStyles } from './styles';
+
+function participantDisplayName(join: GroupJoinRequestRecord) {
+  return join.participantProfile?.fullName ?? `Pending member ${join.user_id.slice(-6).toUpperCase()}`;
+}
+
+function participantProfileSummary(join: GroupJoinRequestRecord) {
+  const profile = join.participantProfile;
+  if (!profile) {
+    return `Requested ${new Date(join.requested_at).toLocaleDateString()}`;
+  }
+  return [
+    profile.phoneNumber,
+    profile.university,
+    profile.academicYear,
+  ].filter(Boolean).join(' • ');
+}
+
+function trustTone(status: ReliabilityPublicStatus | undefined): 'neutral' | 'active' | 'good' | 'warn' | 'bad' {
+  if (status === 'Trusted') {
+    return 'good';
+  }
+  if (status === 'BuildingTrust') {
+    return 'active';
+  }
+  if (status === 'Restricted') {
+    return 'warn';
+  }
+  if (status === 'Banned') {
+    return 'bad';
+  }
+  return 'neutral';
+}
+
+function kycTone(status: KycStatus | undefined): 'neutral' | 'good' | 'warn' | 'bad' {
+  if (status === 'Verified') {
+    return 'good';
+  }
+  if (status === 'Banned') {
+    return 'bad';
+  }
+  return 'neutral';
+}
 
 export function FormationCreatorScreen({ route }: any) {
   const navigation = useNavigation<any>();
@@ -87,16 +130,17 @@ export function FormationCreatorScreen({ route }: any) {
     }
   }
 
-  async function handleShareInvite(inviteCode: string) {
+  async function handleShareInvite() {
     try {
       setError('');
       setSuccess('');
+      const link = `uniequb://formation/${request.id}`;
       await Share.share({
-        title: 'UniEqub invite code',
-        message: `Join ${request.proposed_group_name} on UniEqub with invite code ${inviteCode}.`,
+        title: 'UniEqub group invitation',
+        message: `Join ${request.proposed_group_name} on UniEqub: ${link}`,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to share invite code.');
+      setError(err instanceof Error ? err.message : 'Unable to share this group link.');
     }
   }
 
@@ -113,7 +157,7 @@ export function FormationCreatorScreen({ route }: any) {
       <View style={memberStyles.metricsGrid}>
         <MetricTile label="Contribution" value={formatCurrency(request.contribution_amount)} />
         <MetricTile label="Accepted" value={`${data.accepted_participant_count}/${request.min_members}`} helper={`${data.remaining_slots} slots left`} tone={canSubmit ? 'good' : 'neutral'} />
-        <MetricTile label="Minimum" value={`${request.min_members}`} helper={canSubmit ? 'Ready' : 'Not ready'} tone={canSubmit ? 'good' : 'neutral'} />
+        <MetricTile label="Draw Cycles" value={`${request.total_cycles ?? request.max_members}`} helper="Before completion" tone="active" />
       </View>
       {request.status === 'PendingApproval' ? (
         <StatusBanner tone="success" title={isPrivate ? 'Starting private group' : 'Submitted for admin approval'} />
@@ -127,6 +171,43 @@ export function FormationCreatorScreen({ route }: any) {
       {request.status === 'Forming' && acceptedRemaining > 0 ? (
         <StatusBanner tone="info" title={`${acceptedRemaining} more accepted member${acceptedRemaining === 1 ? '' : 's'} needed`} />
       ) : null}
+      <SectionCard variant={pendingRequests.length ? 'raised' : 'default'}>
+        <Text style={memberStyles.sectionTitle}>Participant requests</Text>
+        {pendingRequests.length ? (
+          <>
+            <StatusBanner tone="info" title={`${pendingRequests.length} member${pendingRequests.length === 1 ? '' : 's'} waiting for your decision`} body="Accept members you trust into the forming group, or reject requests that do not fit this cycle." />
+            <View style={memberStyles.listGroup}>
+              {pendingRequests.map(join => (
+                <View key={join.id} style={memberStyles.itemBlock}>
+                  <ListRow
+                    title={participantDisplayName(join)}
+                    subtitle={participantProfileSummary(join)}
+                    leadingIcon="person-add"
+                    right={<Pill label={join.participantProfile?.reliability?.public_status ?? 'New'} tone={trustTone(join.participantProfile?.reliability?.public_status)} />}
+                  />
+                  <View style={memberStyles.rowWrap}>
+                    <Pill label={`KYC ${join.participantProfile?.kycStatus ?? 'Unknown'}`} tone={kycTone(join.participantProfile?.kycStatus)} />
+                    <Pill label={`${join.participantProfile?.reliability?.completed_groups_count ?? 0} completed`} tone="neutral" />
+                    <Pill label={`${join.participantProfile?.reliability?.late_payment_count ?? 0} late`} tone={(join.participantProfile?.reliability?.late_payment_count ?? 0) > 0 ? 'warn' : 'good'} />
+                    <Pill label={`${join.participantProfile?.reliability?.default_count ?? 0} defaults`} tone={(join.participantProfile?.reliability?.default_count ?? 0) > 0 ? 'bad' : 'good'} />
+                  </View>
+                  <Text style={memberStyles.mutedText}>
+                    {join.participantProfile
+                      ? `Profile: ${join.participantProfile.university ?? 'University not set'} • ${join.participantProfile.academicYear ?? 'Year not set'} • Requested ${new Date(join.requested_at).toLocaleDateString()}`
+                      : 'Profile details are not available yet. Ask the member to complete their profile before accepting if you need more confidence.'}
+                  </Text>
+                  <View style={memberStyles.twoCol}>
+                    <PrimaryCTA label="Accept Member" onPress={() => handleAccept(join.id)} loading={acceptFormationJoin.isPending} disabled={acceptFormationJoin.isPending || removeFormationParticipant.isPending} />
+                    <SecondaryCTA label="Reject" onPress={() => handleRemove(join.id)} loading={removeFormationParticipant.isPending} disabled={acceptFormationJoin.isPending || removeFormationParticipant.isPending} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
+        ) : (
+          <Text style={memberStyles.mutedText}>No participant requests are waiting. Share the forming group or invite code to bring members here.</Text>
+        )}
+      </SectionCard>
       {announcements?.length ? (
         <SectionCard variant="soft">
           <Text style={memberStyles.sectionTitle}>Announcement board</Text>
@@ -159,22 +240,6 @@ export function FormationCreatorScreen({ route }: any) {
           />
         </SectionCard>
       ) : null}
-      <SectionCard>
-        <Text style={memberStyles.sectionTitle}>Join requests</Text>
-        <View style={memberStyles.listGroup}>
-          {!pendingRequests.length ? (
-            <Text style={memberStyles.mutedText}>No pending participant requests.</Text>
-          ) : pendingRequests.map(join => (
-            <View key={join.id} style={memberStyles.itemBlock}>
-              <ListRow title={`Member ${join.user_id.slice(-4)}`} subtitle={join.decision_reason ?? 'Awaiting creator decision'} leadingIcon="person" />
-              <View style={memberStyles.twoCol}>
-                <SecondaryCTA label="Accept" onPress={() => handleAccept(join.id)} loading={acceptFormationJoin.isPending} />
-                <SecondaryCTA label="Remove" onPress={() => handleRemove(join.id)} loading={removeFormationParticipant.isPending} />
-              </View>
-            </View>
-          ))}
-        </View>
-      </SectionCard>
       {data.invitations.length ? (
         <SectionCard variant="soft">
           <Text style={memberStyles.sectionTitle}>Invitations</Text>
@@ -184,17 +249,17 @@ export function FormationCreatorScreen({ route }: any) {
               return (
                 <ListRow
                   key={invitation.id}
-                  title={invitation.invite_code ?? invitation.invited_phone_or_student_id ?? 'Invitation'}
+                  title={invitation.invite_code ? 'App join link' : invitation.invited_phone_or_student_id ?? 'Invitation'}
                   subtitle={invitation.invite_code && invitation.invited_phone_or_student_id ? invitation.invited_phone_or_student_id : undefined}
                   right={(
                     <View style={memberStyles.inviteActions}>
                       <Pill label={reusable ? 'Reusable' : invitation.status} tone={invitation.status === 'Accepted' ? 'good' : invitation.status === 'Pending' ? 'warn' : 'neutral'} />
                       {invitation.invite_code ? (
                         <Pressable
-                          onPress={() => handleShareInvite(invitation.invite_code!)}
+                          onPress={handleShareInvite}
                           android_ripple={{ color: '#dce6f3', borderless: true }}
                           accessibilityRole="button"
-                          accessibilityLabel={`Share invite code ${invitation.invite_code}`}
+                          accessibilityLabel="Share group join link"
                           style={memberStyles.iconAction}
                         >
                           <Icon name="share" size={iconSize.sm} color={palette.primaryDark} />

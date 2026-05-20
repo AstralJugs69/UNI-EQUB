@@ -12,10 +12,13 @@ export function CreateGroupBasicsScreen() {
   const [amount, setAmount] = useState('500');
   const [frequency, setFrequency] = useState<'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly'>('Weekly');
   const [maxMembers, setMaxMembers] = useState('10');
+  const [totalCycles, setTotalCycles] = useState('10');
 
   const parsedAmount = Number(amount || 0);
   const parsedMembers = Number(maxMembers || 0);
+  const parsedCycles = Number(totalCycles || 0);
   const estimatedPot = useMemo(() => parsedAmount * parsedMembers, [parsedAmount, parsedMembers]);
+  const estimatedCycleValue = useMemo(() => parsedAmount * parsedCycles, [parsedAmount, parsedCycles]);
 
   return (
     <ScreenScroll>
@@ -25,6 +28,7 @@ export function CreateGroupBasicsScreen() {
         <InputField label="Group Name" value={groupName} onChangeText={setGroupName} leadingIcon="groups" />
         <InputField label="Contribution Amount (ETB)" value={amount} onChangeText={setAmount} keyboardType="number-pad" leadingIcon="payments" />
         <InputField label="Max Members" value={maxMembers} onChangeText={setMaxMembers} keyboardType="number-pad" leadingIcon="group" />
+        <InputField label="Total Draw Cycles" value={totalCycles} onChangeText={setTotalCycles} keyboardType="number-pad" leadingIcon="autorenew" />
       </SectionCard>
       <SectionCard variant="soft">
         <TitleBlock title="Choose the cadence" subtitle="Keep this simple and consistent for members." />
@@ -42,14 +46,15 @@ export function CreateGroupBasicsScreen() {
       <View style={memberStyles.metricsGrid}>
         <MetricTile label="Contribution" value={formatCurrency(parsedAmount)} />
         <MetricTile label="Estimated Pot" value={formatCurrency(estimatedPot)} helper={`${parsedMembers || 0} members`} tone="active" />
+        <MetricTile label="Cycle Length" value={`${parsedCycles || 0} rounds`} helper={`${formatCurrency(estimatedCycleValue)} personal schedule`} />
       </View>
       {parsedMembers > 0 && parsedMembers < 5 ? (
         <Text style={memberStyles.mutedText}>Use at least 5 members for the current policy default.</Text>
       ) : null}
       <PrimaryCTA
         label="Continue To Rules"
-        onPress={() => navigation.navigate(routes.createRules, { groupName, amount: parsedAmount, frequency, maxMembers: parsedMembers })}
-        disabled={!groupName || parsedAmount <= 0 || parsedMembers < 5}
+        onPress={() => navigation.navigate(routes.createRules, { groupName, amount: parsedAmount, frequency, maxMembers: parsedMembers, totalCycles: parsedCycles })}
+        disabled={!groupName || parsedAmount <= 0 || parsedMembers < 5 || parsedCycles < 1}
       />
     </ScreenScroll>
   );

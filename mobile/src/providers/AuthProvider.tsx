@@ -22,9 +22,11 @@ interface AuthContextValue {
   login: (phoneNumber: string, password: string, roleHint?: 'Member' | 'Admin') => Promise<void>;
   beginLogin: (phoneNumber: string, password: string, roleHint?: 'Member' | 'Admin') => Promise<void>;
   completeLogin: (otp: string) => Promise<void>;
-  register: (fullName: string, phoneNumber: string, password: string) => Promise<void>;
+  register: (fullName: string, phoneNumber: string, password: string) => Promise<{ requiresOtp: boolean }>;
   requestOtp: (phoneNumber: string) => Promise<void>;
   verifyOtp: (phoneNumber: string, otp: string) => Promise<void>;
+  getOtpGate: (input: { token?: string; phoneNumber?: string }) => Promise<{ requiresOtp: boolean; phoneNumber?: string | null }>;
+  resetPassword: (phoneNumber: string, newPassword: string, otp?: string) => Promise<{ requiresOtp: boolean; reset: boolean }>;
   submitPendingKyc: (input: KycSubmissionInput) => Promise<void>;
   submitCurrentKyc: (input: KycSubmissionInput) => Promise<void>;
   switchAccount: (userId: string) => Promise<void>;
@@ -125,14 +127,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setPendingKycToken(null);
     },
     register: async (fullName, phoneNumber, password) => {
-      const user = await services.auth.register({
+      const result = await services.auth.register({
         fullName,
         phoneNumber,
         password,
         studentIdImage: 'storage://students/pending-upload.png',
       });
-      setPendingUser(user);
-      setPendingKycToken(null);
+      setPendingUser(result.user);
+      setPendingKycToken(result.pendingKycToken ?? null);
+      return { requiresOtp: result.requiresOtp };
     },
     requestOtp: async phoneNumber => {
       await services.auth.requestOtp(phoneNumber);
@@ -141,6 +144,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const response = await services.auth.verifyOtp(phoneNumber, otp);
       setPendingKycToken(response.pendingKycToken ?? null);
     },
+    getOtpGate: input => services.auth.getOtpGate(input),
+    resetPassword: (phoneNumber, newPassword, otp) => services.auth.resetPassword({ phoneNumber, newPassword, otp }),
     submitPendingKyc: async input => {
       if (!pendingUser || !pendingKycToken) {
         throw new Error('No pending registration is available.');

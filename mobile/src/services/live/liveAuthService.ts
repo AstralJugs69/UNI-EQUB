@@ -1,6 +1,6 @@
 import { supabase } from '../supabaseClient';
-import type { AuthService, LoginChallenge, LoginInput, RegisterInput } from '../contracts';
-import type { AuthSession, SessionUser } from '../../types/domain';
+import type { AuthService, LoginChallenge, LoginInput, RegisterInput, RegisterResult } from '../contracts';
+import type { AuthSession } from '../../types/domain';
 import { assertLiveEnvelope, readLiveFunctionError } from './liveFunctionError';
 
 interface Envelope<T> {
@@ -18,9 +18,13 @@ async function invoke<T>(body: unknown): Promise<T> {
 }
 
 export const liveAuthService: AuthService = {
-  async register(input: RegisterInput): Promise<SessionUser> {
-    const response = await invoke<{ user: SessionUser }>({ action: 'register', register: input });
-    return response.user;
+  async register(input: RegisterInput): Promise<RegisterResult> {
+    const response = await invoke<RegisterResult>({ action: 'register', register: input });
+    return {
+      user: response.user,
+      requiresOtp: response.requiresOtp ?? true,
+      pendingKycToken: response.pendingKycToken,
+    };
   },
 
   async requestOtp(phoneNumber: string) {
@@ -42,6 +46,14 @@ export const liveAuthService: AuthService = {
 
   async login(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<AuthSession> {
     return invoke<AuthSession>({ action: 'login', login: { ...input, roleHint } });
+  },
+
+  async getOtpGate(input) {
+    return invoke<{ requiresOtp: boolean; phoneNumber?: string | null }>({ action: 'otpGate', otpGate: input });
+  },
+
+  async resetPassword(input) {
+    return invoke<{ requiresOtp: boolean; reset: boolean }>({ action: 'resetPassword', resetPassword: input });
   },
 
   async restore(token: string): Promise<AuthSession | null> {

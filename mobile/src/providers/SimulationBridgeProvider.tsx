@@ -1,5 +1,5 @@
 import React, { PropsWithChildren, useEffect } from 'react';
-import { Alert, NativeEventEmitter, NativeModules } from 'react-native';
+import { NativeEventEmitter, NativeModules } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { routes } from '../navigation/routes';
 import { navigateFromOutside } from '../navigation/rootNavigation';
@@ -76,9 +76,10 @@ export function SimulationBridgeProvider({ children }: PropsWithChildren) {
         case 'Refresh':
           queryClient.invalidateQueries();
           break;
-        case 'ShowBanner':
         case 'SpeedTime':
-          Alert.alert('Simulation', typeof payload.message === 'string' ? payload.message : command.type);
+        case 'ShowBanner':
+        case 'BackendLifecycle':
+          queryClient.invalidateQueries();
           break;
         default:
           queryClient.invalidateQueries();

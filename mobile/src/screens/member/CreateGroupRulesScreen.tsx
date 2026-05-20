@@ -12,8 +12,10 @@ export function CreateGroupRulesScreen({ route }: any) {
   const [visibility, setVisibility] = useState<'Public' | 'Private'>('Public');
   const [privateRiskAccepted, setPrivateRiskAccepted] = useState(false);
   const [minMembers, setMinMembers] = useState(String(Math.min(5, route.params?.maxMembers ?? 5)));
+  const [gracePeriodHours, setGracePeriodHours] = useState('6');
   const [error, setError] = useState('');
   const parsedMinMembers = Number(minMembers || 0);
+  const parsedGracePeriodHours = Number(gracePeriodHours || 0);
   const maxMembers = Number(route.params.maxMembers || 0);
 
   function handleVisibilitySelect(key: string) {
@@ -50,10 +52,12 @@ export function CreateGroupRulesScreen({ route }: any) {
         frequency: route.params.frequency,
         minMembers: parsedMinMembers,
         maxMembers,
+        totalCycles: Number(route.params.totalCycles || maxMembers),
         visibility,
         inviteMode: visibility === 'Public' ? 'PublicRequest' : 'InviteCodeAndDirect',
         vestingEnabled: visibility === 'Public',
         riskWarningAccepted: visibility === 'Private' ? privateRiskAccepted : undefined,
+        gracePeriodHours: parsedGracePeriodHours,
         termsVersion: 'phase2-v1',
       });
       navigation.navigate(routes.formationCreator, { requestId: detail.groupRequest.id });
@@ -69,6 +73,7 @@ export function CreateGroupRulesScreen({ route }: any) {
       <SectionCard>
         <InputField label="Short Description" value={description} onChangeText={setDescription} multiline helper="This appears while gathering members and remains visible once the group starts." />
         <InputField label="Minimum Members" value={minMembers} onChangeText={setMinMembers} keyboardType="number-pad" leadingIcon="group" />
+        <InputField label="Late Grace Period" value={gracePeriodHours} onChangeText={setGracePeriodHours} keyboardType="number-pad" leadingIcon="schedule" helper="Hours after the contribution deadline before an unpaid member defaults and is removed." />
       </SectionCard>
       <SectionCard variant="soft">
         <TitleBlock title="Gathering mode" subtitle="Choose how members can find or join this forming group." />
@@ -94,13 +99,15 @@ export function CreateGroupRulesScreen({ route }: any) {
         <InlineError message="Minimum members cannot be greater than max members." />
       ) : parsedMinMembers < 5 ? (
         <InlineError message="Current Phase 2 policy requires at least 5 accepted members before admin submission." />
+      ) : parsedGracePeriodHours < 1 || parsedGracePeriodHours > 72 ? (
+        <InlineError message="Grace period must be between 1 and 72 hours." />
       ) : null}
       <InlineError message={error} />
       <PrimaryCTA
         label="Create Formation Request"
         onPress={handleSubmit}
         loading={createFormation.isPending}
-        disabled={!description || parsedMinMembers < 5 || parsedMinMembers > maxMembers || (visibility === 'Private' && !privateRiskAccepted) || createFormation.isPending}
+        disabled={!description || parsedMinMembers < 5 || parsedMinMembers > maxMembers || parsedGracePeriodHours < 1 || parsedGracePeriodHours > 72 || (visibility === 'Private' && !privateRiskAccepted) || createFormation.isPending}
       />
     </ScreenScroll>
   );

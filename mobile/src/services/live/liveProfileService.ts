@@ -1,6 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { loadSessionToken } from '../storage';
-import type { ProfileService, ProfileUpdateInput } from '../contracts';
+import type { ProfileImageUploadInput, ProfileService, ProfileUpdateInput } from '../contracts';
 import type { AvatarDescriptor, UserProfile } from '../../types/domain';
 import { assertLiveEnvelope, readLiveFunctionError } from './liveFunctionError';
 
@@ -32,6 +32,16 @@ export const liveProfileService: ProfileService = {
 
   async updateProfile(userId: string, input: ProfileUpdateInput): Promise<UserProfile> {
     const response = await invoke<{ profile: UserProfile }>({ action: 'updateProfile', userId, profile: input });
+    return response.profile;
+  },
+
+  async uploadProfileImage(userId: string, input: ProfileImageUploadInput): Promise<UserProfile> {
+    const response = await invoke<{ profile: UserProfile }>({ action: 'uploadProfileImage', userId, image: input });
+    return response.profile;
+  },
+
+  async removeProfileImage(userId: string): Promise<UserProfile> {
+    const response = await invoke<{ profile: UserProfile }>({ action: 'removeProfileImage', userId });
     return response.profile;
   },
 

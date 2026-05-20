@@ -84,6 +84,18 @@ h1 {
   box-shadow: 0 14px 34px rgba(31, 56, 88, 0.08);
 }
 
+.errorPanel {
+  display: grid;
+  gap: 14px;
+  max-width: 760px;
+  margin: 60px auto;
+}
+
+.errorPanel p {
+  color: #b42318;
+  line-height: 1.5;
+}
+
 .wide {
   grid-column: 1 / -1;
   min-height: 160px;
@@ -108,7 +120,8 @@ h1 {
   margin-bottom: 14px;
 }
 
-.device {
+.device,
+.groupCard {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 4px 12px;
@@ -119,12 +132,14 @@ h1 {
   border: 1px solid #dfe8f4;
 }
 
-.device.selected {
+.device.selected,
+.groupCard.selected {
   border-color: #0b63e5;
   background: #eef5ff;
 }
 
-.device span {
+.device span,
+.groupCard span {
   color: #637186;
   font-size: 12px;
 }
@@ -140,10 +155,44 @@ h1 {
   text-transform: uppercase;
 }
 
+.groupGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.groupCard {
+  min-height: 112px;
+  align-content: center;
+}
+
+.groupCard em {
+  grid-column: 1 / -1;
+  color: #0b63e5;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.facts {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: #46576d;
+}
+
+.facts strong {
+  color: #102033;
+}
+
 .secondary {
   width: 100%;
   color: #0b63e5;
   background: #eaf2ff;
+}
+
+.panel button + button {
+  margin-top: 10px;
 }
 
 label {

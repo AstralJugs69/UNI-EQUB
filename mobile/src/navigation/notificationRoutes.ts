@@ -30,7 +30,10 @@ export function resolveNotificationRoute(notification: AppNotification, role: Us
   }
 
   if (actionRoute === 'member/group-formation' && entityType === 'group_requests' && entityId) {
-    return { name: routes.formationCreator, params: { requestId: entityId } };
+    if (notification.type === 'group_join_requested' || notification.type === 'GroupFormationSubmitted') {
+      return { name: routes.formationCreator, params: { requestId: entityId } };
+    }
+    return { name: routes.formationDetail, params: { requestId: entityId } };
   }
 
   if (actionRoute === 'member/kyc') {

@@ -294,9 +294,9 @@ export function AppButton({
         {loading ? (
           <MiniULoader size={18} />
         ) : icon ? (
-          <Icon name={icon} size={iconSize.sm} color={variant === 'primary' ? palette.white : palette.text} />
+          <Icon name={icon} size={iconSize.sm} color={variant === 'primary' ? palette.white : variant === 'danger' ? palette.danger : palette.text} />
         ) : null}
-        <Text style={[styles.buttonLabel, variant !== 'primary' && styles.buttonLabelDark]}>{label}</Text>
+        <Text style={[styles.buttonLabel, variant !== 'primary' && styles.buttonLabelDark, variant === 'danger' && styles.buttonLabelDanger]}>{label}</Text>
       </View>
     </Pressable>
   );
@@ -791,6 +791,9 @@ const styles = StyleSheet.create({
   },
   buttonLabelDark: {
     color: palette.text,
+  },
+  buttonLabelDanger: {
+    color: palette.danger,
   },
   segmentedTabs: {
     flexDirection: 'row',

@@ -358,6 +358,60 @@ export const adminStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.border,
   },
+  kycImageGrid: {
+    gap: spacing.sm,
+  },
+  kycImageCard: {
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.backgroundSoft,
+    padding: spacing.sm,
+    gap: spacing.sm,
+  },
+  kycImagePreview: {
+    height: 142,
+    borderRadius: radii.sm,
+    overflow: 'hidden',
+    backgroundColor: palette.primarySoft,
+  },
+  kycImageThumbnail: {
+    width: '100%',
+    height: '100%',
+  },
+  kycImagePlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  kycImageCardText: {
+    gap: 2,
+  },
+  kycImageOpenText: {
+    color: palette.primary,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  kycImageModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.78)',
+    justifyContent: 'center',
+    padding: spacing.md,
+  },
+  kycImageModalCard: {
+    maxHeight: '88%',
+    borderRadius: radii.lg,
+    backgroundColor: palette.surface,
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  kycImageFull: {
+    width: '100%',
+    height: 520,
+    maxHeight: '82%',
+    borderRadius: radii.md,
+    backgroundColor: palette.backgroundSoft,
+  },
   kycChecklistCard: {
     borderRadius: radii.md,
     padding: spacing.md,

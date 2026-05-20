@@ -7,6 +7,7 @@ const FALLBACK_KEY = '@uniequb/session-token';
 const LAST_ACTIVE_KEY = '@uniequb/last-active-at';
 const ACCOUNT_SLOTS_KEY = '@uniequb/account-slots';
 const notificationReadKey = (userId: string) => `@uniequb/notifications-read/${userId}`;
+const seenDrawsKey = (userId: string) => `@uniequb/seen-draws-v2/${userId}`;
 const accountTokenService = (userId: string) => `uniequb-account/${userId}`;
 
 export async function saveSessionToken(token: string) {
@@ -121,4 +122,21 @@ export async function loadReadNotificationIds(userId: string) {
 
 export async function saveReadNotificationIds(userId: string, ids: string[]) {
   await AsyncStorage.setItem(notificationReadKey(userId), JSON.stringify([...new Set(ids)]));
+}
+
+export async function loadSeenDrawIds(userId: string) {
+  const value = await AsyncStorage.getItem(seenDrawsKey(userId));
+  if (!value) {
+    return [] as string[];
+  }
+  try {
+    return JSON.parse(value) as string[];
+  } catch {
+    return [] as string[];
+  }
+}
+
+export async function saveSeenDrawId(userId: string, drawId: string) {
+  const ids = await loadSeenDrawIds(userId);
+  await AsyncStorage.setItem(seenDrawsKey(userId), JSON.stringify([...new Set([drawId, ...ids])].slice(0, 80)));
 }

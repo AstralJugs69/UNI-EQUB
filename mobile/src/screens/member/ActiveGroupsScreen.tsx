@@ -14,11 +14,12 @@ export function ActiveGroupsScreen() {
   }
 
   const activeGroups = data.activeGroups ?? (data.currentGroup ? [data.currentGroup] : []);
+  const completedGroups = data.completedGroups ?? [];
 
   return (
     <ScreenScroll>
-      <TopAppBar title="My Active Groups" subtitle="Group Switcher" onBack={() => navigation.goBack()} rightLabel={`${activeGroups.length} active`} />
-      <TitleBlock title="Open a group cycle" subtitle="Each active Equb keeps its own payment, winner, vote, and refund state." />
+      <TopAppBar title="My Equb Groups" subtitle="Group Switcher" onBack={() => navigation.goBack()} rightLabel={`${activeGroups.length} active`} />
+      <TitleBlock title="Open a group cycle" subtitle="Active groups keep payment and draw controls here. Completed groups stay visible for history." />
       {!activeGroups.length ? (
         <EmptyState icon="groups-2" title="No active groups" subtitle="Approved groups you join or create will appear here." />
       ) : activeGroups.map(group => (
@@ -32,6 +33,20 @@ export function ActiveGroupsScreen() {
           />
         </SectionCard>
       ))}
+      {completedGroups.length ? (
+        <SectionCard>
+          <TitleBlock title="Past Equbs" subtitle="Groups you participated in before completion." />
+          {completedGroups.map(group => (
+            <ListRow
+              key={group.Group_ID}
+              title={group.Group_Name}
+              subtitle={`${group.Frequency} - ${formatCurrency(group.Amount)}`}
+              right={<Pill label="Completed" tone="good" />}
+              leadingIcon="history"
+            />
+          ))}
+        </SectionCard>
+      ) : null}
     </ScreenScroll>
   );
 }

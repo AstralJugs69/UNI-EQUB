@@ -20,6 +20,7 @@ interface AppNotification {
   body: string;
   createdAt: string;
   unread: boolean;
+  type?: string;
   source: 'Durable' | 'Derived';
   severity?: DurableNotificationRecord['severity'];
   actionRoute?: string | null;
@@ -52,6 +53,7 @@ function toAppNotification(row: DurableNotificationRecord): AppNotification {
     body: row.message,
     createdAt: row.created_at,
     unread: !row.read_at,
+    type: row.type,
     source: 'Durable',
     severity: row.severity,
     actionRoute: row.action_route,

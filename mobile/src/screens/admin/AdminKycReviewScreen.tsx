@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, Image, Modal, Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
 import { InlineError, LoadingState, Pill, ScreenScroll, SectionCard, TopAppBar } from '../../components/ui';
 import { useAdminActions, usePendingKycQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
+import type { KycDocumentKind, KycDocumentRecord } from '../../types/domain';
 import { iconSize, palette } from '../../theme/tokens';
 import { adminStyles } from './styles';
+
+const documentSlots: Array<{ kind: KycDocumentKind; title: string; fallback: string }> = [
+  { kind: 'front_id', title: 'Front ID', fallback: 'Front side of the student ID' },
+  { kind: 'back_id', title: 'Back ID', fallback: 'Back side of the student ID' },
+  { kind: 'selfie', title: 'Selfie', fallback: 'Live selfie or face check' },
+];
 
 function formatDateTime(value?: string | null) {
   if (!value) {
@@ -17,6 +24,49 @@ function formatDateTime(value?: string | null) {
     return value;
   }
   return `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} · ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+}
+
+function documentImageUri(document?: KycDocumentRecord | null) {
+  const uri = document?.signedUrl ?? document?.signed_url ?? document?.storage_ref;
+  return uri?.startsWith('http') || uri?.startsWith('file:') || uri?.startsWith('data:') ? uri : null;
+}
+
+function KycImageCard({
+  title,
+  fallback,
+  document,
+  onOpen,
+}: {
+  title: string;
+  fallback: string;
+  document?: KycDocumentRecord | null;
+  onOpen: (document: KycDocumentRecord) => void;
+}) {
+  const imageUri = documentImageUri(document);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={!document || !imageUri}
+      onPress={() => document && onOpen(document)}
+      style={adminStyles.kycImageCard}
+    >
+      <View style={adminStyles.kycImagePreview}>
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={adminStyles.kycImageThumbnail} resizeMode="cover" />
+        ) : (
+          <View style={adminStyles.kycImagePlaceholder}>
+            <Icon name="image" size={iconSize.lg} color={palette.primary} />
+          </View>
+        )}
+      </View>
+      <View style={adminStyles.kycImageCardText}>
+        <Text style={adminStyles.kycDocumentTitle}>{title}</Text>
+        <Text style={adminStyles.kycDocumentSubtitle}>{document?.file_name ?? fallback}</Text>
+        <Text style={adminStyles.kycDocumentMeta}>{document ? `Uploaded on ${formatDateTime(document.uploaded_at)}` : 'No image submitted for this slot'}</Text>
+      </View>
+      {imageUri ? <Text style={adminStyles.kycImageOpenText}>Tap to view</Text> : null}
+    </Pressable>
+  );
 }
 
 function ChecklistItem({
@@ -87,6 +137,7 @@ export function AdminKycReviewScreen({ route }: any) {
   const item = data.find(row => row.user.User_ID === userId);
   const { approveKyc, requestKycResubmission, banUser } = useAdminActions();
   const [error, setError] = useState('');
+  const [previewDocument, setPreviewDocument] = useState<KycDocumentRecord | null>(null);
   const busy = approveKyc.isPending || requestKycResubmission.isPending || banUser.isPending;
 
   if (!item) {
@@ -95,6 +146,19 @@ export function AdminKycReviewScreen({ route }: any) {
   const reviewItem = item;
   const status = reviewItem.submission?.status ?? reviewItem.user.KYC_Status;
   const documents = reviewItem.documents?.length ? reviewItem.documents : [];
+  const legacyDocument: KycDocumentRecord | null = documents.length ? null : reviewItem.user.Student_ID_Img ? {
+    id: `legacy-${reviewItem.user.User_ID}`,
+    submission_id: reviewItem.submission?.id ?? `legacy-${reviewItem.user.User_ID}`,
+    user_id: reviewItem.user.User_ID,
+    kind: 'legacy_student_id',
+    storage_ref: reviewItem.user.Student_ID_Img,
+    bucket: null,
+    object_path: null,
+    file_name: 'Legacy student ID',
+    content_type: null,
+    metadata: {},
+    uploaded_at: reviewItem.user.Created_At,
+  } : null;
 
   function returnToQueue(flash: string) {
     navigation.navigate(routes.adminTabs, { screen: routes.adminKyc, params: { flash } });
@@ -152,38 +216,42 @@ export function AdminKycReviewScreen({ route }: any) {
             <Text style={adminStyles.kycReviewSectionTitle}>Documents</Text>
             <Text style={adminStyles.kycReviewSectionBody}>Review the submitted KYC references before making a decision.</Text>
           </View>
-          <Text style={adminStyles.kycReviewDocumentCount}>{documents.length || 1} document</Text>
+          <Text style={adminStyles.kycReviewDocumentCount}>{documents.length || (legacyDocument ? 1 : 0)} document</Text>
         </View>
-        {documents.length ? documents.map(document => (
-          <View key={document.id} style={adminStyles.kycDocumentRow}>
-            <View style={adminStyles.kycDocumentIcon}>
-              <Icon name="image" size={iconSize.md} color={palette.primary} />
-            </View>
-            <View style={adminStyles.kycDocumentText}>
-              <Text style={adminStyles.kycDocumentTitle}>{document.kind.replace(/_/g, ' ')}</Text>
-              <Text style={adminStyles.kycDocumentSubtitle}>{document.file_name ?? document.storage_ref}</Text>
-              <Text style={adminStyles.kycDocumentMeta}>Uploaded on {formatDateTime(document.uploaded_at)}</Text>
-            </View>
-            <Pressable accessibilityRole="button" onPress={() => undefined} style={adminStyles.kycDocumentDownload}>
-              <Icon name="file-download" size={iconSize.sm} color={palette.text} />
-            </Pressable>
-          </View>
-        )) : (
-          <View style={adminStyles.kycDocumentRow}>
-            <View style={adminStyles.kycDocumentIcon}>
-              <Icon name="image" size={iconSize.md} color={palette.primary} />
-            </View>
-            <View style={adminStyles.kycDocumentText}>
-              <Text style={adminStyles.kycDocumentTitle}>Legacy document</Text>
-              <Text style={adminStyles.kycDocumentSubtitle}>{reviewItem.user.Student_ID_Img}</Text>
-              <Text style={adminStyles.kycDocumentMeta}>Uploaded on {formatDateTime(reviewItem.user.Created_At)}</Text>
-            </View>
-            <Pressable accessibilityRole="button" onPress={() => undefined} style={adminStyles.kycDocumentDownload}>
-              <Icon name="file-download" size={iconSize.sm} color={palette.text} />
-            </Pressable>
-          </View>
-        )}
+        <View style={adminStyles.kycImageGrid}>
+          {documentSlots.map(slot => {
+            const document = documents.find(item => item.kind === slot.kind) ?? (slot.kind === 'front_id' ? legacyDocument : null);
+            return (
+              <KycImageCard
+                key={slot.kind}
+                title={slot.title}
+                fallback={slot.fallback}
+                document={document}
+                onOpen={setPreviewDocument}
+              />
+            );
+          })}
+        </View>
       </SectionCard>
+
+      <Modal visible={!!previewDocument} transparent animationType="fade" onRequestClose={() => setPreviewDocument(null)}>
+        <View style={adminStyles.kycImageModalBackdrop}>
+          <View style={adminStyles.kycImageModalCard}>
+            <View style={adminStyles.kycReviewSectionHeader}>
+              <View>
+                <Text style={adminStyles.kycReviewSectionTitle}>{previewDocument?.kind.replace(/_/g, ' ')}</Text>
+                <Text style={adminStyles.kycReviewSectionBody}>{previewDocument?.file_name ?? previewDocument?.storage_ref}</Text>
+              </View>
+              <Pressable accessibilityRole="button" onPress={() => setPreviewDocument(null)} style={adminStyles.kycDocumentDownload}>
+                <Icon name="close" size={iconSize.sm} color={palette.text} />
+              </Pressable>
+            </View>
+            {documentImageUri(previewDocument) ? (
+              <Image source={{ uri: documentImageUri(previewDocument)! }} style={adminStyles.kycImageFull} resizeMode="contain" />
+            ) : null}
+          </View>
+        </View>
+      </Modal>
 
       <SectionCard style={adminStyles.kycChecklistCard}>
         <View style={adminStyles.kycChecklistHeader}>

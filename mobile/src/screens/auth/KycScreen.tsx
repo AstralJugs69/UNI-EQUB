@@ -1,5 +1,5 @@
 ﻿import React, { useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { PermissionsAndroid, Platform, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { launchCamera, launchImageLibrary, type Asset } from 'react-native-image-picker';
@@ -16,6 +16,19 @@ const docCards: Array<{ kind: KycDocKind; label: string; helper: string }> = [
   { kind: 'back_id', label: 'Back ID', helper: 'Capture the back side with all text visible.' },
   { kind: 'selfie', label: 'Selfie', helper: 'Take a live selfie with good lighting and a clear face.' },
 ];
+
+async function ensureCameraPermission() {
+  if (Platform.OS !== 'android') {
+    return true;
+  }
+  const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA, {
+    title: 'Camera permission',
+    message: 'UniEqub needs camera access to capture KYC documents.',
+    buttonPositive: 'Allow',
+    buttonNegative: 'Cancel',
+  });
+  return granted === PermissionsAndroid.RESULTS.GRANTED;
+}
 
 export function KycScreen({ route }: any) {
   const navigation = useNavigation<any>();
@@ -55,6 +68,9 @@ export function KycScreen({ route }: any) {
   async function pickDocument(kind: KycDocKind, source: 'camera' | 'gallery') {
     try {
       setError('');
+      if (source === 'camera' && !(await ensureCameraPermission())) {
+        throw new Error('Camera permission is required to take KYC photos.');
+      }
       const result = source === 'camera'
         ? await launchCamera({ mediaType: 'photo', includeBase64: true, quality: 0.8, saveToPhotos: false })
         : await launchImageLibrary({ mediaType: 'photo', includeBase64: true, quality: 0.8, selectionLimit: 1 });

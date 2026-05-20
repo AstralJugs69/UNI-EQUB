@@ -11,6 +11,7 @@ export const memberTabs = [
   { key: routes.explore, label: 'Explore', icon: 'travel-explore' },
   { key: routes.history, label: 'History', icon: 'receipt-long' },
   { key: routes.wallet, label: 'Wallet', icon: 'account-balance-wallet' },
+  { key: routes.notifications, label: 'Alerts', icon: 'notifications' },
   { key: routes.profile, label: 'Profile', icon: 'person' },
 ];
 
@@ -31,6 +32,31 @@ export function paymentMethodLabel(method: PaymentMethod) {
 
 export function formatCurrency(value: number) {
   return `${value.toLocaleString()} ETB`;
+}
+
+export function formatTimeLeft(deadline?: string | null) {
+  if (!deadline) {
+    return 'Not scheduled';
+  }
+
+  const remainingMs = new Date(deadline).getTime() - Date.now();
+  if (!Number.isFinite(remainingMs)) {
+    return 'Not scheduled';
+  }
+  if (remainingMs <= 0) {
+    return 'Due now';
+  }
+
+  const totalHours = Math.ceil(remainingMs / (60 * 60 * 1000));
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  if (days <= 0) {
+    return `${hours}h left`;
+  }
+  if (hours === 0) {
+    return `${days}d left`;
+  }
+  return `${days}d ${hours}h left`;
 }
 
 export { groupStudents };

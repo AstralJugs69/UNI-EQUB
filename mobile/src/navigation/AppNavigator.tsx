@@ -20,6 +20,7 @@ import {
   GroupStatusScreen,
   HistoryScreen,
   MockUssdScreen,
+  MyRequestsScreen,
   NotificationsScreen,
   PaymentScreen,
   PaymentSuccessScreen,
@@ -29,12 +30,28 @@ import {
   WithdrawScreen,
 } from '../screens/member';
 import { memberTabs } from '../screens/member/shared';
-import { AdminDashboardScreen, AdminGroupReviewScreen, AdminGroupsScreen, AdminKycReviewScreen, AdminKycScreen, AdminReportsScreen } from '../screens/admin';
+import { AdminDashboardScreen, AdminGroupReviewScreen, AdminGroupsScreen, AdminKycReviewScreen, AdminKycScreen, AdminProfileScreen, AdminReportsScreen } from '../screens/admin';
 import { adminTabs } from '../screens/admin/shared';
 
 const Stack = createNativeStackNavigator();
 const MemberTab = createBottomTabNavigator();
 const AdminTab = createBottomTabNavigator();
+
+const linking = {
+  prefixes: ['uniequb://'],
+  config: {
+    screens: {
+      [routes.formationDetail]: 'formation/:requestId',
+      [routes.groupDetail]: 'group/:groupId',
+      [routes.memberTabs]: {
+        screens: {
+          [routes.dashboard]: 'home',
+          [routes.explore]: 'explore',
+        },
+      },
+    },
+  },
+};
 
 function LoadingScreen() {
   return <LoadingState title="Loading UniEqub..." subtitle="Restoring session state and preparing the current workspace." />;
@@ -65,6 +82,7 @@ function MemberTabs() {
       <MemberTab.Screen name={routes.explore} component={ExploreScreen} />
       <MemberTab.Screen name={routes.history} component={HistoryScreen} />
       <MemberTab.Screen name={routes.wallet} component={WalletScreen} />
+      <MemberTab.Screen name={routes.notifications} component={NotificationsScreen} />
       <MemberTab.Screen name={routes.profile} component={ProfileScreen} />
     </MemberTab.Navigator>
   );
@@ -75,6 +93,7 @@ function MemberStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={routes.memberTabs}>
       <Stack.Screen name={routes.memberTabs} component={MemberTabs} />
       <Stack.Screen name={routes.activeGroups} component={ActiveGroupsScreen} />
+      <Stack.Screen name={routes.myRequests} component={MyRequestsScreen} />
       <Stack.Screen name={routes.groupDetail} component={GroupDetailScreen} />
       <Stack.Screen name={routes.formationDetail} component={FormationDetailScreen} />
       <Stack.Screen name={routes.formationCreator} component={FormationCreatorScreen} />
@@ -87,8 +106,8 @@ function MemberStack() {
       <Stack.Screen name={routes.paymentSuccess} component={PaymentSuccessScreen} />
       <Stack.Screen name={routes.transactionDetail} component={TransactionDetailScreen} />
       <Stack.Screen name={routes.withdraw} component={WithdrawScreen} />
-      <Stack.Screen name={routes.notifications} component={NotificationsScreen} />
       <Stack.Screen name={routes.kyc} component={KycScreen} />
+      <Stack.Screen name={routes.reset} component={ResetPasswordScreen} />
     </Stack.Navigator>
   );
 }
@@ -100,6 +119,7 @@ function AdminTabs() {
       <AdminTab.Screen name={routes.adminKyc} component={AdminKycScreen} />
       <AdminTab.Screen name={routes.adminGroups} component={AdminGroupsScreen} />
       <AdminTab.Screen name={routes.adminReports} component={AdminReportsScreen} />
+      <AdminTab.Screen name={routes.adminProfile} component={AdminProfileScreen} />
     </AdminTab.Navigator>
   );
 }
@@ -121,5 +141,5 @@ export function AppNavigator() {
     return <LoadingScreen />;
   }
 
-  return <NavigationContainer ref={navigationRef}>{!session ? <AuthStack /> : session.user.role === 'Admin' ? <AdminStack /> : <MemberStack />}</NavigationContainer>;
+  return <NavigationContainer ref={navigationRef} linking={linking}>{!session ? <AuthStack /> : session.user.role === 'Admin' ? <AdminStack /> : <MemberStack />}</NavigationContainer>;
 }

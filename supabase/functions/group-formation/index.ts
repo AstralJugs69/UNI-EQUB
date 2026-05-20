@@ -8,7 +8,7 @@ import { ensureContributionObligationsForRound } from '../_shared/obligations.ts
 import { getReliabilityJoinGate } from '../_shared/reliability.ts';
 import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import type { ContributionObligationRecord, GroupInvitationRecord, GroupJoinRequestRecord, GroupRecord, GroupRequestRecord, MembershipRecord, RoundRecord, UserRecord } from '../_shared/types.ts';
+import type { ContributionObligationRecord, GroupInvitationRecord, GroupJoinParticipantProfile, GroupJoinRequestRecord, GroupRecord, GroupRequestRecord, MembershipRecord, RoundRecord, UserRecord, UserReliabilityProfileRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,6 +31,29 @@ const routedActions: GroupFormationAction[] = [
   'adminApprove',
   'adminReject',
 ];
+
+type UserProfileRow = {
+  user_id: string;
+  university: string | null;
+  academic_year: string | null;
+  avatar_seed: string | null;
+  avatar_style: string | null;
+  avatar_palette: string | null;
+};
+
+function isMissingGroupRequestOptionalColumn(error: unknown) {
+  const message = error instanceof Error ? error.message : JSON.stringify(error ?? {});
+  return message.includes('grace_period_hours') || message.includes('total_cycles');
+}
+
+function encodeTermsWithFallbackMetadata(termsVersion: string, totalCycles: number, gracePeriodHours: number) {
+  return `${termsVersion}|cycles=${totalCycles}|grace=${gracePeriodHours}`;
+}
+
+function readNumberFromTermsMetadata(value: string | null | undefined, key: 'cycles' | 'grace') {
+  const match = value?.match(new RegExp(`(?:^|\\|)${key}=(\\d+)`));
+  return match ? Number(match[1]) : null;
+}
 
 async function requireActor(token: string) {
   const payload = await verifySession(token);
@@ -94,6 +117,31 @@ function addDays(date: Date, days: number) {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
+function contributionWindowMs(frequency: GroupRecord['Frequency']) {
+  switch (frequency) {
+    case 'Daily':
+      return 24 * 60 * 60 * 1000;
+    case 'Weekly':
+      return 7 * 24 * 60 * 60 * 1000;
+    case 'Bi-weekly':
+      return 14 * 24 * 60 * 60 * 1000;
+    case 'Monthly':
+      return 30 * 24 * 60 * 60 * 1000;
+    default:
+      return 7 * 24 * 60 * 60 * 1000;
+  }
+}
+
+function contributionTimingForRequest(group: GroupRecord, request: GroupRequestRecord) {
+  const dueAt = new Date(Date.now() + contributionWindowMs(group.Frequency));
+  const graceHours = Number(request.grace_period_hours ?? readNumberFromTermsMetadata(request.terms_version, 'grace') ?? 6);
+  const graceEndsAt = new Date(dueAt.getTime() + graceHours * 60 * 60 * 1000);
+  return {
+    dueAt: dueAt.toISOString(),
+    graceEndsAt: graceEndsAt.toISOString(),
+  };
+}
+
 function normalizeInviteTarget(value: string | undefined | null) {
   return cleanText(value).replace(/\s+/g, '').toLowerCase();
 }
@@ -154,6 +202,14 @@ function validateCreateRequestInput(input: CreateGroupFormationRequest | undefin
   const frequency = assertAllowedValue(input.frequency, ['Daily', 'Weekly', 'Bi-weekly', 'Monthly'], 'frequency');
 
   const vestingEnabled = input.vestingEnabled ?? true;
+  const gracePeriodHours = input.gracePeriodHours ?? 6;
+  if (!Number.isInteger(gracePeriodHours) || gracePeriodHours < 1 || gracePeriodHours > 72) {
+    throw new Error('Grace period must be between 1 and 72 hours.');
+  }
+  const totalCycles = input.totalCycles ?? input.maxMembers;
+  if (!Number.isInteger(totalCycles) || totalCycles < 1 || totalCycles > 120) {
+    throw new Error('Total draw cycles must be between 1 and 120.');
+  }
   if (!vestingEnabled && visibility !== 'Private') {
     throw new Error('Only private invite-based group requests can disable payout vesting.');
   }
@@ -174,9 +230,11 @@ function validateCreateRequestInput(input: CreateGroupFormationRequest | undefin
     frequency,
     minMembers,
     maxMembers: input.maxMembers,
+    totalCycles,
     visibility,
     inviteMode,
     vestingEnabled,
+    gracePeriodHours,
     termsVersion: cleanText(input.termsVersion) || 'phase2-v1',
   };
 }
@@ -187,31 +245,52 @@ async function createFormationRequest(actor: UserRecord, createRequest: CreateGr
   const now = new Date();
   const expiresAt = addDays(now, policy.expiryDays).toISOString();
   const riskWarningAcceptedAt = input.vestingEnabled ? null : now.toISOString();
+  const insertPayload: Record<string, unknown> = {
+    creator_id: actor.User_ID,
+    proposed_group_name: input.groupName,
+    description: input.description,
+    contribution_amount: input.contributionAmount,
+    frequency: input.frequency,
+    min_members: input.minMembers,
+    max_members: input.maxMembers,
+    visibility: input.visibility,
+    invite_mode: input.inviteMode,
+    status: 'Forming',
+    terms_version: input.termsVersion,
+    vesting_enabled: input.vestingEnabled,
+    vesting_disabled_by_creator: !input.vestingEnabled,
+    risk_warning_accepted_at: riskWarningAcceptedAt,
+    expires_at: expiresAt,
+  };
+  const payloadWithOptionalColumns = {
+    ...insertPayload,
+    grace_period_hours: input.gracePeriodHours,
+    total_cycles: input.totalCycles,
+  };
 
-  const { data: groupRequest, error } = await supabaseAdmin
+  let { data: groupRequest, error } = await supabaseAdmin
     .from('group_requests')
-    .insert({
-      creator_id: actor.User_ID,
-      proposed_group_name: input.groupName,
-      description: input.description,
-      contribution_amount: input.contributionAmount,
-      frequency: input.frequency,
-      min_members: input.minMembers,
-      max_members: input.maxMembers,
-      visibility: input.visibility,
-      invite_mode: input.inviteMode,
-      status: 'Forming',
-      terms_version: input.termsVersion,
-      vesting_enabled: input.vestingEnabled,
-      vesting_disabled_by_creator: !input.vestingEnabled,
-      risk_warning_accepted_at: riskWarningAcceptedAt,
-      expires_at: expiresAt,
-    })
+    .insert(payloadWithOptionalColumns)
     .select('*')
     .single();
 
   if (error) {
-    throw error;
+    if (!isMissingGroupRequestOptionalColumn(error)) {
+      throw error;
+    }
+    const fallback = await supabaseAdmin
+      .from('group_requests')
+      .insert({
+        ...insertPayload,
+        terms_version: encodeTermsWithFallbackMetadata(input.termsVersion, input.totalCycles, input.gracePeriodHours),
+      })
+      .select('*')
+      .single();
+    groupRequest = fallback.data;
+    error = fallback.error;
+    if (error) {
+      throw error;
+    }
   }
 
   const request = groupRequest as GroupRequestRecord;
@@ -244,7 +323,7 @@ async function listPublicFormationRequests(actor: UserRecord) {
   const now = new Date().toISOString();
   const { data, error } = await supabaseAdmin
     .from('group_requests')
-    .select('id, creator_id, proposed_group_name, description, contribution_amount, frequency, min_members, max_members, visibility, invite_mode, status, risk_level, terms_version, agreement_required, vesting_enabled, expires_at, created_at, updated_at')
+    .select('*')
     .eq('visibility', 'Public')
     .eq('status', 'Forming')
     .or(`expires_at.is.null,expires_at.gt.${now}`)
@@ -384,6 +463,75 @@ async function listPendingApprovalFormationRequests() {
   });
 }
 
+async function enrichJoinRequestsWithParticipantProfiles(joinRequests: GroupJoinRequestRecord[]) {
+  const participantIds = Array.from(new Set(joinRequests.map(item => item.user_id).filter(Boolean)));
+  if (!participantIds.length) {
+    return joinRequests;
+  }
+
+  const [
+    { data: userRows, error: userError },
+    { data: profileRows, error: profileError },
+    { data: reliabilityRows, error: reliabilityError },
+  ] = await Promise.all([
+    supabaseAdmin
+      .from('User')
+      .select('User_ID, Full_Name, Phone_Number, KYC_Status, Role, Created_At')
+      .in('User_ID', participantIds),
+    supabaseAdmin
+      .from('user_profiles')
+      .select('user_id, university, academic_year, avatar_seed, avatar_style, avatar_palette')
+      .in('user_id', participantIds),
+    supabaseAdmin
+      .from('user_reliability_profiles')
+      .select('*')
+      .in('user_id', participantIds),
+  ]);
+
+  if (userError) {
+    throw userError;
+  }
+  if (profileError) {
+    throw profileError;
+  }
+  if (reliabilityError) {
+    throw reliabilityError;
+  }
+
+  const usersById = new Map((userRows ?? []).map(row => [String(row.User_ID), row as Pick<UserRecord, 'User_ID' | 'Full_Name' | 'Phone_Number' | 'KYC_Status' | 'Role' | 'Created_At'>]));
+  const profilesById = new Map((profileRows ?? []).map(row => [String(row.user_id), row as UserProfileRow]));
+  const reliabilityById = new Map((reliabilityRows ?? []).map(row => [String(row.user_id), row as UserReliabilityProfileRecord]));
+
+  return joinRequests.map(joinRequest => {
+    const user = usersById.get(joinRequest.user_id);
+    if (!user) {
+      return {
+        ...joinRequest,
+        participantProfile: null,
+      };
+    }
+
+    const profile = profilesById.get(joinRequest.user_id);
+    const participantProfile: GroupJoinParticipantProfile = {
+      userId: user.User_ID,
+      fullName: user.Full_Name,
+      phoneNumber: user.Phone_Number,
+      kycStatus: user.KYC_Status,
+      university: profile?.university ?? null,
+      academicYear: profile?.academic_year ?? null,
+      avatarSeed: profile?.avatar_seed ?? null,
+      avatarStyle: profile?.avatar_style ?? null,
+      avatarPalette: profile?.avatar_palette ?? null,
+      reliability: reliabilityById.get(joinRequest.user_id) ?? null,
+    };
+
+    return {
+      ...joinRequest,
+      participantProfile,
+    };
+  });
+}
+
 async function getFormationRequestDetail(actor: UserRecord, body: GroupFormationPayload) {
   if (!body.requestId) {
     throw new Error('Missing group request id.');
@@ -411,6 +559,7 @@ async function getFormationRequestDetail(actor: UserRecord, body: GroupFormation
   }
 
   const joinRequests = (joinRows ?? []) as GroupJoinRequestRecord[];
+  const enrichedJoinRequests = await enrichJoinRequestsWithParticipantProfiles(joinRequests);
   const canSeePrivateDetail = actor.Role === 'Admin'
     || actor.User_ID === groupRequest.creator_id
     || joinRequests.some(item => item.user_id === actor.User_ID);
@@ -436,7 +585,7 @@ async function getFormationRequestDetail(actor: UserRecord, body: GroupFormation
   const acceptedCount = joinRequests.filter(item => item.status === 'Accepted').length;
   return json({
     groupRequest,
-    joinRequests,
+    joinRequests: enrichedJoinRequests,
     invitations,
     accepted_participant_count: acceptedCount,
     remaining_slots: Math.max(groupRequest.max_members - acceptedCount, 0),
@@ -600,6 +749,17 @@ async function requestJoinFormationGroup(actor: UserRecord, body: GroupFormation
     throw joinError;
   }
 
+  await createNotification({
+    userId: request.creator_id,
+    type: 'group_join_requested',
+    severity: 'Info',
+    title: 'New participant request',
+    message: `${actor.Full_Name} asked to join ${request.proposed_group_name}.`,
+    actionRoute: 'member/group-formation',
+    relatedEntityType: 'group_requests',
+    relatedEntityId: request.id,
+  });
+
   return json({
     groupRequest: request,
     joinRequest,
@@ -695,6 +855,17 @@ async function acceptJoinRequest(actor: UserRecord, body: GroupFormationPayload)
     },
   });
 
+  await createNotification({
+    userId: participant.user_id,
+    type: 'group_join_accepted',
+    severity: 'Success',
+    title: 'Join request accepted',
+    message: `You were accepted into ${request.proposed_group_name}.`,
+    actionRoute: 'member/group-formation',
+    relatedEntityType: 'group_requests',
+    relatedEntityId: request.id,
+  });
+
   return json({
     groupRequest: request,
     joinRequest: data,
@@ -744,6 +915,19 @@ async function removeFormationParticipant(actor: UserRecord, body: GroupFormatio
       previous_status: participant.status,
       next_status: nextStatus,
     },
+  });
+
+  await createNotification({
+    userId: participant.user_id,
+    type: nextStatus === 'Rejected' ? 'group_join_rejected' : 'group_participant_removed',
+    severity: nextStatus === 'Rejected' ? 'Warning' : 'Info',
+    title: nextStatus === 'Rejected' ? 'Join request rejected' : 'Removed from forming group',
+    message: nextStatus === 'Rejected'
+      ? `Your request to join ${request.proposed_group_name} was rejected.`
+      : `You were removed from ${request.proposed_group_name}.`,
+    actionRoute: 'member/group-formation',
+    relatedEntityType: 'group_requests',
+    relatedEntityId: request.id,
   });
 
   return json({
@@ -1262,7 +1446,7 @@ async function activateFormationRequest(input: {
   const group = await ensureCanonicalGroupForRequest(input.request);
   const memberships = await ensureCanonicalMemberships(group, input.acceptedParticipantUserIds);
   const round = await ensureOpenRoundForGroup(group) as RoundRecord;
-  const obligations = await ensureContributionObligationsForRound(group, round);
+  const obligations = await ensureContributionObligationsForRound(group, round, contributionTimingForRequest(group, input.request));
   const now = new Date().toISOString();
   const { data: updatedRequest, error: updateError } = await supabaseAdmin
     .from('group_requests')

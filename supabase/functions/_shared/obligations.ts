@@ -153,12 +153,114 @@ export async function markContributionObligationDefaulted(obligationId: string, 
     restrictionType: 'DefaultedContribution',
     reason: `Contribution obligation ${obligation.id} defaulted after the configured grace period.`,
   });
+  await removeDefaultedMemberAndCreateRefundTicket(obligation);
   await freezeGroupIfDefaultReserveInsufficient(obligation);
   return obligation;
 }
 
+async function sumSuccessfulTransactions(input: { groupId: string; userId: string; type: 'Contribution' | 'Payout' }) {
+  const { data: rounds, error: roundsError } = await supabaseAdmin
+    .from('Round')
+    .select('Round_ID')
+    .eq('Group_ID', input.groupId);
+
+  if (roundsError) {
+    throw roundsError;
+  }
+
+  const roundIds = (rounds ?? []).map(round => (round as { Round_ID: string }).Round_ID);
+  if (!roundIds.length) {
+    return 0;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('Transaction')
+    .select('Amount')
+    .eq('User_ID', input.userId)
+    .eq('Type', input.type)
+    .eq('Status', 'Successful')
+    .in('Round_ID', roundIds);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).reduce((sum, row) => sum + Number((row as { Amount: number }).Amount), 0);
+}
+
+async function removeDefaultedMemberAndCreateRefundTicket(obligation: ContributionObligationRecord) {
+  const { error: membershipError } = await supabaseAdmin
+    .from('GroupMembers')
+    .update({ Status: 'Removed' })
+    .eq('Group_ID', obligation.group_id)
+    .eq('User_ID', obligation.user_id)
+    .eq('Status', 'Active');
+  if (membershipError) {
+    throw membershipError;
+  }
+
+  const [contributed, paidOut] = await Promise.all([
+    sumSuccessfulTransactions({ groupId: obligation.group_id, userId: obligation.user_id, type: 'Contribution' }),
+    sumSuccessfulTransactions({ groupId: obligation.group_id, userId: obligation.user_id, type: 'Payout' }),
+  ]);
+  const refundableAmount = Math.max(Math.round((contributed - paidOut) * 100) / 100, 0);
+  if (refundableAmount <= 0) {
+    return null;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('refund_tickets')
+    .insert({
+      group_id: obligation.group_id,
+      round_id: obligation.round_id,
+      user_id: obligation.user_id,
+      amount: refundableAmount,
+      currency: obligation.currency,
+      reason: 'Member defaulted after grace period; prior net contributions require refund review.',
+      status: 'Created',
+      calculation_snapshot: {
+        contribution_total: contributed,
+        payout_total: paidOut,
+        defaulted_obligation_id: obligation.id,
+      },
+      offset_applied_amount: paidOut,
+      created_by_event_id: null,
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return data;
+}
+
 function isPast(value: string | null | undefined, now: Date) {
   return !!value && new Date(value).getTime() <= now.getTime();
+}
+
+function contributionWindowMs(frequency: GroupRecord['Frequency']) {
+  switch (frequency) {
+    case 'Daily':
+      return 24 * 60 * 60 * 1000;
+    case 'Weekly':
+      return 7 * 24 * 60 * 60 * 1000;
+    case 'Bi-weekly':
+      return 14 * 24 * 60 * 60 * 1000;
+    case 'Monthly':
+      return 30 * 24 * 60 * 60 * 1000;
+    default:
+      return 7 * 24 * 60 * 60 * 1000;
+  }
+}
+
+function defaultContributionTiming(group: GroupRecord) {
+  const dueAt = new Date(Date.now() + contributionWindowMs(group.Frequency));
+  const graceEndsAt = new Date(dueAt.getTime() + 6 * 60 * 60 * 1000);
+  return {
+    dueAt: dueAt.toISOString(),
+    graceEndsAt: graceEndsAt.toISOString(),
+  };
 }
 
 export async function listDueContributionObligations(limit = 100) {
@@ -216,6 +318,7 @@ export async function processDueContributionObligations(input?: { now?: Date; li
 }
 
 export async function ensureContributionObligationsForRound(group: GroupRecord, round: RoundRecord, timing?: { dueAt?: string; graceEndsAt?: string }) {
+  const contributionTiming = timing ?? defaultContributionTiming(group);
   const { data: memberships, error: membershipsError } = await supabaseAdmin
     .from('GroupMembers')
     .select('*')
@@ -232,8 +335,8 @@ export async function ensureContributionObligationsForRound(group: GroupRecord, 
     user_id: membership.User_ID,
     amount_due: Number(group.Amount),
     currency: 'ETB',
-    due_at: timing?.dueAt ?? null,
-    grace_ends_at: timing?.graceEndsAt ?? null,
+    due_at: contributionTiming.dueAt,
+    grace_ends_at: contributionTiming.graceEndsAt,
     status: 'Unpaid',
   }));
 
@@ -249,6 +352,21 @@ export async function ensureContributionObligationsForRound(group: GroupRecord, 
   if (error) {
     throw error;
   }
+
+  const { error: deadlineError } = await supabaseAdmin
+    .from('contribution_obligations')
+    .update({
+      due_at: contributionTiming.dueAt,
+      grace_ends_at: contributionTiming.graceEndsAt,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('round_id', round.Round_ID)
+    .is('due_at', null);
+
+  if (deadlineError) {
+    throw deadlineError;
+  }
+
   return (data ?? []) as ContributionObligationRecord[];
 }
 

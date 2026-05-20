@@ -320,14 +320,29 @@ export async function assertReliabilityAllowsNormalFlow(userId: string) {
 }
 
 export async function countActiveGroupsForUser(userId: string) {
-  const { count, error } = await supabaseAdmin
+  const { data: memberships, error: membershipError } = await supabaseAdmin
     .from('GroupMembers')
-    .select('Membership_ID', { count: 'exact', head: true })
+    .select('Group_ID')
     .eq('User_ID', userId)
     .eq('Status', 'Active');
 
-  if (error) {
-    throw error;
+  if (membershipError) {
+    throw membershipError;
+  }
+
+  const groupIds = [...new Set((memberships ?? []).map(item => (item as { Group_ID: string }).Group_ID))];
+  if (!groupIds.length) {
+    return 0;
+  }
+
+  const { count, error: groupError } = await supabaseAdmin
+    .from('EqubGroup')
+    .select('Group_ID', { count: 'exact', head: true })
+    .in('Group_ID', groupIds)
+    .eq('Status', 'Active');
+
+  if (groupError) {
+    throw groupError;
   }
   return count ?? 0;
 }

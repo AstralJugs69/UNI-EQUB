@@ -1,12 +1,15 @@
-import React, { memo, useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, Pressable, Text, View } from 'react-native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
 import { EmptyState, ListRow, LoadingState, Pill, PrimaryCTA, ScreenScroll, SecondaryCTA, SectionCard, StatusBanner } from '../../components/ui';
 import { useDashboardQuery, useGroupAnnouncementsQuery, useGroupStatusQuery, useMemberActions } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
+import { useAuth } from '../../providers/AuthProvider';
+import { loadSeenDrawIds, saveSeenDrawId } from '../../services/storage';
 import { iconSize, palette } from '../../theme/tokens';
 import type { GroupStatusSnapshot } from '../../types/domain';
+import { formatTimeLeft } from './shared';
 import { memberStyles } from './styles';
 
 const MAX_RING_MEMBERS = 10;
@@ -80,6 +83,10 @@ function joinedLabel(value: string) {
     return '-';
   }
   return value.slice(0, 10);
+}
+
+function hashSeed(seed: string) {
+  return seed.split('').reduce((hash, char) => ((hash << 5) - hash + char.charCodeAt(0)) | 0, 0);
 }
 
 function toRingContributors(status: GroupStatusSnapshot): RingContributor[] {
@@ -262,51 +269,215 @@ function ContributorProfile({
 
 function ContributionRing({
   status,
+  isFocused,
+  seenDrawIds,
+  seenDrawIdsReady,
+  onDrawSeen,
 }: {
   status: GroupStatusSnapshot;
+  isFocused: boolean;
+  seenDrawIds: Set<string>;
+  seenDrawIdsReady: boolean;
+  onDrawSeen: (drawId: string) => void;
 }) {
   const contributors = useMemo(() => toRingContributors(status).slice(0, MAX_RING_MEMBERS), [status]);
+  const contributorSpinKey = useMemo(() => contributors.map(contributor => contributor.id).join('|'), [contributors]);
   const config = useMemo(() => getRingConfig(contributors.length), [contributors.length]);
   const layout = useMemo(() => buildContributorLayout(contributors, config), [contributors, config]);
+  const spinProgress = useRef(new Animated.Value(0)).current;
+  const [spinTarget, setSpinTarget] = useState(0);
+  const [revealedDrawId, setRevealedDrawId] = useState<string | null>(null);
+  const [activeDrawId, setActiveDrawId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = contributors.find(contributor => contributor.id === selectedId);
-  const winner = contributors.find(contributor => contributor.isWinner);
+  const rawLatestDraw = status.latestDraw ?? null;
+  const latestDraw = rawLatestDraw && activeDrawId === rawLatestDraw.roundId
+    ? rawLatestDraw
+    : null;
+  const latestDrawId = latestDraw?.roundId ?? null;
+  const latestDrawWinnerUserId = latestDraw?.winnerUserId ?? null;
+  const latestWinner = latestDraw
+    ? contributors.find(contributor => contributor.id === latestDraw.winnerUserId)
+    : undefined;
+  const isDrawing = !!latestDraw && revealedDrawId !== latestDraw.roundId;
+  const displayContributors = useMemo(
+    () => contributors.map(contributor => ({
+      ...contributor,
+      isWinner: contributor.isWinner || (!!latestDraw && !isDrawing && contributor.id === latestDraw.winnerUserId),
+      hasPaid: contributor.hasPaid || (!!latestDraw && latestDraw.roundNumber === (status.currentRound?.Round_Number ?? 0) - 1),
+    })),
+    [contributors, isDrawing, latestDraw, status.currentRound?.Round_Number],
+  );
+  const displayLayout = useMemo(
+    () => layout.map(contributor => ({
+      ...contributor,
+      isWinner: contributor.isWinner || (!!latestDraw && !isDrawing && contributor.id === latestDraw.winnerUserId),
+    })),
+    [isDrawing, latestDraw, layout],
+  );
+  const selected = displayContributors.find(contributor => contributor.id === selectedId);
+  const winner = latestDraw
+    ? ({
+        ...(latestWinner ?? displayContributors.find(contributor => contributor.id === latestDraw.winnerUserId)),
+        id: latestDraw.winnerUserId,
+        name: latestDraw.winnerName,
+        initials: latestDraw.winnerName.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase(),
+        joined: latestWinner?.joined ?? '',
+        cyclesWon: latestWinner?.cyclesWon ?? 1,
+        hasPaid: true,
+        isWinner: true,
+      } as RingContributor)
+    : displayContributors.find(contributor => contributor.isWinner);
   const paidCount = contributors.filter(contributor => contributor.hasPaid).length;
   const allPaid = paidCount === contributors.length && contributors.length > 0;
+  const isFinalizingPending = isFocused && seenDrawIdsReady && allPaid && !latestDraw;
+  const shouldPresentDraw = isFocused && seenDrawIdsReady && !!latestDraw;
+  const spinRotation = spinProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', `${spinTarget}deg`],
+  });
+
+  useEffect(() => {
+    if (!seenDrawIdsReady || !isFocused || !rawLatestDraw || activeDrawId === rawLatestDraw.roundId || seenDrawIds.has(rawLatestDraw.roundId)) {
+      return;
+    }
+    setActiveDrawId(rawLatestDraw.roundId);
+    setRevealedDrawId(null);
+  }, [activeDrawId, isFocused, rawLatestDraw, seenDrawIds, seenDrawIdsReady]);
+
+  useEffect(() => {
+    if (!isFocused || !seenDrawIdsReady) {
+      spinProgress.stopAnimation();
+      return;
+    }
+
+    if (isFinalizingPending && contributors.length) {
+      setRevealedDrawId(null);
+      setSpinTarget(360);
+      spinProgress.setValue(0);
+      const loop = Animated.loop(
+        Animated.timing(spinProgress, {
+          toValue: 1,
+          duration: 1200,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      );
+      loop.start();
+      return () => {
+        loop.stop();
+        spinProgress.stopAnimation();
+      };
+    }
+
+    if (!latestDraw || !contributors.length) {
+      setRevealedDrawId(null);
+      spinProgress.setValue(0);
+      setSpinTarget(0);
+      return;
+    }
+
+    const winnerIndex = Math.max(contributors.findIndex(contributor => contributor.id === latestDraw.winnerUserId), 0);
+    const slice = 360 / contributors.length;
+    const fullTurns = 5 + (Math.abs(hashSeed(latestDraw.roundId)) % 2);
+    const target = fullTurns * 360 - winnerIndex * slice;
+    setRevealedDrawId(null);
+    setSpinTarget(target);
+    spinProgress.setValue(0);
+    const frame = requestAnimationFrame(() => {
+      Animated.timing(spinProgress, {
+        toValue: 1,
+        duration: 4300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) {
+          setRevealedDrawId(latestDraw.roundId);
+          onDrawSeen(latestDraw.roundId);
+        }
+      });
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      spinProgress.stopAnimation();
+    };
+  }, [
+    contributorSpinKey,
+    contributors.length,
+    isFinalizingPending,
+    isFocused,
+    latestDrawId,
+    latestDrawWinnerUserId,
+    onDrawSeen,
+    seenDrawIdsReady,
+    spinProgress,
+  ]);
+
+  const topStatus = shouldPresentDraw && isDrawing
+    ? 'Drawing'
+    : shouldPresentDraw && latestDraw
+      ? 'Winner drawn'
+      : isFinalizingPending
+        ? 'Finalizing'
+        : status.isFrozen
+          ? 'Frozen'
+          : formatTimeLeft(status.contributionDeadlineAt);
+  const centerTitle = shouldPresentDraw && isDrawing
+    ? 'Drawing...'
+    : shouldPresentDraw && latestDraw
+    ? latestDraw.winnerName
+      : isFinalizingPending
+        ? 'Finalizing draw'
+        : `${paidCount} of ${contributors.length} paid`;
+  const centerSubtitle = shouldPresentDraw && isDrawing
+    ? 'Wheel is spinning'
+    : shouldPresentDraw && latestDraw
+      ? `Winner of Round ${latestDraw.roundNumber}`
+      : 'Verified contributions only.';
 
   return (
-    <View style={memberStyles.ringCard}>
+    <View style={[memberStyles.ringCard, (shouldPresentDraw || isFinalizingPending) && memberStyles.ringCardDrawActive]}>
       <View style={memberStyles.rowWrap}>
         <View style={memberStyles.ringTopPillBlue}>
           <Text style={memberStyles.ringTopPillBlueText}>Round {status.currentRound?.Round_Number ?? '-'}</Text>
         </View>
         <View style={memberStyles.ringTopPillAmber}>
-          <Text style={memberStyles.ringTopPillAmberText}>{allPaid ? 'Ready' : status.isFrozen ? 'Frozen' : 'Waiting'}</Text>
+          <Text style={memberStyles.ringTopPillAmberText}>{topStatus}</Text>
         </View>
       </View>
       <View style={memberStyles.ringCanvas}>
-        <View style={[memberStyles.ringOuter, { top: config.outerInset, right: config.outerInset, bottom: config.outerInset, left: config.outerInset }]} />
-        <View style={[memberStyles.ringInner, { top: config.innerInset, right: config.innerInset, bottom: config.innerInset, left: config.innerInset }]} />
-        {layout.map(contributor => (
-          <ContributorPill
-            key={contributor.id}
-            contributor={contributor}
-            config={config}
-            selected={contributor.id === selectedId}
-            onSelect={id => setSelectedId(current => (current === id ? null : id))}
-          />
-        ))}
+        {isDrawing || isFinalizingPending ? (
+          <View style={memberStyles.ringPointer}>
+            <Icon name="arrow-drop-down" size={46} color="#EF4444" />
+          </View>
+        ) : null}
+        <Animated.View style={[memberStyles.ringSpinner, { transform: [{ rotate: spinRotation }] }]}>
+          <View style={[memberStyles.ringOuter, { top: config.outerInset, right: config.outerInset, bottom: config.outerInset, left: config.outerInset }]} />
+          <View style={[memberStyles.ringInner, { top: config.innerInset, right: config.innerInset, bottom: config.innerInset, left: config.innerInset }]} />
+          {displayLayout.map(contributor => (
+            <ContributorPill
+              key={contributor.id}
+              contributor={contributor}
+              config={config}
+              selected={contributor.id === selectedId}
+              onSelect={id => setSelectedId(current => (current === id ? null : id))}
+            />
+          ))}
+        </Animated.View>
         <View style={memberStyles.ringCounter}>
-          <Text style={memberStyles.ringCounterTitle}>{paidCount} of {contributors.length} paid</Text>
-          <Text style={memberStyles.ringCounterSubtitle}>Verified contributions only.</Text>
-          {allPaid && !winner ? <Text style={memberStyles.ringReadyLabel}>ready to draw</Text> : null}
+          <Text style={[memberStyles.ringCounterTitle, shouldPresentDraw && latestDraw && memberStyles.ringCounterTitleWinner]} numberOfLines={2}>{centerTitle}</Text>
+          <Text style={memberStyles.ringCounterSubtitle}>{centerSubtitle}</Text>
+          {shouldPresentDraw && latestDraw && !isDrawing ? <Text style={memberStyles.ringReadyLabel}>draw complete</Text> : null}
         </View>
       </View>
       <View style={memberStyles.ringNote}>
         <Icon name="shield" size={iconSize.sm} color={palette.primaryDark} />
-        <Text style={memberStyles.ringNoteText}>The round closes only when every active member is paid.</Text>
+        <Text style={memberStyles.ringNoteText}>
+          {shouldPresentDraw && latestDraw
+            ? `Round ${latestDraw.roundNumber} has been drawn. The next contribution round is now open.`
+            : `Time left: ${formatTimeLeft(status.contributionDeadlineAt)}. The round closes only when every active member is paid.`}
+        </Text>
       </View>
-      <WinnerSection winner={winner} round={status.currentRound?.Round_Number} />
+      {shouldPresentDraw && !isDrawing ? <WinnerSection winner={winner} round={latestDraw?.roundNumber ?? status.currentRound?.Round_Number} /> : null}
       <ContributorProfile contributor={selected} onClose={() => setSelectedId(null)} />
       {status.totalMembers > MAX_RING_MEMBERS ? (
         <Text style={memberStyles.ringOverflowNote}>Showing first {MAX_RING_MEMBERS} contributors for mobile readability.</Text>
@@ -331,11 +502,14 @@ function Header({ title, status, onBack }: { title: string; status: string; onBa
 
 function PayRoundButton({
   disabled,
+  alreadyPaid,
   onPress,
 }: {
   disabled: boolean;
+  alreadyPaid: boolean;
   onPress: () => void;
 }) {
+  const label = alreadyPaid ? 'Already Paid This Round' : disabled ? 'Payment Not Available' : 'Pay This Round';
   return (
     <Pressable
       accessibilityRole="button"
@@ -343,9 +517,9 @@ function PayRoundButton({
       onPress={onPress}
       style={[memberStyles.groupCyclePayButton, disabled && memberStyles.groupCyclePayButtonDisabled]}
     >
-      <Icon name="account-balance-wallet" size={iconSize.md} color={palette.white} />
-      <Text style={memberStyles.groupCyclePayButtonText}>{disabled ? 'Contribution Not Available' : 'Pay This Round'}</Text>
-      <Icon name="chevron-right" size={iconSize.md} color={palette.white} />
+      <Icon name={alreadyPaid ? 'check-circle' : 'account-balance-wallet'} size={iconSize.md} color={palette.white} />
+      <Text style={memberStyles.groupCyclePayButtonText}>{label}</Text>
+      <Icon name={alreadyPaid ? 'lock' : 'chevron-right'} size={iconSize.md} color={palette.white} />
     </Pressable>
   );
 }
@@ -411,7 +585,7 @@ function RefundTicketSection({ status }: { status: GroupStatusSnapshot }) {
     <SectionCard style={memberStyles.winnerHistoryCard}>
       <View style={memberStyles.rowBetween}>
         <Text style={memberStyles.winnerHistoryTitle}>Refund tickets</Text>
-        <Pill label={`${tickets.length} simulated`} tone="neutral" />
+        <Pill label={`${tickets.length} open`} tone="neutral" />
       </View>
       <View style={memberStyles.listGroup}>
         {tickets.map(ticket => (
@@ -430,11 +604,61 @@ function RefundTicketSection({ status }: { status: GroupStatusSnapshot }) {
 
 export function GroupStatusScreen({ route }: any) {
   const navigation = useNavigation<any>();
+  const isFocused = useIsFocused();
+  const { session } = useAuth();
   const { data: dashboard } = useDashboardQuery();
   const groupId = route.params?.groupId ?? dashboard?.currentGroup?.Group_ID ?? '';
-  const { data: status } = useGroupStatusQuery(groupId);
+  const { data: status, refetch: refetchGroupStatus } = useGroupStatusQuery(groupId);
   const { data: announcements } = useGroupAnnouncementsQuery({ groupId });
   const { voteResolutionPoll } = useMemberActions();
+  const [seenDrawIds, setSeenDrawIds] = useState<Set<string>>(new Set());
+  const [seenDrawIdsReady, setSeenDrawIdsReady] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused || !groupId) {
+      return;
+    }
+    refetchGroupStatus().catch(() => undefined);
+  }, [groupId, isFocused, refetchGroupStatus]);
+
+  useEffect(() => {
+    if (!session?.user.userId) {
+      setSeenDrawIds(new Set());
+      setSeenDrawIdsReady(true);
+      return;
+    }
+    let cancelled = false;
+    setSeenDrawIdsReady(false);
+    loadSeenDrawIds(session.user.userId)
+      .then(ids => {
+        if (!cancelled) {
+          setSeenDrawIds(new Set(ids));
+          setSeenDrawIdsReady(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSeenDrawIds(new Set());
+          setSeenDrawIdsReady(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user.userId]);
+
+  const handleDrawSeen = useCallback((drawId: string) => {
+    if (!session?.user.userId) {
+      return;
+    }
+    setSeenDrawIds(current => {
+      if (current.has(drawId)) {
+        return current;
+      }
+      return new Set([drawId, ...current]);
+    });
+    saveSeenDrawId(session.user.userId, drawId).catch(() => undefined);
+  }, [session?.user.userId]);
 
   if (!groupId && dashboard) {
     return (
@@ -449,13 +673,24 @@ export function GroupStatusScreen({ route }: any) {
     return <LoadingState title="Loading group cycle" subtitle="Pulling round progress, payment status, and winner history." />;
   }
 
+  const alreadyPaidCurrentRound = status.contributors?.some(contributor => (
+    contributor.userId === session?.user.userId && contributor.hasPaidCurrentRound
+  )) ?? false;
+
   return (
     <ScreenScroll>
       <Header title={status.group.Group_Name} status={status.group.Status} onBack={() => navigation.goBack()} />
       {route.params?.flash ? <StatusBanner tone="success" title={route.params.flash} /> : null}
-      <ContributionRing status={status} />
+      <ContributionRing
+        status={status}
+        isFocused={isFocused}
+        seenDrawIds={seenDrawIds}
+        seenDrawIdsReady={seenDrawIdsReady}
+        onDrawSeen={handleDrawSeen}
+      />
       <PayRoundButton
         disabled={!status.canCurrentUserPay}
+        alreadyPaid={alreadyPaidCurrentRound}
         onPress={() => navigation.navigate(routes.payment, { groupId: status.group.Group_ID })}
       />
       {status.isFrozen ? <StatusBanner tone="danger" title="This group is currently frozen." body="Payments and round advancement stay paused until the compliance review is lifted." /> : null}

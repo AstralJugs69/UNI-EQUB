@@ -131,6 +131,36 @@ export function useAccountSlotsQuery() {
   });
 }
 
+export function useProfileActions() {
+  const services = useServices();
+  const { session } = useAuth();
+  const queryClient = useQueryClient();
+
+  const refreshProfile = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.profile }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.accountSlots }),
+    ]);
+  };
+
+  return {
+    updateProfile: useMutation({
+      mutationFn: (input: Parameters<typeof services.profile.updateProfile>[1]) =>
+        services.profile.updateProfile(session!.user.userId, input),
+      onSuccess: refreshProfile,
+    }),
+    uploadProfileImage: useMutation({
+      mutationFn: (input: Parameters<typeof services.profile.uploadProfileImage>[1]) =>
+        services.profile.uploadProfileImage(session!.user.userId, input),
+      onSuccess: refreshProfile,
+    }),
+    removeProfileImage: useMutation({
+      mutationFn: () => services.profile.removeProfileImage(session!.user.userId),
+      onSuccess: refreshProfile,
+    }),
+  };
+}
+
 export function useGroupAnnouncementsQuery(input: { groupId?: string | null; groupRequestId?: string | null }) {
   const services = useServices();
   const key = input.groupId ? queryKeys.announcements('group', input.groupId) : queryKeys.announcements('formation', input.groupRequestId ?? 'none');

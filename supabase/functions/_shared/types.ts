@@ -173,6 +173,8 @@ export interface KycDocumentRecord {
   object_path: string | null;
   file_name: string | null;
   content_type: string | null;
+  signed_url?: string | null;
+  signedUrl?: string | null;
   metadata: Record<string, unknown>;
   uploaded_at: string;
 }
@@ -187,6 +189,7 @@ export interface GroupRequestRecord {
   frequency: GroupRecord['Frequency'];
   min_members: number;
   max_members: number;
+  total_cycles?: number | null;
   visibility: 'Public' | 'Private';
   invite_mode: 'PublicRequest' | 'InviteCode' | 'DirectInvite' | 'InviteCodeAndDirect';
   status: GroupRequestStatus;
@@ -195,6 +198,7 @@ export interface GroupRequestRecord {
   agreement_required: boolean;
   vesting_enabled: boolean;
   vesting_disabled_by_creator: boolean;
+  grace_period_hours?: number;
   risk_warning_accepted_at: string | null;
   expires_at: string | null;
   submitted_at: string | null;
@@ -219,6 +223,20 @@ export interface GroupJoinRequestRecord {
   removed_at: string | null;
   decision_by: string | null;
   decision_reason: string | null;
+  participantProfile?: GroupJoinParticipantProfile | null;
+}
+
+export interface GroupJoinParticipantProfile {
+  userId: string;
+  fullName: string;
+  phoneNumber: string;
+  kycStatus: KycStatus;
+  university: string | null;
+  academicYear: string | null;
+  avatarSeed: string | null;
+  avatarStyle: string | null;
+  avatarPalette: string | null;
+  reliability: UserReliabilityProfileRecord | null;
 }
 
 export interface GroupInvitationRecord {

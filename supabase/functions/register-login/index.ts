@@ -21,6 +21,51 @@ async function findUserByPhone(phoneNumber: string) {
   return data as UserRecord | null;
 }
 
+async function existingMemberCount() {
+  const { count, error } = await supabaseAdmin
+    .from('User')
+    .select('User_ID', { count: 'exact', head: true })
+    .eq('Role', 'Member');
+  if (error) {
+    throw error;
+  }
+  return count ?? 0;
+}
+
+async function firstRegisteredMember() {
+  const { data, error } = await supabaseAdmin
+    .from('User')
+    .select('*')
+    .eq('Role', 'Member')
+    .order('Created_At', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+  return data as UserRecord | null;
+}
+
+async function resolveOtpGateUser(input?: { token?: string; phoneNumber?: string }) {
+  if (input?.token) {
+    const payload = await verifySession(input.token);
+    const userId = payload.sub;
+    return userId ? requireUserById(userId) : null;
+  }
+  if (input?.phoneNumber) {
+    return findUserByPhone(input.phoneNumber);
+  }
+  return null;
+}
+
+async function requiresTestingOtpGate(user: UserRecord | null) {
+  if (!user || user.Role !== 'Member') {
+    return false;
+  }
+  const first = await firstRegisteredMember();
+  return first?.User_ID === user.User_ID;
+}
+
 async function requireUserById(userId: string) {
   const { data, error } = await supabaseAdmin.from('User').select('*').eq('User_ID', userId).single();
   if (error) {
@@ -69,6 +114,7 @@ Deno.serve(async request => {
           return fail('Phone number is already registered.', 409);
         }
 
+        const requiresOtp = await existingMemberCount() === 0;
         const passwordHash = await hashPassword(body.register.password);
         const normalized = normalizePhone(body.register.phoneNumber);
         const { data, error } = await supabaseAdmin
@@ -88,7 +134,12 @@ Deno.serve(async request => {
           throw error;
         }
 
-        return json({ user: toSessionUser(data as UserRecord) }, 201);
+        const user = data as UserRecord;
+        return json({
+          user: toSessionUser(user),
+          requiresOtp,
+          pendingKycToken: requiresOtp ? undefined : await signPendingKycToken(user),
+        }, 201);
       }
 
       case 'requestOtp': {
@@ -113,6 +164,40 @@ Deno.serve(async request => {
             ? await signPendingKycToken(user)
             : undefined,
         });
+      }
+
+      case 'otpGate': {
+        const user = await resolveOtpGateUser(body.otpGate);
+        return json({
+          requiresOtp: await requiresTestingOtpGate(user),
+          phoneNumber: user?.Phone_Number ?? body.otpGate?.phoneNumber ?? null,
+        });
+      }
+
+      case 'resetPassword': {
+        if (!body.resetPassword) {
+          return fail('Missing reset password payload.', 400);
+        }
+        const user = await findUserByPhone(body.resetPassword.phoneNumber);
+        if (!user) {
+          return fail('No account was found for this phone number.', 404);
+        }
+        const requiresOtp = await requiresTestingOtpGate(user);
+        if (requiresOtp) {
+          if (!body.resetPassword.otp) {
+            return fail('OTP is required to reset this password.', 400);
+          }
+          await verifyOtp(body.resetPassword.phoneNumber, body.resetPassword.otp);
+        }
+        const passwordHash = await hashPassword(body.resetPassword.newPassword);
+        const { error } = await supabaseAdmin
+          .from('User')
+          .update({ Password_Hash: passwordHash })
+          .eq('User_ID', user.User_ID);
+        if (error) {
+          throw error;
+        }
+        return json({ requiresOtp, reset: true });
       }
 
       case 'beginLogin': {

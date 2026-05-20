@@ -92,6 +92,7 @@ const plusMinutes = (minutes: number) => new Date(Date.now() + minutes * 60_000)
 const emptyDashboard = (kycState: MemberKycState): DashboardSnapshot => ({
   currentGroup: null,
   activeGroups: [],
+  completedGroups: [],
   currentRound: null,
   paidCount: 0,
   totalMembers: 0,
@@ -137,10 +138,11 @@ export class MockBackend implements AppServices {
   }
 
   auth = {
-    register: async (input: RegisterInput): Promise<SessionUser> => {
+    register: async (input: RegisterInput) => {
       if (this.db.users.some(user => this.normalizePhone(user.Phone_Number) === this.normalizePhone(input.phoneNumber))) {
         throw new Error('A user with this phone number already exists.');
       }
+      const requiresOtp = this.db.users.filter(user => user.Role === 'Member').length === 0;
       const user: UserRecord = {
         User_ID: makeId('user'),
         Full_Name: input.fullName.trim(),
@@ -157,7 +159,11 @@ export class MockBackend implements AppServices {
         canSubmit: !input.studentIdImage,
         submittedAt: input.studentIdImage ? nowIso() : null,
       };
-      return this.toSessionUser(user);
+      return {
+        user: this.toSessionUser(user),
+        requiresOtp,
+        pendingKycToken: requiresOtp ? undefined : `mock-pending-kyc-${user.Phone_Number}`,
+      };
     },
 
     requestOtp: async (phoneNumber: string): Promise<{ challengeId: string }> => {
@@ -206,6 +212,30 @@ export class MockBackend implements AppServices {
       const token = makeId('session');
       this.db.sessions[token] = { userId: user.User_ID, expiresAt: plusMinutes(60 * 24 * 7) };
       return { token, user: this.toSessionUser(user) };
+    },
+
+    getOtpGate: async (input: { token?: string; phoneNumber?: string }) => {
+      const user = input.token
+        ? this.db.users.find(item => item.User_ID === this.db.sessions[input.token!]?.userId)
+        : this.db.users.find(item => this.normalizePhone(item.Phone_Number) === this.normalizePhone(input.phoneNumber ?? ''));
+      const firstMember = this.db.users.filter(item => item.Role === 'Member').sort((a, b) => a.Created_At.localeCompare(b.Created_At))[0];
+      return { requiresOtp: !!user && user.Role === 'Member' && firstMember?.User_ID === user.User_ID, phoneNumber: user?.Phone_Number ?? input.phoneNumber ?? null };
+    },
+
+    resetPassword: async (input: { phoneNumber: string; newPassword: string; otp?: string }) => {
+      const user = this.db.users.find(item => this.normalizePhone(item.Phone_Number) === this.normalizePhone(input.phoneNumber));
+      if (!user) {
+        throw new Error('No account was found for this phone number.');
+      }
+      const gate = await this.auth.getOtpGate({ phoneNumber: input.phoneNumber });
+      if (gate.requiresOtp) {
+        if (!input.otp) {
+          throw new Error('OTP is required to reset this password.');
+        }
+        await this.auth.verifyOtp(input.phoneNumber, input.otp);
+      }
+      user.Password_Hash = hashPassword(input.newPassword);
+      return { requiresOtp: gate.requiresOtp, reset: true };
     },
 
     restore: async (token: string): Promise<AuthSession | null> => {
@@ -279,6 +309,7 @@ export class MockBackend implements AppServices {
         paidCount: paid.length,
         totalMembers: activeMembers.length,
         winnerHistory: [],
+        latestDraw: null,
         contributors: activeMembers.map(membership => {
           const user = this.requireUser(membership.User_ID);
           return {
@@ -366,6 +397,9 @@ export class MockBackend implements AppServices {
       const activeGroups = activeMemberships
         .map(membership => this.db.groups.find(group => group.Group_ID === membership.Group_ID))
         .filter((group): group is GroupRecord => !!group && group.Status !== 'Completed');
+      const completedGroups = activeMemberships
+        .map(membership => this.db.groups.find(group => group.Group_ID === membership.Group_ID))
+        .filter((group): group is GroupRecord => !!group && group.Status === 'Completed');
       const currentGroup = activeGroups[0] ?? null;
       const currentRound = currentGroup ? this.currentOpenRound(currentGroup.Group_ID) : null;
       const paid = currentRound ? this.successfulContributions(currentRound.Round_ID) : [];
@@ -374,6 +408,7 @@ export class MockBackend implements AppServices {
         ...emptyDashboard(this.kycStateForUser(user.User_ID)),
         currentGroup: currentGroup ? clone(currentGroup) : null,
         activeGroups: activeGroups.map(clone),
+        completedGroups: completedGroups.map(clone),
         currentRound: currentRound ? clone(currentRound) : null,
         paidCount: paid.length,
         totalMembers: currentGroup ? this.db.memberships.filter(item => item.Group_ID === currentGroup.Group_ID && item.Status === 'Active').length : 0,
@@ -408,6 +443,7 @@ export class MockBackend implements AppServices {
         frequency: input.frequency,
         min_members: input.minMembers ?? Math.min(5, input.maxMembers),
         max_members: input.maxMembers,
+        total_cycles: input.totalCycles ?? input.maxMembers,
         visibility: input.visibility,
         invite_mode: input.inviteMode ?? (input.visibility === 'Private' ? 'InviteCodeAndDirect' : 'PublicRequest'),
         status: 'Forming',
@@ -620,6 +656,30 @@ export class MockBackend implements AppServices {
         notificationPreference: input.notificationPreference ?? current.notificationPreference,
         walletLabel: input.walletLabel ?? current.walletLabel,
         avatar: input.avatar ?? current.avatar,
+        profileImageUrl: input.profileImageUrl ?? current.profileImageUrl,
+        profileImagePath: input.profileImagePath ?? current.profileImagePath,
+        updatedAt: nowIso(),
+      };
+      this.db.profiles[userId] = updated;
+      return clone(updated);
+    },
+    uploadProfileImage: async (userId: string, input: { fileName: string; contentType: string; base64: string }): Promise<UserProfile> => {
+      const current = this.ensureProfile(userId);
+      const updated: UserProfile = {
+        ...current,
+        profileImagePath: `mock-profile-images/${userId}/${input.fileName}`,
+        profileImageUrl: `data:${input.contentType};base64,${input.base64}`,
+        updatedAt: nowIso(),
+      };
+      this.db.profiles[userId] = updated;
+      return clone(updated);
+    },
+    removeProfileImage: async (userId: string): Promise<UserProfile> => {
+      const current = this.ensureProfile(userId);
+      const updated: UserProfile = {
+        ...current,
+        profileImagePath: null,
+        profileImageUrl: null,
         updatedAt: nowIso(),
       };
       this.db.profiles[userId] = updated;
@@ -731,6 +791,8 @@ export class MockBackend implements AppServices {
       theme: 'Light',
       notificationPreference: 'PushAndSms',
       walletLabel: null,
+      profileImageUrl: null,
+      profileImagePath: null,
       avatar: {
         seed: userId,
         style: 'Geometric',
@@ -882,6 +944,26 @@ export class MockBackend implements AppServices {
     return this.db.groupJoinRequests.filter(item => item.group_request_id === requestId && item.status === 'Accepted').length;
   }
 
+  private enrichJoinRequest(joinRequest: GroupJoinRequestRecord): GroupJoinRequestRecord {
+    const user = this.db.users.find(item => item.User_ID === joinRequest.user_id);
+    const profile = this.db.profiles[joinRequest.user_id];
+    return {
+      ...clone(joinRequest),
+      participantProfile: user ? {
+        userId: user.User_ID,
+        fullName: user.Full_Name,
+        phoneNumber: user.Phone_Number,
+        kycStatus: user.KYC_Status,
+        university: profile?.university ?? null,
+        academicYear: profile?.academicYear ?? null,
+        avatarSeed: profile?.avatar.seed ?? null,
+        avatarStyle: profile?.avatar.style ?? null,
+        avatarPalette: profile?.avatar.palette ?? null,
+        reliability: null,
+      } : null,
+    };
+  }
+
   private toFormationDetail(request: GroupFormationRequestSummary): GroupFormationDetail {
     const accepted = this.acceptedFormationCount(request.id);
     return {
@@ -890,7 +972,7 @@ export class MockBackend implements AppServices {
         accepted_participant_count: accepted,
         remaining_slots: Math.max(request.max_members - accepted, 0),
       }),
-      joinRequests: this.db.groupJoinRequests.filter(item => item.group_request_id === request.id).map(clone),
+      joinRequests: this.db.groupJoinRequests.filter(item => item.group_request_id === request.id).map(item => this.enrichJoinRequest(item)),
       invitations: this.db.groupInvitations.filter(item => item.group_request_id === request.id).map(clone),
       accepted_participant_count: accepted,
       remaining_slots: Math.max(request.max_members - accepted, 0),

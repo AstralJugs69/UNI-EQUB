@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { AppScreen, EmptyState, ListRow, Pill, PrimaryCTA, SectionCard, TopAppBar } from '../../components/ui';
 import { useMemberActions, useNotificationsQuery } from '../../hooks/useAppQueries';
 import { resolveNotificationRoute } from '../../navigation/notificationRoutes';
 import { useAuth } from '../../providers/AuthProvider';
+import { requestNotificationPermission } from '../../services/native/notificationPermission';
 
 export function NotificationsScreen() {
   const navigation = useNavigation<any>();
@@ -11,6 +12,10 @@ export function NotificationsScreen() {
   const { data = [] } = useNotificationsQuery();
   const { markNotificationsRead } = useMemberActions();
   const unreadCount = data.filter(item => item.unread).length;
+
+  useEffect(() => {
+    requestNotificationPermission().catch(() => undefined);
+  }, []);
 
   return (
     <AppScreen>

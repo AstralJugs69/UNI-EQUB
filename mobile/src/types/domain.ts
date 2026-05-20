@@ -103,6 +103,7 @@ export interface AppNotification {
   body: string;
   createdAt: string;
   unread: boolean;
+  type?: string;
   source?: 'Durable' | 'Derived';
   severity?: NotificationSeverity;
   actionRoute?: string | null;
@@ -132,7 +133,9 @@ export interface AuthSession {
 export interface DashboardSnapshot {
   currentGroup: GroupRecord | null;
   activeGroups: GroupRecord[];
+  completedGroups?: GroupRecord[];
   currentRound: RoundRecord | null;
+  contributionDeadlineAt?: string | null;
   paidCount: number;
   totalMembers: number;
   totalSaved: number;
@@ -162,14 +165,25 @@ export interface WalletSnapshot {
 export interface GroupStatusSnapshot {
   group: GroupRecord;
   currentRound: RoundRecord | null;
+  contributionDeadlineAt?: string | null;
   paidCount: number;
   totalMembers: number;
   winnerHistory: Array<{ roundNumber: number; winnerName: string }>;
+  latestDraw?: GroupDrawSnapshot | null;
   contributors?: GroupStatusContributor[];
   activeResolutionPoll?: GroupResolutionPollSummary | null;
   refundTickets?: RefundTicketRecord[];
   canCurrentUserPay: boolean;
   isFrozen: boolean;
+}
+
+export interface GroupDrawSnapshot {
+  roundId: string;
+  roundNumber: number;
+  winnerUserId: string;
+  winnerName: string;
+  drawDate: string | null;
+  drawSeed?: string | null;
 }
 
 export interface GroupStatusContributor {
@@ -275,6 +289,8 @@ export interface KycDocumentRecord {
   object_path: string | null;
   file_name: string | null;
   content_type: string | null;
+  signed_url?: string | null;
+  signedUrl?: string | null;
   metadata: Record<string, unknown>;
   uploaded_at: string;
 }
@@ -333,6 +349,7 @@ export interface GroupRequestRecord {
   frequency: GroupRecord['Frequency'];
   min_members: number;
   max_members: number;
+  total_cycles?: number | null;
   visibility: 'Public' | 'Private';
   invite_mode: 'PublicRequest' | 'InviteCode' | 'DirectInvite' | 'InviteCodeAndDirect';
   status: GroupRequestStatus;
@@ -341,6 +358,7 @@ export interface GroupRequestRecord {
   agreement_required: boolean;
   vesting_enabled: boolean;
   vesting_disabled_by_creator: boolean;
+  grace_period_hours?: number;
   risk_warning_accepted_at: string | null;
   expires_at: string | null;
   submitted_at: string | null;
@@ -365,6 +383,20 @@ export interface GroupJoinRequestRecord {
   removed_at: string | null;
   decision_by: string | null;
   decision_reason: string | null;
+  participantProfile?: GroupJoinParticipantProfile | null;
+}
+
+export interface GroupJoinParticipantProfile {
+  userId: string;
+  fullName: string;
+  phoneNumber: string;
+  kycStatus: KycStatus;
+  university: string | null;
+  academicYear: string | null;
+  avatarSeed: string | null;
+  avatarStyle: string | null;
+  avatarPalette: string | null;
+  reliability: UserReliabilityProfileRecord | null;
 }
 
 export interface GroupInvitationRecord {
@@ -627,6 +659,8 @@ export interface UserProfile {
   theme: 'Light' | 'Dark' | 'System';
   notificationPreference: 'PushAndSms' | 'PushOnly' | 'SmsOnly' | 'None';
   walletLabel: string | null;
+  profileImageUrl?: string | null;
+  profileImagePath?: string | null;
   avatar: AvatarDescriptor;
   createdAt: string;
   updatedAt: string;

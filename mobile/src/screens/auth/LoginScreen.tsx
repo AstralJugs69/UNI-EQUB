@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
-import { InlineError, ScreenScroll } from '../../components/ui';
+import { AppScreen, InlineError } from '../../components/ui';
 import { useAccountSlotsQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
@@ -40,8 +40,10 @@ export function LoginScreen({ route }: { route?: { params?: { roleHint?: 'Admin'
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const roleAccountSlots = (accountSlots ?? []).filter(slot => slot.role === role);
 
   async function handleLogin() {
     try {
@@ -59,13 +61,14 @@ export function LoginScreen({ route }: { route?: { params?: { roleHint?: 'Admin'
     setRole(nextRole);
     setPhoneNumber('');
     setPassword('');
+    setAccountDropdownOpen(false);
     setError('');
   }
 
   const disabled = submitting || !phoneNumber || !password;
 
   return (
-    <ScreenScroll contentStyle={authStyles.loginScreen}>
+    <AppScreen scroll={false} contentStyle={authStyles.loginScreen}>
       <View style={authStyles.loginHeader}>
         <Text style={authStyles.loginTitle}>Welcome Back</Text>
         <Text style={authStyles.loginSubtitle}>Sign in to your Equb {role === 'Admin' ? 'Admin ' : ''}Workspace to continue.</Text>
@@ -121,34 +124,34 @@ export function LoginScreen({ route }: { route?: { params?: { roleHint?: 'Admin'
             </Pressable>
           </View>
         </View>
-
-        <View style={authStyles.loginSecurityBox}>
-          <View style={authStyles.loginSecurityIcon}>
-            <Icon name="shield" size={iconSize.md} color={palette.white} />
-          </View>
-          <View style={authStyles.loginSecurityText}>
-            <Text style={authStyles.loginSecurityTitle}>Your security is our priority.</Text>
-            <Text style={authStyles.loginSecurityBody}>Sessions remain active on this device and expire after 7 days of inactivity.</Text>
-          </View>
-        </View>
       </View>
 
       <InlineError message={error} />
 
-      {accountSlots?.length ? (
-        <View style={authStyles.loginActions}>
-          {accountSlots.slice(0, 3).map(slot => (
+      {roleAccountSlots.length ? (
+        <View style={authStyles.savedAccountDropdown}>
+          <Pressable
+            accessibilityRole="button"
+            disabled={submitting}
+            onPress={() => setAccountDropdownOpen(open => !open)}
+            style={authStyles.loginSecondaryButton}
+          >
+            <Icon name="switch-account" size={iconSize.sm} color={palette.primary} />
+            <Text style={authStyles.loginSecondaryButtonText}>Saved {role} Accounts</Text>
+            <Icon name={accountDropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'} size={iconSize.sm} color={palette.primary} />
+          </Pressable>
+          {accountDropdownOpen ? roleAccountSlots.slice(0, 5).map(slot => (
             <Pressable
               key={slot.userId}
               accessibilityRole="button"
               disabled={submitting}
               onPress={() => switchAccount(slot.userId).catch(err => Alert.alert('Saved account', err instanceof Error ? err.message : 'Sign in again to use this account.'))}
-              style={authStyles.loginSecondaryButton}
+              style={authStyles.savedAccountOption}
             >
               <Icon name="switch-account" size={iconSize.sm} color={palette.primary} />
               <Text style={authStyles.loginSecondaryButtonText}>{slot.displayName}</Text>
             </Pressable>
-          ))}
+          )) : null}
         </View>
       ) : null}
 
@@ -178,6 +181,6 @@ export function LoginScreen({ route }: { route?: { params?: { roleHint?: 'Admin'
         <Icon name="verified-user" size={iconSize.md} color={palette.primary} />
         <Text style={authStyles.loginFooterText}>Secured with industry-leading encryption to protect your data.</Text>
       </View>
-    </ScreenScroll>
+    </AppScreen>
   );
 }

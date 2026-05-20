@@ -2,12 +2,12 @@ import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
-import { AppScreen, EmptyState, HeroCard, ListRow, LoadingState, MetricTile, SecondaryCTA, SectionCard, StatusBanner } from '../../components/ui';
+import { AppScreen, EmptyState, HeroCard, ListRow, LoadingState, MetricTile, Pill, SecondaryCTA, SectionCard, StatusBanner } from '../../components/ui';
 import { useDashboardQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
 import { iconSize, palette } from '../../theme/tokens';
-import { formatCurrency } from './shared';
+import { formatCurrency, formatTimeLeft } from './shared';
 import { memberStyles } from './styles';
 
 function MiniMetric({
@@ -76,6 +76,7 @@ export function DashboardScreen({ route }: any) {
       : null;
 
   if (!group) {
+    const completedGroups = data.completedGroups ?? [];
     return (
       <AppScreen>
         {route?.params?.flash ? <StatusBanner tone="success" title={route.params.flash} /> : null}
@@ -97,6 +98,22 @@ export function DashboardScreen({ route }: any) {
           title="No active groups yet"
           subtitle="Once you join or create an approved Equb, your current round, payment status, reminders, and payouts will appear here."
         />
+        {completedGroups.length ? (
+          <SectionCard>
+            <Text style={memberStyles.sectionTitle}>Past Equbs</Text>
+            <View style={memberStyles.listGroup}>
+              {completedGroups.map(item => (
+                <ListRow
+                  key={item.Group_ID}
+                  title={item.Group_Name}
+                  subtitle={`${item.Frequency} - ${formatCurrency(item.Amount)}`}
+                  right={<Pill label="Completed" tone="good" />}
+                  leadingIcon="history"
+                />
+              ))}
+            </View>
+          </SectionCard>
+        ) : null}
         <SectionCard>
           <Text style={memberStyles.sectionTitle}>What happens next</Text>
           <View style={memberStyles.listGroup}>
@@ -111,6 +128,8 @@ export function DashboardScreen({ route }: any) {
 
   const roundNumber = data.currentRound?.Round_Number ?? '-';
   const progressPercent = data.totalMembers > 0 ? Math.round((data.paidCount / data.totalMembers) * 100) : 0;
+  const timeLeft = formatTimeLeft(data.contributionDeadlineAt);
+  const cycleActive = group.Status === 'Active' && !!data.currentRound;
 
   return (
     <AppScreen>
@@ -135,30 +154,55 @@ export function DashboardScreen({ route }: any) {
             <Text style={memberStyles.dashboardHeroPillText} numberOfLines={1}>{group.Group_Name}</Text>
           </View>
           <View style={memberStyles.dashboardRoundPill}>
-            <Text style={memberStyles.dashboardRoundText}>Cycle {roundNumber}</Text>
+            <Text style={memberStyles.dashboardRoundText}>Round {roundNumber}</Text>
           </View>
         </View>
         <Text style={memberStyles.dashboardHeroAmount}>{formatCurrency(group.Amount)}</Text>
         <Text style={memberStyles.dashboardHeroBody}>
-          {group.Group_Name} is at <Text style={memberStyles.dashboardHeroBodyStrong}>{data.paidCount}/{data.totalMembers}</Text> paid. Your contribution is the fastest way to push the round forward.
+          {cycleActive
+            ? <>{group.Group_Name} is at <Text style={memberStyles.dashboardHeroBodyStrong}>{data.paidCount}/{data.totalMembers}</Text> paid. Your contribution is the fastest way to push the round forward.</>
+            : <>{group.Group_Name} has no open round. Review your history or open another active group.</>}
         </Text>
         <View style={memberStyles.dashboardHeroActions}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => navigation.navigate(routes.payment, { groupId: group.Group_ID })}
-            style={memberStyles.heroPayButton}
-          >
-            <Icon name="account-balance-wallet" size={iconSize.md} color={palette.primary} />
-            <Text style={memberStyles.heroPayButtonText}>Pay</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => navigation.navigate(routes.groupStatus, { groupId: group.Group_ID })}
-            style={memberStyles.heroDetailsButton}
-          >
-            <Icon name="description" size={iconSize.md} color={palette.white} />
-            <Text style={memberStyles.heroDetailsButtonText}>Details</Text>
-          </Pressable>
+          {cycleActive ? (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => navigation.navigate(routes.payment, { groupId: group.Group_ID })}
+                style={memberStyles.heroPayButton}
+              >
+                <Icon name="account-balance-wallet" size={iconSize.md} color={palette.primary} />
+                <Text style={memberStyles.heroPayButtonText}>Pay</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => navigation.navigate(routes.groupStatus, { groupId: group.Group_ID })}
+                style={memberStyles.heroDetailsButton}
+              >
+                <Icon name="description" size={iconSize.md} color={palette.white} />
+                <Text style={memberStyles.heroDetailsButtonText}>Details</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => navigation.navigate(routes.memberTabs, { screen: routes.history })}
+                style={memberStyles.heroPayButton}
+              >
+                <Icon name="receipt-long" size={iconSize.md} color={palette.primary} />
+                <Text style={memberStyles.heroPayButtonText}>History</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => navigation.navigate(routes.activeGroups)}
+                style={memberStyles.heroDetailsButton}
+              >
+                <Icon name="groups" size={iconSize.md} color={palette.white} />
+                <Text style={memberStyles.heroDetailsButtonText}>Groups</Text>
+              </Pressable>
+            </>
+          )}
         </View>
         <View style={memberStyles.dashboardHeroDivider} />
         <View style={memberStyles.dashboardHeroDetailRow}>
@@ -166,8 +210,8 @@ export function DashboardScreen({ route }: any) {
             <Icon name="calendar-month" size={iconSize.md} color={palette.primaryDark} />
           </View>
           <View style={memberStyles.dashboardHeroDetailText}>
-            <Text style={memberStyles.dashboardHeroDetailTitle}>Cycle</Text>
-            <Text style={memberStyles.dashboardHeroDetailBody}>{group.Frequency} contribution cycle</Text>
+            <Text style={memberStyles.dashboardHeroDetailTitle}>Time left</Text>
+            <Text style={memberStyles.dashboardHeroDetailBody}>{timeLeft}</Text>
           </View>
           <Icon name="chevron-right" size={iconSize.md} color="rgba(255,255,255,0.86)" />
         </View>
@@ -194,15 +238,6 @@ export function DashboardScreen({ route }: any) {
           active={data.readyPayout > 0}
         />
       </View>
-      {data.reliabilityProfile ? (
-        <StatusBanner
-          tone={data.reliabilityProfile.public_status === 'Trusted' ? 'success' : data.reliabilityProfile.public_status === 'Restricted' || data.reliabilityProfile.public_status === 'Banned' ? 'danger' : 'info'}
-          title={`Reliability: ${data.reliabilityProfile.public_status}`}
-          body={data.reliabilityProfile.public_status === 'Trusted'
-            ? 'Your public label supports full standard payout handling.'
-            : 'This public label is based on completed cycles and payment reliability.'}
-        />
-      ) : null}
       <SectionCard style={memberStyles.dashboardPanel}>
         <Text style={memberStyles.dashboardSectionTitle}>Quick actions</Text>
         <View style={memberStyles.quickActionGrid}>

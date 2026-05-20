@@ -3,7 +3,8 @@ import type { CreateGroupRequest, GroupLifecyclePayload } from '../_shared/contr
 import { verifySession } from '../_shared/auth.ts';
 import { freezeGroupForAdminReview, resolveOpenGroupFreeze } from '../_shared/groupFreeze.ts';
 import { createFrozenGroupResolutionPoll, closeResolutionPollIfReady, getGroupResolutionState, voteOnResolutionPoll } from '../_shared/groupResolution.ts';
-import { getRoundObligationProgress } from '../_shared/obligations.ts';
+import { getRoundObligationProgress, markContributionObligationPaid, processDueContributionObligations } from '../_shared/obligations.ts';
+import { finalizeRoundIfReady } from '../_shared/roundLifecycle.ts';
 import { assertReliabilityAllowsNormalFlow, ensureReliabilityProfile, getReliabilityJoinGate } from '../_shared/reliability.ts';
 import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
@@ -22,7 +23,9 @@ interface AppGroupRecord extends Omit<GroupRecord, 'Virtual_Acc_Ref'> {
 interface DashboardSnapshot {
   currentGroup: AppGroupRecord | null;
   activeGroups: AppGroupRecord[];
+  completedGroups: AppGroupRecord[];
   currentRound: RoundRecord | null;
+  contributionDeadlineAt: string | null;
   paidCount: number;
   totalMembers: number;
   totalSaved: number;
@@ -30,6 +33,21 @@ interface DashboardSnapshot {
   recentTransactions: TransactionRecord[];
   kycState: MemberKycState;
   reliabilityProfile: UserReliabilityProfileRecord;
+}
+
+function contributionDeadlineFromObligations(obligations: Array<{ due_at: string | null; status: string }>) {
+  const unsettledDueTimes = obligations
+    .filter(obligation => !['Paid', 'Waived', 'RefundPending'].includes(obligation.status))
+    .map(obligation => obligation.due_at)
+    .filter((value): value is string => !!value)
+    .map(value => new Date(value).getTime())
+    .filter(value => Number.isFinite(value));
+
+  if (!unsettledDueTimes.length) {
+    return null;
+  }
+
+  return new Date(Math.min(...unsettledDueTimes)).toISOString();
 }
 
 interface MemberKycState {
@@ -149,6 +167,28 @@ async function successfulContributions(roundId: string) {
   return (data ?? []) as TransactionRecord[];
 }
 
+async function settleObligationsFromSuccessfulTransactions(
+  obligations: Array<{ id: string; user_id: string; status: string }>,
+  transactions: TransactionRecord[],
+) {
+  const transactionsByUserId = new Map<string, TransactionRecord>();
+  for (const transaction of transactions) {
+    if (!transactionsByUserId.has(transaction.User_ID)) {
+      transactionsByUserId.set(transaction.User_ID, transaction);
+    }
+  }
+
+  for (const obligation of obligations) {
+    if (['Paid', 'Waived', 'RefundPending'].includes(obligation.status)) {
+      continue;
+    }
+    const transaction = transactionsByUserId.get(obligation.user_id);
+    if (transaction) {
+      await markContributionObligationPaid(obligation.id, transaction.Trans_ID, transaction.Date);
+    }
+  }
+}
+
 async function getWinnerHistory(groupId: string) {
   const { data, error } = await supabaseAdmin.from('Round').select('*').eq('Group_ID', groupId).not('Winner_ID', 'is', null).order('Round_Number', { ascending: false });
   if (error) {
@@ -168,6 +208,41 @@ async function getWinnerHistory(groupId: string) {
     roundNumber: round.Round_Number,
     winnerName: winners.get(round.Winner_ID as string) ?? 'Unknown winner',
   }));
+}
+
+async function getLatestDraw(groupId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('Round')
+    .select('*')
+    .eq('Group_ID', groupId)
+    .not('Winner_ID', 'is', null)
+    .order('Round_Number', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+  if (!data) {
+    return null;
+  }
+
+  const round = data as RoundRecord;
+  const { data: winner, error: winnerError } = await supabaseAdmin
+    .from('User')
+    .select('User_ID, Full_Name')
+    .eq('User_ID', round.Winner_ID)
+    .maybeSingle();
+  if (winnerError) {
+    throw winnerError;
+  }
+
+  return {
+    roundId: round.Round_ID,
+    roundNumber: Number(round.Round_Number),
+    winnerUserId: round.Winner_ID as string,
+    winnerName: (winner?.Full_Name as string | undefined) ?? 'Unknown winner',
+    drawDate: round.Draw_Date,
+  };
 }
 
 function initialsForName(name: string) {
@@ -225,13 +300,34 @@ async function getStatusContributors(
 }
 
 async function getGroupStatusSnapshot(actor: UserRecord, groupId: string) {
-  const group = await requireGroup(groupId);
-  const currentRound = await ensureOpenRoundForGroup(group);
+  await processDueContributionObligations({ now: new Date(), limit: 200 });
+  let group = await requireGroup(groupId);
+  let currentRound = await ensureOpenRoundForGroup(group);
+  if (!currentRound) {
+    group = await requireGroup(groupId);
+  }
   const memberships = await listActiveMemberships(groupId);
-  const paidTransactions = currentRound ? await successfulContributions(currentRound.Round_ID) : [];
-  const obligationProgress = currentRound
+  let paidTransactions = currentRound ? await successfulContributions(currentRound.Round_ID) : [];
+  let obligationProgress = currentRound
     ? await getRoundObligationProgress(currentRound.Round_ID, memberships, paidTransactions)
-    : { paidCount: 0, totalMembers: memberships.length, paidUserIds: new Set<string>() };
+    : { paidCount: 0, totalMembers: memberships.length, unpaidCount: memberships.length, paidUserIds: new Set<string>(), obligations: [] };
+
+  if (
+    currentRound
+    && group.Status === 'Active'
+    && obligationProgress.totalMembers > 0
+    && obligationProgress.paidCount === obligationProgress.totalMembers
+    && currentRound.Status === 'Open'
+  ) {
+    await settleObligationsFromSuccessfulTransactions(obligationProgress.obligations, paidTransactions);
+    await finalizeRoundIfReady(group, currentRound);
+    currentRound = await ensureOpenRoundForGroup(await requireGroup(groupId));
+    paidTransactions = currentRound ? await successfulContributions(currentRound.Round_ID) : [];
+    obligationProgress = currentRound
+      ? await getRoundObligationProgress(currentRound.Round_ID, memberships, paidTransactions)
+      : { paidCount: 0, totalMembers: memberships.length, unpaidCount: memberships.length, paidUserIds: new Set<string>(), obligations: [] };
+  }
+
   const canCurrentUserPay = !!currentRound
     && group.Status === 'Active'
     && memberships.some(item => item.User_ID === actor.User_ID)
@@ -242,9 +338,11 @@ async function getGroupStatusSnapshot(actor: UserRecord, groupId: string) {
   return {
     group: toAppGroup(group),
     currentRound,
+    contributionDeadlineAt: contributionDeadlineFromObligations(obligationProgress.obligations),
     paidCount: obligationProgress.paidCount,
     totalMembers: obligationProgress.totalMembers,
     winnerHistory: await getWinnerHistory(groupId),
+    latestDraw: await getLatestDraw(groupId),
     contributors: await getStatusContributors(groupId, memberships, obligationProgress.paidUserIds, currentRound?.Winner_ID),
     activeResolutionPoll: resolutionState.activeResolutionPoll,
     refundTickets: resolutionState.refundTickets,
@@ -264,14 +362,18 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
     throw membershipError;
   }
 
-  const activeGroups = (await Promise.all(((memberships ?? []) as MembershipRecord[]).map(membership => requireGroup(membership.Group_ID))))
-    .filter(group => group.Status !== 'Completed');
+  const memberGroups = await Promise.all(((memberships ?? []) as MembershipRecord[]).map(membership => requireGroup(membership.Group_ID)));
+  const activeGroups = memberGroups.filter(group => group.Status !== 'Completed');
+  const completedGroups = memberGroups.filter(group => group.Status === 'Completed');
   let currentMembership: MembershipRecord | undefined;
   let currentGroup: GroupRecord | null = null;
   let currentRound: RoundRecord | null = null;
 
   for (const membership of (memberships ?? []) as MembershipRecord[]) {
     const candidateGroup = await requireGroup(membership.Group_ID);
+    if (candidateGroup.Status === 'Completed') {
+      continue;
+    }
     const candidateRound = await ensureOpenRoundForGroup(candidateGroup);
     if (!candidateRound) {
       continue;
@@ -292,17 +394,17 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
     }
   }
 
-  if (!currentMembership) {
-    currentMembership = (memberships ?? [])[0] as MembershipRecord | undefined;
-    currentGroup = currentMembership ? await requireGroup(currentMembership.Group_ID) : null;
-    currentRound = currentGroup ? await ensureOpenRoundForGroup(currentGroup) : null;
+  if (!currentMembership && activeGroups.length) {
+    currentGroup = activeGroups[0];
+    currentRound = await ensureOpenRoundForGroup(currentGroup);
+    currentMembership = ((memberships ?? []) as MembershipRecord[]).find(membership => membership.Group_ID === currentGroup?.Group_ID);
   }
 
   const paidTransactions = currentRound ? await successfulContributions(currentRound.Round_ID) : [];
   const activeMembers = currentGroup ? await listActiveMemberships(currentGroup.Group_ID) : [];
   const obligationProgress = currentRound
     ? await getRoundObligationProgress(currentRound.Round_ID, activeMembers, paidTransactions)
-    : { paidCount: 0, totalMembers: activeMembers.length };
+    : { paidCount: 0, totalMembers: activeMembers.length, unpaidCount: activeMembers.length, paidUserIds: new Set<string>(), obligations: [] };
 
   const { data: transactions, error: transactionError } = await supabaseAdmin
     .from('Transaction')
@@ -337,7 +439,9 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
   return {
     currentGroup: currentGroup ? toAppGroup(currentGroup) : null,
     activeGroups: activeGroups.map(toAppGroup),
+    completedGroups: completedGroups.map(toAppGroup),
     currentRound,
+    contributionDeadlineAt: contributionDeadlineFromObligations(obligationProgress.obligations ?? []),
     paidCount: obligationProgress.paidCount,
     totalMembers: obligationProgress.totalMembers,
     totalSaved: (savedTransactions ?? []).reduce((sum, item) => sum + Number(item.Amount ?? 0), 0),

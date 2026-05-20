@@ -10,6 +10,7 @@
   dashboard: 'Dashboard',
   explore: 'Explore',
   activeGroups: 'ActiveGroups',
+  myRequests: 'MyRequests',
   groupDetail: 'GroupDetail',
   formationDetail: 'FormationDetail',
   formationCreator: 'FormationCreator',
@@ -32,4 +33,5 @@
   adminGroups: 'AdminGroups',
   adminGroupReview: 'AdminGroupReview',
   adminReports: 'AdminReports',
+  adminProfile: 'AdminProfile',
 } as const;

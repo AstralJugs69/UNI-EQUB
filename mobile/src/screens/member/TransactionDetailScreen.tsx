@@ -1,11 +1,12 @@
 import React from 'react';
-import { Share, Text, View } from 'react-native';
+import { Alert, Share, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
 import { EmptyState, LoadingState, Pill, PrimaryCTA, ScreenScroll, SecondaryCTA, SectionCard, TopAppBar } from '../../components/ui';
 import { useDashboardQuery, useTransactionsQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
+import { createTransactionReceiptPdf } from '../../services/receiptPdf';
 import { iconSize, palette } from '../../theme/tokens';
 import type { TransactionRecord } from '../../types/domain';
 import { formatCurrency, paymentMethodLabel } from './shared';
@@ -24,7 +25,7 @@ function formatDateTime(value: string) {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return `${date.toISOString().slice(0, 10)} · ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  return `${date.toISOString().slice(0, 10)} - ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 function DetailRow({
@@ -69,7 +70,7 @@ function TimelineRow({ title, subtitle }: { title: string; subtitle: string }) {
 function buildReceipt(transaction: TransactionRecord, groupName: string, recipient: string) {
   return [
     'UniEqub transaction receipt',
-    `${transaction.Type} · ${transaction.Status}`,
+    `${transaction.Type} - ${transaction.Status}`,
     `Amount: ${formatCurrency(transaction.Amount)}`,
     `Group: ${groupName}`,
     `Method: ${paymentMethodLabel(transaction.Payment_Method)}`,
@@ -102,17 +103,34 @@ export function TransactionDetailScreen({ route }: any) {
   }
 
   const safeTransaction = transaction;
+  const safeSession = session;
   const groupName = dashboard?.currentGroup?.Group_Name ?? 'UniEqub group';
-  const recipient = safeTransaction.Type === 'Payout' ? session.user.fullName : 'Verified contribution pool';
+  const recipient = safeTransaction.Type === 'Payout' ? safeSession.user.fullName : 'Verified contribution pool';
   const recipientHelper = safeTransaction.Type === 'Payout' ? 'Wallet credited' : 'Round contribution recorded';
   const heroSubtitle = safeTransaction.Type === 'Payout' ? 'Wallet credited' : 'Contribution received';
   const badgeTone = safeTransaction.Status === 'Successful' ? 'good' : safeTransaction.Status === 'Failed' ? 'bad' : 'warn';
 
-  async function shareReceipt() {
-    await Share.share({
-      title: 'UniEqub receipt',
-      message: buildReceipt(safeTransaction, groupName, recipient),
-    });
+  async function downloadReceipt() {
+    try {
+      const filePath = await createTransactionReceiptPdf({
+        transaction: safeTransaction,
+        groupName,
+        recipient,
+        methodLabel: paymentMethodLabel(safeTransaction.Payment_Method),
+        accountName: safeSession.user.fullName,
+      });
+      await Share.share({
+        title: 'UniEqub receipt PDF',
+        message: `UniEqub receipt ${safeTransaction.Gateway_Ref}`,
+        url: `file://${filePath}`,
+      });
+    } catch (err) {
+      Alert.alert('Receipt PDF unavailable', err instanceof Error ? err.message : 'The PDF receipt could not be generated in this build.');
+      await Share.share({
+        title: 'UniEqub receipt',
+        message: buildReceipt(safeTransaction, groupName, recipient),
+      });
+    }
   }
 
   return (
@@ -129,7 +147,7 @@ export function TransactionDetailScreen({ route }: any) {
             </View>
           ) : null}
         </View>
-        <Pill label={`${safeTransaction.Type} · ${safeTransaction.Status}`} tone={badgeTone} />
+        <Pill label={`${safeTransaction.Type} - ${safeTransaction.Status}`} tone={badgeTone} />
         <Text style={memberStyles.transactionHeroAmount}>{formatCurrency(safeTransaction.Amount)}</Text>
         <Text style={memberStyles.transactionHeroSubtitle}>{heroSubtitle}</Text>
       </SectionCard>
@@ -146,7 +164,7 @@ export function TransactionDetailScreen({ route }: any) {
         <TimelineRow title="Processed successfully" subtitle={formatDateTime(safeTransaction.Date)} />
         <TimelineRow title="Recorded in wallet history" subtitle={formatDateTime(safeTransaction.Date)} />
       </SectionCard>
-      <PrimaryCTA label="Download receipt" icon="file-download" onPress={() => { shareReceipt().catch(() => undefined); }} />
+      <PrimaryCTA label="Download PDF receipt" icon="file-download" onPress={() => { downloadReceipt().catch(() => undefined); }} />
       <SecondaryCTA label="Back to history" icon="arrow-back" onPress={() => navigation.navigate(routes.memberTabs, { screen: routes.history })} />
     </ScreenScroll>
   );

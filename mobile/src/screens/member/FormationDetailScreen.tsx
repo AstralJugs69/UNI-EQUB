@@ -7,6 +7,10 @@ import { useAuth } from '../../providers/AuthProvider';
 import { formatCurrency } from './shared';
 import { memberStyles } from './styles';
 
+function displayTermsVersion(value: string) {
+  return value.split('|')[0];
+}
+
 export function FormationDetailScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const { session } = useAuth();
@@ -74,6 +78,7 @@ export function FormationDetailScreen({ route }: any) {
       <View style={memberStyles.metricsGrid}>
         <MetricTile label="Contribution" value={formatCurrency(request.contribution_amount)} />
         <MetricTile label="Accepted" value={`${data.accepted_participant_count}/${request.min_members}`} helper={`${data.remaining_slots} slots left`} />
+        <MetricTile label="Draw Cycles" value={`${request.total_cycles ?? request.max_members}`} helper="Before completion" tone="active" />
       </View>
       {announcements?.length ? (
         <SectionCard variant="soft">
@@ -94,7 +99,7 @@ export function FormationDetailScreen({ route }: any) {
       <SectionCard>
         <Text style={memberStyles.sectionTitle}>Terms</Text>
         <View style={memberStyles.listGroup}>
-          <ListRow title={request.terms_version} leadingIcon="rule" />
+          <ListRow title={displayTermsVersion(request.terms_version)} leadingIcon="rule" />
           <ListRow
             title={isPrivate ? 'Invite-managed group' : 'Creator-reviewed request'}
             subtitle={isPrivate ? 'The group starts when the accepted-member minimum is met.' : 'Admin review happens after the creator submits.'}
