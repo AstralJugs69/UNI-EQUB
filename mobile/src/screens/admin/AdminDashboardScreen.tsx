@@ -1,7 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { DemoModeBanner } from '../../components/DemoModeBanner';
 import { AppScreen, ListRow, LoadingState, MetricTile, Pill, PrimaryCTA, SectionCard, StatusBanner, TitleBlock, TopAppBar } from '../../components/ui';
 import { useAdminOverviewQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
@@ -17,7 +16,6 @@ export function AdminDashboardScreen() {
 
   return (
     <AppScreen>
-      <DemoModeBanner />
       <TopAppBar title="Command Center" subtitle="Admin Workspace" rightLabel="Healthy" />
       <SectionCard>
         <View style={adminStyles.metricsGrid}>

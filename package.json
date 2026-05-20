@@ -14,7 +14,16 @@
     "mobile:lint": "npm --prefix mobile run lint",
     "mobile:apk:debug": "powershell -Command \"$env:JAVA_HOME='C:\\Program Files\\Android\\Android Studio\\jbr'; $env:Path=\\\"$env:JAVA_HOME\\\\bin;$env:Path\\\"; cd mobile\\\\android; .\\\\gradlew.bat assembleDebug\"",
     "mobile:apk:release": "powershell -ExecutionPolicy Bypass -File .\\scripts\\build-android-release.ps1",
-    "seed:final-draw": "node .\\mobile\\scripts\\seed-final-draw.js",
+    "seed:wipe": "npx --yes tsx .\\tools\\seeding\\src\\index.ts wipe",
+    "seed:bootstrap-admin": "npx --yes tsx .\\tools\\seeding\\src\\index.ts bootstrap-admin",
+    "seed:scenario": "npx --yes tsx .\\tools\\seeding\\src\\index.ts scenario",
+    "seed:catalog": "npx --yes tsx .\\tools\\seeding\\src\\index.ts catalog",
+    "seed:validate": "npx --yes tsx .\\tools\\seeding\\src\\index.ts validate",
+    "desktop:dev": "npm --prefix desktop run dev",
+    "desktop:electron": "npm --prefix desktop run electron",
+    "desktop:build": "npm --prefix desktop run build",
+    "desktop:typecheck": "npm --prefix desktop run typecheck",
+    "desktop:test": "npm --prefix desktop run test",
     "qa:kyc-upload": "node .\\mobile\\scripts\\validate-kyc-upload.js --output C:\\dev\\projects\\UNI-EQUB\\Build\\delivery\\evidence\\kyc-upload-validation.json",
     "qa:wallet-clearance": "node .\\mobile\\scripts\\validate-wallet-clearance.js --output C:\\dev\\projects\\UNI-EQUB\\Build\\delivery\\evidence\\wallet-clearance-validation.json",
     "qa:ussd-simulator": "node .\\mobile\\scripts\\validate-ussd-simulator.js --output C:\\dev\\projects\\UNI-EQUB\\Build\\delivery\\evidence\\ussd-simulator-validation.json",
@@ -52,8 +61,7 @@
     "qa:phase2-final-handoff": "node .\\mobile\\scripts\\validate-phase2-final-handoff.js --output .\\Build\\delivery\\evidence\\phase2-final-handoff-validation.json",
     "qa:phase2-durable-notifications": "node .\\mobile\\scripts\\validate-phase2-durable-notifications.js --output .\\Build\\delivery\\evidence\\phase2-durable-notifications-validation.json",
     "qa:phase2-kyc-history": "node .\\mobile\\scripts\\validate-phase2-kyc-history.js --output .\\Build\\delivery\\evidence\\phase2-kyc-history-validation.json",
-    "qa:phase2-demo-readiness": "node .\\mobile\\scripts\\validate-phase2-demo-readiness.js --output .\\Build\\delivery\\evidence\\phase2-demo-readiness-validation.json",
-    "qa:phase2-in-app-demo": "node .\\mobile\\scripts\\validate-phase2-in-app-demo.js --output .\\Build\\delivery\\evidence\\phase2-in-app-demo-validation.json",
+    "qa:seedless": "npm run seed:validate",
     "qa:navigation-hub": "node .\\mobile\\scripts\\validate-navigation-hub-cleanup.js --output .\\Build\\delivery\\evidence\\navigation-hub-cleanup-validation.json"
   }
 }

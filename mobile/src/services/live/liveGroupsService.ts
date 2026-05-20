@@ -1,8 +1,17 @@
 import { supabase } from '../supabaseClient';
 import { loadSessionToken } from '../storage';
-import { mockBackend } from '../mock/mockBackend';
 import type { GroupService } from '../contracts';
-import type { DashboardSnapshot, GroupApprovalItem, GroupRecord, GroupStatusSnapshot, MembershipRecord, RoundRecord, SessionUser, GroupFreezeEventRecord, GroupFreezeResolutionAction } from '../../types/domain';
+import type {
+  DashboardSnapshot,
+  GroupApprovalItem,
+  GroupFreezeEventRecord,
+  GroupFreezeResolutionAction,
+  GroupRecord,
+  GroupStatusSnapshot,
+  MembershipRecord,
+  RoundRecord,
+  SessionUser,
+} from '../../types/domain';
 import { assertLiveEnvelope, readLiveFunctionError } from './liveFunctionError';
 
 interface Envelope<T> {
@@ -44,79 +53,23 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   return assertLiveEnvelope(data, 'Group lifecycle invocation failed.');
 }
 
-function toSessionUser(user: PendingApprovalResponse['items'][number]['creator']): SessionUser {
-  return {
-    userId: user.User_ID,
-    fullName: user.Full_Name,
-    phoneNumber: user.Phone_Number,
-    role: user.Role,
-    kycStatus: user.KYC_Status,
-  };
-}
-
-function syncGroupShape(group: GroupRecord | null | undefined) {
-  if (group) {
-    mockBackend.syncExternalGroup(group);
-  }
-}
-
-function syncRoundShape(round: RoundRecord | null | undefined) {
-  if (round) {
-    mockBackend.syncExternalRound(round);
-  }
-}
-
-function isUuidLike(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
-
 export const liveGroupsService: GroupService = {
-  async listBrowseable(userId: string): Promise<GroupRecord[]> {
-    try {
-      const response = await invoke<{ groups: GroupRecord[] }>({ action: 'listBrowseable' });
-      if (response.groups.length) {
-        mockBackend.syncExternalGroups(response.groups);
-        return response.groups;
-      }
-    } catch {
-      // fall through to showcase seed groups when the live dataset is empty or unavailable
-    }
-
-    const showcaseGroups = await mockBackend.groups.listBrowseable(userId);
-    return showcaseGroups.map(group => ({
-      ...group,
-      Description: `${group.Description} UI showcase preview only.`,
-    }));
+  async listBrowseable(_userId: string): Promise<GroupRecord[]> {
+    const response = await invoke<{ groups: GroupRecord[] }>({ action: 'listBrowseable' });
+    return response.groups;
   },
 
   async getGroup(groupId: string): Promise<GroupRecord | null> {
-    if (!isUuidLike(groupId)) {
-      return mockBackend.groups.getGroup(groupId);
-    }
-
     try {
       const response = await invoke<{ group: GroupRecord }>({ action: 'getGroup', groupId });
-      syncGroupShape(response.group);
       return response.group;
     } catch {
-      return mockBackend.groups.getGroup(groupId);
+      return null;
     }
   },
 
-  async getGroupStatus(userId: string, groupId: string): Promise<GroupStatusSnapshot> {
-    const response = await invoke<GroupStatusSnapshot>({ action: 'getGroupStatus', groupId });
-    syncGroupShape(response.group);
-    syncRoundShape(response.currentRound);
-    if (response.canCurrentUserPay) {
-      mockBackend.syncExternalMembership({
-        Membership_ID: `live-${userId}-${groupId}`,
-        Group_ID: groupId,
-        User_ID: userId,
-        Joined_At: new Date().toISOString(),
-        Status: 'Active',
-      });
-    }
-    return response;
+  async getGroupStatus(_userId: string, groupId: string): Promise<GroupStatusSnapshot> {
+    return invoke<GroupStatusSnapshot>({ action: 'getGroupStatus', groupId });
   },
 
   async createRequest(_userId: string, input): Promise<GroupRecord> {
@@ -124,16 +77,11 @@ export const liveGroupsService: GroupService = {
       action: 'createRequest',
       createRequest: input,
     });
-    syncGroupShape(response.group);
     return response.group;
   },
 
   async listPendingApprovals(): Promise<GroupApprovalItem[]> {
     const response = await invoke<PendingApprovalResponse>({ action: 'listPending' });
-    response.items.forEach(item => {
-      syncGroupShape(item.group);
-      mockBackend.syncExternalUser(toSessionUser(item.creator));
-    });
     return response.items.map(item => ({
       group: item.group,
       creator: item.creator,
@@ -142,29 +90,24 @@ export const liveGroupsService: GroupService = {
   },
 
   async approve(groupId: string): Promise<void> {
-    const response = await invoke<{ group: GroupRecord; currentRound: RoundRecord }>({ action: 'approve', groupId });
-    syncGroupShape(response.group);
-    syncRoundShape(response.currentRound);
+    await invoke<{ group: GroupRecord; currentRound: RoundRecord }>({ action: 'approve', groupId });
   },
 
   async reject(groupId: string): Promise<void> {
-    const response = await invoke<{ group: GroupRecord; note: string }>({ action: 'reject', groupId });
-    syncGroupShape(response.group);
+    await invoke<{ group: GroupRecord; note: string }>({ action: 'reject', groupId });
   },
 
   async freeze(groupId: string): Promise<void> {
-    const response = await invoke<{ group: GroupRecord; freezeEvent?: GroupFreezeEventRecord }>({ action: 'freeze', groupId });
-    syncGroupShape(response.group);
+    await invoke<{ group: GroupRecord; freezeEvent?: GroupFreezeEventRecord }>({ action: 'freeze', groupId });
   },
 
   async resolveFreeze(groupId: string, resolutionAction: GroupFreezeResolutionAction = 'ContinueWithReserveFrozen', resolutionNote?: string): Promise<void> {
-    const response = await invoke<{ group: GroupRecord; freezeEvent?: GroupFreezeEventRecord }>({
+    await invoke<{ group: GroupRecord; freezeEvent?: GroupFreezeEventRecord }>({
       action: 'resolveFreeze',
       groupId,
       resolutionAction,
       resolutionNote,
     });
-    syncGroupShape(response.group);
   },
 
   async createResolutionPoll(groupId: string): Promise<GroupStatusSnapshot['activeResolutionPoll']> {
@@ -193,26 +136,10 @@ export const liveGroupsService: GroupService = {
   },
 
   async joinGroup(_userId: string, groupId: string): Promise<void> {
-    const response = await invoke<{ membership: MembershipRecord; group: GroupRecord; currentRound: RoundRecord }>({ action: 'join', groupId });
-    syncGroupShape(response.group);
-    syncRoundShape(response.currentRound);
-    mockBackend.syncExternalMembership(response.membership);
+    await invoke<{ membership: MembershipRecord; group: GroupRecord; currentRound: RoundRecord }>({ action: 'join', groupId });
   },
 
-  async getDashboard(userId: string): Promise<DashboardSnapshot> {
-    const response = await invoke<DashboardSnapshot>({ action: 'getDashboard' });
-    syncGroupShape(response.currentGroup);
-    response.activeGroups?.forEach(syncGroupShape);
-    syncRoundShape(response.currentRound);
-    if (response.currentGroup) {
-      mockBackend.syncExternalMembership({
-        Membership_ID: `live-${userId}-${response.currentGroup.Group_ID}`,
-        Group_ID: response.currentGroup.Group_ID,
-        User_ID: userId,
-        Joined_At: new Date().toISOString(),
-        Status: 'Active',
-      });
-    }
-    return response;
+  async getDashboard(_userId: string): Promise<DashboardSnapshot> {
+    return invoke<DashboardSnapshot>({ action: 'getDashboard' });
   },
 };

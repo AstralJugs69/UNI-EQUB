@@ -1,39 +1,46 @@
-﻿import { seedGroups, seedMemberships, seedNotifications, seedRounds, seedTransactions, seedUsers } from '../../data/seed';
 import type {
   AdminOverview,
   AppNotification,
+  AccountSlot,
   AuthSession,
   DashboardSnapshot,
   ExportedReport,
+  GroupAnnouncement,
   GroupApprovalItem,
   GroupFormationDetail,
   GroupFormationRequestSummary,
   GroupInvitationRecord,
   GroupJoinRequestRecord,
   GroupRecord,
-  GroupResolutionPollOptionRecord,
-  GroupResolutionPollRecord,
-  GroupResolutionVoteRecord,
-  GroupRequestRecord,
   GroupStatusSnapshot,
   KycReviewItem,
   MemberKycState,
   MembershipRecord,
   PaymentMethod,
   PaymentResult,
-  RefundTicketRecord,
   ReminderBatchResult,
-  ReliabilityPublicStatus,
   ReportSummary,
   RoundRecord,
   SessionUser,
+  SimulationCommand,
+  SimulationCommandResult,
+  SimulationSnapshot,
   TransactionRecord,
   UssdSessionState,
-  UserReliabilityProfileRecord,
+  UserProfile,
   UserRecord,
   WalletSnapshot,
 } from '../../types/domain';
-import type { AppServices, CreateGroupFormationInput, CreateGroupInput, FormationInvitationInput, FormationTermsAcceptance, KycSubmissionInput, LoginInput, RegisterInput } from '../contracts';
+import type {
+  AppServices,
+  CreateGroupFormationInput,
+  CreateGroupInput,
+  FormationInvitationInput,
+  FormationTermsAcceptance,
+  KycSubmissionInput,
+  LoginInput,
+  RegisterInput,
+} from '../contracts';
 
 interface SessionRecord {
   userId: string;
@@ -46,29 +53,19 @@ interface OtpChallenge {
   expiresAt: string;
 }
 
-interface ProviderLog {
-  provider: PaymentMethod | 'ReminderEngine';
-  status: 'Queued' | 'Successful' | 'Failed';
-  message: string;
-  createdAt: string;
-}
-
 interface UssdSessionRecord {
   sessionId: string;
   userId: string;
   groupId: string;
   stage: UssdSessionState['stage'];
   expiresAt: string;
-  merchantRef?: string;
-  amount?: number;
-  error?: string;
   paymentResult?: PaymentResult;
 }
 
 interface DatabaseState {
   users: UserRecord[];
   groups: GroupRecord[];
-  memberships: typeof seedMemberships;
+  memberships: MembershipRecord[];
   rounds: RoundRecord[];
   transactions: TransactionRecord[];
   notifications: Record<string, AppNotification[]>;
@@ -76,17 +73,13 @@ interface DatabaseState {
   otpChallenges: Record<string, OtpChallenge>;
   ussdSessions: Record<string, UssdSessionRecord>;
   auditLogs: string[];
-  reminderQueue: string[];
-  providerLogs: ProviderLog[];
-  rejectedGroupIds: string[];
-  groupRequests: GroupRequestRecord[];
+  groupRequests: GroupFormationRequestSummary[];
   groupJoinRequests: GroupJoinRequestRecord[];
   groupInvitations: GroupInvitationRecord[];
-  resolutionPolls: GroupResolutionPollRecord[];
-  resolutionPollOptions: GroupResolutionPollOptionRecord[];
-  resolutionVotes: GroupResolutionVoteRecord[];
-  refundTickets: RefundTicketRecord[];
-  reliabilityProfiles: UserReliabilityProfileRecord[];
+  profiles: Record<string, UserProfile>;
+  accountSlots: AccountSlot[];
+  announcements: GroupAnnouncement[];
+  simulationEvents: SimulationSnapshot['events'];
   kycStates: Record<string, MemberKycState>;
 }
 
@@ -95,6 +88,19 @@ const hashPassword = (password: string) => `hash:${password}`;
 const makeId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 const nowIso = () => new Date().toISOString();
 const plusMinutes = (minutes: number) => new Date(Date.now() + minutes * 60_000).toISOString();
+
+const emptyDashboard = (kycState: MemberKycState): DashboardSnapshot => ({
+  currentGroup: null,
+  activeGroups: [],
+  currentRound: null,
+  paidCount: 0,
+  totalMembers: 0,
+  totalSaved: 0,
+  readyPayout: 0,
+  recentTransactions: [],
+  kycState,
+  reliabilityProfile: null,
+});
 
 export class MockBackend implements AppServices {
   private db: DatabaseState;
@@ -109,782 +115,153 @@ export class MockBackend implements AppServices {
 
   private createInitialState(): DatabaseState {
     return {
-      users: [...clone(seedUsers), ...this.createDemoAdminUsers()],
-      groups: [...clone(seedGroups), ...this.createDemoAdminGroups()],
-      memberships: clone(seedMemberships),
-      rounds: clone(seedRounds),
-      transactions: clone(seedTransactions),
-      notifications: clone(seedNotifications),
+      users: [],
+      groups: [],
+      memberships: [],
+      rounds: [],
+      transactions: [],
+      notifications: {},
       sessions: {},
       otpChallenges: {},
       ussdSessions: {},
-      auditLogs: [
-        'Phase 2 formation submitted: Campus Demo Formation • 09:42 AM',
-        'Public daily formation queued for admin review • 09:36 AM',
-        'KYC approved for Dawit Abebe • 09:15 AM',
-        'Cycle frozen for suspicious mismatch • 08:47 AM',
-      ],
-      reminderQueue: [
-        'Dorm A Savings Group • 1 unpaid member • automatic reminder queued',
-        'AAU Coders Circle • 2 unpaid members • automatic reminder queued',
-        'Exam Week Buffer • 4 unpaid members • due today',
-      ],
-      providerLogs: [
-        { provider: 'MockUSSD', status: 'Successful', message: 'USSD contribution reconciled for Dorm A Savings Group', createdAt: nowIso() },
-        { provider: 'Telebirr', status: 'Queued', message: 'Mock provider callback waiting for confirmation', createdAt: nowIso() },
-        { provider: 'ReminderEngine', status: 'Successful', message: 'Reminder batch generated for demo queues', createdAt: nowIso() },
-      ],
-      rejectedGroupIds: [],
-      groupRequests: this.createDemoGroupRequests(),
-      groupJoinRequests: this.createDemoJoinRequests(),
-      groupInvitations: this.createDemoGroupInvitations(),
-      resolutionPolls: [],
-      resolutionPollOptions: [],
-      resolutionVotes: [],
-      refundTickets: [],
-      reliabilityProfiles: this.createReliabilityProfiles(),
-      kycStates: {
-        'user-meron': { status: 'PendingReview', canSubmit: false, submittedAt: nowIso(), decisionNote: null },
-        'user-hana': { status: 'PendingReview', canSubmit: false, submittedAt: nowIso(), decisionNote: null },
-      },
+      auditLogs: [],
+      groupRequests: [],
+      groupJoinRequests: [],
+      groupInvitations: [],
+      profiles: {},
+      accountSlots: [],
+      announcements: [],
+      simulationEvents: [],
+      kycStates: {},
     };
-  }
-
-  private createReliabilityProfiles(): UserReliabilityProfileRecord[] {
-    return [
-      { user_id: 'user-dawit', public_status: 'BuildingTrust', completed_groups_count: 1, perfect_completed_groups_count: 1, late_payment_count: 0, default_count: 0, restriction_count: 0, current_maturity_completed_count: 1, updated_at: nowIso() },
-      { user_id: 'user-miki', public_status: 'Trusted', completed_groups_count: 3, perfect_completed_groups_count: 3, late_payment_count: 0, default_count: 0, restriction_count: 0, current_maturity_completed_count: 3, updated_at: nowIso() },
-      { user_id: 'user-ruth', public_status: 'New', completed_groups_count: 0, perfect_completed_groups_count: 0, late_payment_count: 0, default_count: 0, restriction_count: 0, current_maturity_completed_count: 0, updated_at: nowIso() },
-      { user_id: 'user-saba', public_status: 'BuildingTrust', completed_groups_count: 1, perfect_completed_groups_count: 1, late_payment_count: 1, default_count: 0, restriction_count: 0, current_maturity_completed_count: 1, updated_at: nowIso() },
-      { user_id: 'user-banned', public_status: 'Banned', completed_groups_count: 0, perfect_completed_groups_count: 0, late_payment_count: 0, default_count: 1, restriction_count: 1, current_maturity_completed_count: 0, updated_at: nowIso() },
-    ];
-  }
-
-  private createDemoAdminUsers(): UserRecord[] {
-    return [
-      {
-        User_ID: 'user-noah',
-        Full_Name: 'Noah Girma',
-        Phone_Number: '0911000007',
-        Password_Hash: 'hash:noah1234',
-        Student_ID_Img: 'storage://students/noah-id.png',
-        KYC_Status: 'Verified',
-        Role: 'Member',
-        Created_At: nowIso(),
-      },
-      {
-        User_ID: 'user-hana',
-        Full_Name: 'Hana Bekele',
-        Phone_Number: '0911000005',
-        Password_Hash: 'hash:hana1234',
-        Student_ID_Img: 'storage://students/hana-id.png',
-        KYC_Status: 'Unverified',
-        Role: 'Member',
-        Created_At: nowIso(),
-      },
-      {
-        User_ID: 'user-yared',
-        Full_Name: 'Yared Mekonnen',
-        Phone_Number: '0911000006',
-        Password_Hash: 'hash:yared1234',
-        Student_ID_Img: 'storage://students/yared-id.png',
-        KYC_Status: 'Unverified',
-        Role: 'Member',
-        Created_At: nowIso(),
-      },
-      {
-        User_ID: 'user-banned',
-        Full_Name: 'Banned Member',
-        Phone_Number: '0911000008',
-        Password_Hash: 'hash:banned1234',
-        Student_ID_Img: 'storage://students/banned-id.png',
-        KYC_Status: 'Banned',
-        Role: 'Member',
-        Created_At: nowIso(),
-      },
-    ];
-  }
-
-  private createDemoAdminGroups(): GroupRecord[] {
-    return [
-      {
-        Group_ID: 'group-demo-transport',
-        Creator_ID: 'user-saba',
-        Group_Name: 'Transport Mini Equb',
-        Amount: 150,
-        Max_Members: 6,
-        Frequency: 'Daily',
-        Virtual_Acc_Ref: '',
-        Status: 'Pending',
-        Start_Date: '2026-05-18',
-        Description: 'Small daily transport contribution request queued for admin review.',
-      },
-      {
-        Group_ID: 'group-demo-frozen',
-        Creator_ID: 'user-admin',
-        Group_Name: 'Frozen Recovery Demo',
-        Amount: 200,
-        Max_Members: 5,
-        Frequency: 'Weekly',
-        Virtual_Acc_Ref: 'UEQ-FROZEN',
-        Status: 'Frozen',
-        Start_Date: '2026-05-15',
-        Description: 'Frozen group ready for member-poll recovery demo.',
-      },
-    ];
-  }
-
-
-  private createDemoGroupRequests(): GroupRequestRecord[] {
-    return [
-      {
-        id: 'formation-demo-review',
-        creator_id: 'user-dawit',
-        submitted_by: 'user-dawit',
-        proposed_group_name: 'Campus Demo Formation',
-        description: 'Prepared Phase 2 request for admin approval during the phone demo.',
-        contribution_amount: 700,
-        frequency: 'Weekly',
-        min_members: 5,
-        max_members: 6,
-        visibility: 'Public',
-        invite_mode: 'PublicRequest',
-        status: 'PendingApproval',
-        risk_level: 'Low',
-        terms_version: 'phase2-v1',
-        agreement_required: true,
-        vesting_enabled: true,
-        vesting_disabled_by_creator: false,
-        risk_warning_accepted_at: null,
-        expires_at: plusMinutes(60 * 24 * 3),
-        submitted_at: nowIso(),
-        reviewed_by: null,
-        reviewed_at: null,
-        approval_decision_note: null,
-        rejection_reason: null,
-        approved_group_id: null,
-        created_group_at: null,
-        created_at: nowIso(),
-        updated_at: nowIso(),
-      },
-      {
-        id: 'formation-demo-public-review-2',
-        creator_id: 'user-saba',
-        submitted_by: 'user-saba',
-        proposed_group_name: 'Campus Lab Supplies',
-        description: 'Public daily request queued for admin approval.',
-        contribution_amount: 250,
-        frequency: 'Daily',
-        min_members: 5,
-        max_members: 5,
-        visibility: 'Public',
-        invite_mode: 'PublicRequest',
-        status: 'PendingApproval',
-        risk_level: 'Low',
-        terms_version: 'phase2-v1',
-        agreement_required: true,
-        vesting_enabled: true,
-        vesting_disabled_by_creator: false,
-        risk_warning_accepted_at: null,
-        expires_at: plusMinutes(60 * 24 * 3),
-        submitted_at: nowIso(),
-        reviewed_by: null,
-        reviewed_at: null,
-        approval_decision_note: null,
-        rejection_reason: null,
-        approved_group_id: null,
-        created_group_at: null,
-        created_at: nowIso(),
-        updated_at: nowIso(),
-      },
-      {
-        id: 'formation-demo-public',
-        creator_id: 'user-ruth',
-        submitted_by: null,
-        proposed_group_name: 'Laptop Repair Rotation',
-        description: 'Public forming request for members to inspect and request to join.',
-        contribution_amount: 450,
-        frequency: 'Monthly',
-        min_members: 5,
-        max_members: 7,
-        visibility: 'Public',
-        invite_mode: 'PublicRequest',
-        status: 'Forming',
-        risk_level: 'Low',
-        terms_version: 'phase2-v1',
-        agreement_required: true,
-        vesting_enabled: true,
-        vesting_disabled_by_creator: false,
-        risk_warning_accepted_at: null,
-        expires_at: plusMinutes(60 * 24 * 5),
-        submitted_at: null,
-        reviewed_by: null,
-        reviewed_at: null,
-        approval_decision_note: null,
-        rejection_reason: null,
-        approved_group_id: null,
-        created_group_at: null,
-        created_at: nowIso(),
-        updated_at: nowIso(),
-      },
-      {
-        id: 'formation-demo-private',
-        creator_id: 'user-dawit',
-        submitted_by: null,
-        proposed_group_name: 'Dorm Coffee Circle',
-        description: 'Private daily draw request with a shareable invite code.',
-        contribution_amount: 350,
-        frequency: 'Daily',
-        min_members: 5,
-        max_members: 5,
-        visibility: 'Private',
-        invite_mode: 'InviteCodeAndDirect',
-        status: 'Forming',
-        risk_level: 'Medium',
-        terms_version: 'phase2-v1',
-        agreement_required: true,
-        vesting_enabled: false,
-        vesting_disabled_by_creator: true,
-        risk_warning_accepted_at: nowIso(),
-        expires_at: plusMinutes(60 * 24 * 4),
-        submitted_at: null,
-        reviewed_by: null,
-        reviewed_at: null,
-        approval_decision_note: null,
-        rejection_reason: null,
-        approved_group_id: null,
-        created_group_at: null,
-        created_at: nowIso(),
-        updated_at: nowIso(),
-      },
-    ];
-  }
-
-  private createDemoJoinRequests(): GroupJoinRequestRecord[] {
-    return [
-      {
-        id: 'formation-demo-review-creator',
-        group_request_id: 'formation-demo-review',
-        user_id: 'user-dawit',
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: 'user-dawit',
-        decision_reason: 'Creator automatically added to the forming group.',
-      },
-      {
-        id: 'formation-demo-review-miki',
-        group_request_id: 'formation-demo-review',
-        user_id: 'user-miki',
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: 'user-dawit',
-        decision_reason: 'Accepted participant for demo approval readiness.',
-      },
-      {
-        id: 'formation-demo-review-ruth',
-        group_request_id: 'formation-demo-review',
-        user_id: 'user-ruth',
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: 'user-dawit',
-        decision_reason: 'Accepted participant for demo approval readiness.',
-      },
-      {
-        id: 'formation-demo-review-saba',
-        group_request_id: 'formation-demo-review',
-        user_id: 'user-saba',
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: 'user-dawit',
-        decision_reason: 'Accepted participant for demo approval readiness.',
-      },
-      {
-        id: 'formation-demo-review-noah',
-        group_request_id: 'formation-demo-review',
-        user_id: 'user-noah',
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: 'user-dawit',
-        decision_reason: 'Accepted participant for demo approval readiness.',
-      },
-      {
-        id: 'formation-demo-public-creator',
-        group_request_id: 'formation-demo-public',
-        user_id: 'user-ruth',
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: 'user-ruth',
-        decision_reason: 'Creator automatically added to the forming group.',
-      },
-      {
-        id: 'formation-demo-public-review-2-creator',
-        group_request_id: 'formation-demo-public-review-2',
-        user_id: 'user-saba',
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: 'user-saba',
-        decision_reason: 'Creator automatically added to the forming group.',
-      },
-      {
-        id: 'formation-demo-public-review-2-dawit',
-        group_request_id: 'formation-demo-public-review-2',
-        user_id: 'user-dawit',
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: 'user-saba',
-        decision_reason: 'Accepted participant for admin review demo.',
-      },
-      {
-        id: 'formation-demo-public-review-2-miki',
-        group_request_id: 'formation-demo-public-review-2',
-        user_id: 'user-miki',
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: 'user-saba',
-        decision_reason: 'Accepted participant for admin review demo.',
-      },
-      {
-        id: 'formation-demo-public-review-2-ruth',
-        group_request_id: 'formation-demo-public-review-2',
-        user_id: 'user-ruth',
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: 'user-saba',
-        decision_reason: 'Accepted participant for admin review demo.',
-      },
-      {
-        id: 'formation-demo-public-review-2-noah',
-        group_request_id: 'formation-demo-public-review-2',
-        user_id: 'user-noah',
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: 'user-saba',
-        decision_reason: 'Accepted participant for admin review demo.',
-      },
-      {
-        id: 'formation-demo-private-creator',
-        group_request_id: 'formation-demo-private',
-        user_id: 'user-dawit',
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: 'user-dawit',
-        decision_reason: 'Creator automatically added to the forming group.',
-      },
-      {
-        id: 'formation-demo-private-miki',
-        group_request_id: 'formation-demo-private',
-        user_id: 'user-miki',
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: 'user-dawit',
-        decision_reason: 'Accepted invite code for private demo readiness.',
-      },
-      {
-        id: 'formation-demo-private-hana',
-        group_request_id: 'formation-demo-private',
-        user_id: 'user-hana',
-        status: 'Requested',
-        requested_at: nowIso(),
-        accepted_at: null,
-        rejected_at: null,
-        removed_at: null,
-        decision_by: null,
-        decision_reason: 'Accepted group terms phase2-v1',
-      },
-      {
-        id: 'formation-demo-private-ruth',
-        group_request_id: 'formation-demo-private',
-        user_id: 'user-ruth',
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: 'user-dawit',
-        decision_reason: 'Accepted invite code for private demo readiness.',
-      },
-      {
-        id: 'formation-demo-private-saba',
-        group_request_id: 'formation-demo-private',
-        user_id: 'user-saba',
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: 'user-dawit',
-        decision_reason: 'Accepted invite code for private demo readiness.',
-      },
-      {
-        id: 'formation-demo-private-noah',
-        group_request_id: 'formation-demo-private',
-        user_id: 'user-noah',
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: 'user-dawit',
-        decision_reason: 'Accepted invite code for private demo readiness.',
-      },
-    ];
-  }
-
-  private createDemoGroupInvitations(): GroupInvitationRecord[] {
-    return [
-      {
-        id: 'formation-demo-public-invite',
-        group_request_id: 'formation-demo-public',
-        invited_user_id: null,
-        invited_phone_or_student_id: null,
-        invite_code: 'FORM-2026',
-        status: 'Pending',
-        expires_at: plusMinutes(60 * 24 * 5),
-        created_by: 'user-ruth',
-        accepted_at: null,
-        declined_at: null,
-        created_at: nowIso(),
-      },
-      {
-        id: 'formation-demo-private-invite',
-        group_request_id: 'formation-demo-private',
-        invited_user_id: null,
-        invited_phone_or_student_id: '0911999999',
-        invite_code: 'UNI-DEMO',
-        status: 'Pending',
-        expires_at: plusMinutes(60 * 24 * 4),
-        created_by: 'user-dawit',
-        accepted_at: null,
-        declined_at: null,
-        created_at: nowIso(),
-      },
-    ];
   }
 
   auth = {
     register: async (input: RegisterInput): Promise<SessionUser> => {
-      const normalized = this.normalizePhone(input.phoneNumber);
-      if (this.db.users.some(user => user.Phone_Number === normalized)) {
-        throw new Error('Phone number is already registered.');
+      if (this.db.users.some(user => this.normalizePhone(user.Phone_Number) === this.normalizePhone(input.phoneNumber))) {
+        throw new Error('A user with this phone number already exists.');
       }
-
       const user: UserRecord = {
         User_ID: makeId('user'),
-        Full_Name: input.fullName,
-        Phone_Number: normalized,
+        Full_Name: input.fullName.trim(),
+        Phone_Number: this.normalizePhone(input.phoneNumber),
         Password_Hash: hashPassword(input.password),
         Student_ID_Img: input.studentIdImage,
         KYC_Status: 'Unverified',
         Role: 'Member',
         Created_At: nowIso(),
       };
-
-      this.db.users.unshift(user);
-      this.pushNotification(user.User_ID, 'Account created', 'Finish OTP and KYC review to unlock the full platform.');
+      this.db.users.push(user);
+      this.db.kycStates[user.User_ID] = {
+        status: input.studentIdImage ? 'PendingReview' : 'NotSubmitted',
+        canSubmit: !input.studentIdImage,
+        submittedAt: input.studentIdImage ? nowIso() : null,
+      };
       return this.toSessionUser(user);
     },
 
     requestOtp: async (phoneNumber: string): Promise<{ challengeId: string }> => {
-      const normalized = this.normalizePhone(phoneNumber);
       const challengeId = makeId('otp');
-      this.db.otpChallenges[challengeId] = {
-        phoneNumber: normalized,
+      this.db.otpChallenges[phoneNumber] = {
+        phoneNumber,
         otp: '4719',
-        expiresAt: plusMinutes(5),
+        expiresAt: plusMinutes(10),
       };
-      this.db.providerLogs.unshift({
-        provider: 'ReminderEngine',
-        status: 'Queued',
-        message: `OTP queued for ${normalized}`,
-        createdAt: nowIso(),
-      });
       return { challengeId };
     },
 
     verifyOtp: async (phoneNumber: string, otp: string): Promise<{ pendingKycToken?: string }> => {
-      const normalized = this.normalizePhone(phoneNumber);
-      const challengeEntry = Object.entries(this.db.otpChallenges).find(([, item]) => item.phoneNumber === normalized);
-      if (!challengeEntry) {
+      const challenge = this.db.otpChallenges[phoneNumber];
+      if (!challenge || challenge.otp !== otp || new Date(challenge.expiresAt).getTime() < Date.now()) {
         throw new Error('No OTP challenge is active for this number.');
       }
-      const [challengeId, challenge] = challengeEntry;
-      if (challenge.expiresAt < nowIso()) {
-        throw new Error('OTP challenge expired.');
-      }
-      if (challenge.otp !== otp.trim()) {
-        throw new Error('Invalid OTP code.');
-      }
-      delete this.db.otpChallenges[challengeId];
-      return { pendingKycToken: `mock-pending-kyc-${normalized}` };
+      delete this.db.otpChallenges[phoneNumber];
+      return { pendingKycToken: `mock-pending-kyc-${phoneNumber}` };
     },
 
     beginLogin: async (input: LoginInput, roleHint?: 'Member' | 'Admin') => {
-      const normalized = this.normalizePhone(input.phoneNumber);
-      const user = this.db.users.find(item => item.Phone_Number === normalized);
-      if (!user || user.Password_Hash !== hashPassword(input.password)) {
-        throw new Error('Invalid phone number or password.');
-      }
-      if (roleHint && user.Role !== roleHint) {
-        throw new Error(`${roleHint} access is not available for this account.`);
-      }
-      if (user.KYC_Status === 'Banned') {
-        throw new Error('This account has been banned and cannot log in.');
-      }
-      const token = `session-${user.User_ID}-${Date.now()}`;
-      this.db.sessions[token] = { userId: user.User_ID, expiresAt: plusMinutes(60 * 24 * 7) };
-      return { challengeToken: token, phoneNumber: user.Phone_Number };
+      const session = await this.auth.login(input, roleHint);
+      return { challengeToken: session.token, phoneNumber: session.user.phoneNumber };
     },
 
-    completeLogin: async (challengeToken: string, _otp: string): Promise<AuthSession> => {
-      const challenge = this.db.sessions[challengeToken];
-      if (!challenge || challenge.expiresAt < nowIso()) {
-        throw new Error('Login challenge expired. Start login again.');
+    completeLogin: async (challengeToken: string): Promise<AuthSession> => {
+      const session = await this.auth.restore(challengeToken);
+      if (!session) {
+        throw new Error('Login challenge expired.');
       }
-      const user = this.requireUser(challenge.userId);
-      return { token: challengeToken, user: this.toSessionUser(user) };
+      return session;
     },
 
     login: async (input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<AuthSession> => {
-      const normalized = this.normalizePhone(input.phoneNumber);
-      const user = this.db.users.find(item => item.Phone_Number === normalized);
-
+      const user = this.db.users.find(item => this.normalizePhone(item.Phone_Number) === this.normalizePhone(input.phoneNumber));
       if (!user || user.Password_Hash !== hashPassword(input.password)) {
         throw new Error('Invalid phone number or password.');
-      }
-      if (roleHint && user.Role !== roleHint) {
-        throw new Error(`${roleHint} access is not available for this account.`);
       }
       if (user.KYC_Status === 'Banned') {
         throw new Error('This account has been banned and cannot log in.');
       }
-
-      const token = `session-${user.User_ID}-${Date.now()}`;
+      if (roleHint && user.Role !== roleHint) {
+        throw new Error(roleHint === 'Admin' ? 'Admin access is not available for this account.' : 'Member access is not available for this account.');
+      }
+      const token = makeId('session');
       this.db.sessions[token] = { userId: user.User_ID, expiresAt: plusMinutes(60 * 24 * 7) };
       return { token, user: this.toSessionUser(user) };
     },
 
     restore: async (token: string): Promise<AuthSession | null> => {
       const session = this.db.sessions[token];
-      if (!session) {
+      if (!session || new Date(session.expiresAt).getTime() < Date.now()) {
         return null;
       }
-      if (session.expiresAt < nowIso()) {
-        delete this.db.sessions[token];
-        return null;
-      }
-      const user = this.requireUser(session.userId);
-      if (user.KYC_Status === 'Banned') {
-        delete this.db.sessions[token];
-        return null;
-      }
-      return { token, user: this.toSessionUser(user) };
+      const user = this.db.users.find(item => item.User_ID === session.userId);
+      return user ? { token, user: this.toSessionUser(user) } : null;
     },
 
     logout: async (): Promise<void> => undefined,
   };
 
-  syncExternalUser(user: SessionUser, passwordHash?: string) {
-    const existing = this.db.users.find(item => item.User_ID === user.userId || item.Phone_Number === user.phoneNumber);
-    if (existing) {
-      existing.Full_Name = user.fullName;
-      existing.Phone_Number = user.phoneNumber;
-      existing.Role = user.role;
-      existing.KYC_Status = user.kycStatus;
-      if (passwordHash) {
-        existing.Password_Hash = passwordHash;
-      }
-      return;
-    }
-
-    this.db.users.unshift({
-      User_ID: user.userId,
-      Full_Name: user.fullName,
-      Phone_Number: user.phoneNumber,
-      Password_Hash: passwordHash ?? hashPassword('placeholder'),
-      Student_ID_Img: 'storage://students/pending-upload.png',
-      KYC_Status: user.kycStatus,
-      Role: user.role,
-      Created_At: nowIso(),
-    });
-  }
-
-  setUserKycStatus(userId: string, status: UserRecord['KYC_Status'], imageRef?: string) {
-    const user = this.db.users.find(item => item.User_ID === userId);
-    if (!user) {
-      return;
-    }
-    user.KYC_Status = status;
-    if (imageRef) {
-      user.Student_ID_Img = imageRef;
-    }
-  }
-
-  syncExternalGroup(group: GroupRecord) {
-    const existing = this.db.groups.find(item => item.Group_ID === group.Group_ID);
-    if (existing) {
-      Object.assign(existing, group);
-      return;
-    }
-    this.db.groups.unshift(clone(group));
-  }
-
-  syncExternalGroups(groups: GroupRecord[]) {
-    groups.forEach(group => this.syncExternalGroup(group));
-  }
-
-  syncExternalMembership(membership: MembershipRecord) {
-    const existing = this.db.memberships.find(item => item.Membership_ID === membership.Membership_ID || (item.Group_ID === membership.Group_ID && item.User_ID === membership.User_ID));
-    if (existing) {
-      Object.assign(existing, membership);
-      return;
-    }
-    this.db.memberships.push(clone(membership));
-  }
-
-  syncExternalRound(round: RoundRecord) {
-    const existing = this.db.rounds.find(item => item.Round_ID === round.Round_ID || (item.Group_ID === round.Group_ID && item.Round_Number === round.Round_Number));
-    if (existing) {
-      Object.assign(existing, round);
-      return;
-    }
-    this.db.rounds.push(clone(round));
-  }
-
-  applyExternalContributionTransaction(transaction: TransactionRecord): PaymentResult {
-    const existing = this.db.transactions.find(item => item.Trans_ID === transaction.Trans_ID);
-    if (existing) {
-      Object.assign(existing, transaction);
-    } else {
-      this.db.transactions.unshift(clone(transaction));
-    }
-
-    const round = this.db.rounds.find(item => item.Round_ID === transaction.Round_ID);
-    if (!round) {
-      throw new Error('Round for external contribution was not found in mock state.');
-    }
-    const group = this.requireGroup(round.Group_ID);
-    const payoutAmount = transaction.Type === 'Contribution' && transaction.Status === 'Successful' && round.Status === 'Open'
-      ? this.tryCompleteRound(group, round, transaction.User_ID)
-      : 0;
-
-    return {
-      receiptRef: transaction.Gateway_Ref,
-      amount: transaction.Amount,
-      method: transaction.Payment_Method,
-      autoDrawTriggered: payoutAmount > 0,
-      payoutAmount,
-    };
-  }
-
   kyc = {
-    submitKyc: async (userId: string, input: KycSubmissionInput, _pendingKycToken: string): Promise<AuthSession> => {
+    submitKyc: async (userId: string, _input: KycSubmissionInput, _pendingKycToken: string): Promise<AuthSession> => {
       const user = this.requireUser(userId);
-      user.Student_ID_Img = `storage://student-ids/${userId}/manifest-${input.documents.length}.json`;
       user.KYC_Status = 'Unverified';
-      this.db.kycStates[userId] = { status: 'PendingReview', canSubmit: false, submittedAt: nowIso(), decisionNote: null };
-      this.pushNotification(userId, 'KYC submitted', 'Your student ID is waiting for admin review.');
-      this.db.auditLogs.unshift(`KYC submitted for ${user.Full_Name}`);
-      const token = `session-${user.User_ID}-${Date.now()}`;
-      this.db.sessions[token] = { userId: user.User_ID, expiresAt: plusMinutes(60 * 24 * 7) };
-      return { token, user: this.toSessionUser(user) };
+      this.db.kycStates[userId] = { status: 'PendingReview', canSubmit: false, submittedAt: nowIso() };
+      return this.createSession(user);
     },
 
-    resubmitKyc: async (userId: string, input: KycSubmissionInput): Promise<AuthSession> => {
+    resubmitKyc: async (userId: string, _input: KycSubmissionInput): Promise<AuthSession> => {
       const user = this.requireUser(userId);
-      if (user.KYC_Status === 'Banned') {
-        throw new Error('Banned accounts cannot resubmit KYC.');
-      }
-      user.Student_ID_Img = `storage://student-ids/${userId}/resubmission-${input.documents.length}.json`;
       user.KYC_Status = 'Unverified';
-      this.db.kycStates[userId] = { status: 'PendingReview', canSubmit: false, submittedAt: nowIso(), decisionNote: null };
-      this.pushNotification(userId, 'KYC resubmitted', 'Your updated student ID documents are waiting for admin review.');
-      this.db.auditLogs.unshift(`KYC resubmitted for ${user.Full_Name}`);
-      const token = `session-${user.User_ID}-${Date.now()}`;
-      this.db.sessions[token] = { userId: user.User_ID, expiresAt: plusMinutes(60 * 24 * 7) };
-      return { token, user: this.toSessionUser(user) };
+      this.db.kycStates[userId] = { status: 'PendingReview', canSubmit: false, submittedAt: nowIso() };
+      return this.createSession(user);
     },
 
     listPendingReviews: async (): Promise<KycReviewItem[]> => {
       return this.db.users
-        .filter(user => user.Role === 'Member' && this.kycStateForUser(user.User_ID).status === 'PendingReview')
-        .map(user => ({ user: clone(user), note: 'Front ID uploaded and pending manual review.' }));
+        .filter(user => this.kycStateForUser(user.User_ID).status === 'PendingReview')
+        .map(user => ({ user: clone(user), note: 'Uploaded and pending manual review.' }));
     },
 
     approve: async (userId: string): Promise<void> => {
       const user = this.requireUser(userId);
       user.KYC_Status = 'Verified';
-      this.db.kycStates[userId] = { status: 'Verified', canSubmit: false, reviewedAt: nowIso(), decisionNote: 'Approved by admin.' };
-      this.db.auditLogs.unshift(`KYC approved for ${user.Full_Name} • ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
-      this.pushNotification(userId, 'KYC approved', 'Your account is now verified for group creation and payout withdrawal.');
+      this.db.kycStates[userId] = { status: 'Verified', canSubmit: false, reviewedAt: nowIso() };
     },
 
     requestResubmission: async (userId: string): Promise<void> => {
       const user = this.requireUser(userId);
       user.KYC_Status = 'Unverified';
-      this.db.kycStates[userId] = { status: 'NeedsResubmission', canSubmit: true, reviewedAt: nowIso(), decisionNote: 'Admin requested clearer KYC documents.' };
-      this.db.auditLogs.unshift(`KYC resubmission requested for ${user.Full_Name} • ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
-      this.pushNotification(userId, 'KYC needs resubmission', 'Please upload clearer student ID documents to continue verification.', {
-        actionRoute: 'member/kyc',
-        relatedEntityType: 'user',
-        relatedEntityId: userId,
-        severity: 'Warning',
-      });
+      this.db.kycStates[userId] = { status: 'NeedsResubmission', canSubmit: true, reviewedAt: nowIso(), decisionNote: 'Upload clearer KYC documents.' };
     },
 
     ban: async (userId: string): Promise<void> => {
       const user = this.requireUser(userId);
       user.KYC_Status = 'Banned';
-      this.db.kycStates[userId] = { status: 'Banned', canSubmit: false, reviewedAt: nowIso(), decisionNote: 'Rejected and account banned by admin.' };
-      this.db.auditLogs.unshift(`Account banned for ${user.Full_Name} • ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
+      this.db.kycStates[userId] = { status: 'Banned', canSubmit: false, reviewedAt: nowIso(), decisionNote: 'Account banned by admin.' };
     },
   };
 
   groups = {
-    listBrowseable: async (userId: string): Promise<GroupRecord[]> => {
-      const user = this.requireUser(userId);
-      return this.db.groups
-        .filter(group => group.Status === 'Active')
-        .map(group => ({ ...clone(group), Description: `${group.Description}${this.isMember(group.Group_ID, user.User_ID) ? ' You are already a participant.' : ''}` }));
-    },
+    listBrowseable: async (_userId: string): Promise<GroupRecord[]> => this.db.groups.filter(group => group.Status === 'Active').map(clone),
 
     getGroup: async (groupId: string): Promise<GroupRecord | null> => {
       const group = this.db.groups.find(item => item.Group_ID === groupId);
@@ -893,59 +270,39 @@ export class MockBackend implements AppServices {
 
     getGroupStatus: async (userId: string, groupId: string): Promise<GroupStatusSnapshot> => {
       const group = this.requireGroup(groupId);
-      const currentRound = this.currentOpenRound(groupId);
-      const paidCount = currentRound ? this.successfulContributions(currentRound.Round_ID).length : 0;
-      const totalMembers = this.activeMembershipCount(groupId);
-      const paidUserIds = new Set(currentRound ? this.successfulContributions(currentRound.Round_ID).map(txn => txn.User_ID) : []);
-      const contributors = this.db.memberships
-        .filter(membership => membership.Group_ID === groupId && membership.Status === 'Active')
-        .map(membership => {
+      const round = this.currentOpenRound(groupId);
+      const activeMembers = this.db.memberships.filter(item => item.Group_ID === groupId && item.Status === 'Active');
+      const paid = round ? this.successfulContributions(round.Round_ID) : [];
+      return {
+        group: clone(group),
+        currentRound: round ? clone(round) : null,
+        paidCount: paid.length,
+        totalMembers: activeMembers.length,
+        winnerHistory: [],
+        contributors: activeMembers.map(membership => {
           const user = this.requireUser(membership.User_ID);
-          const initials = user.Full_Name
-            .split(' ')
-            .map(part => part[0])
-            .join('')
-            .slice(0, 2)
-            .toUpperCase();
           return {
             userId: user.User_ID,
             fullName: user.Full_Name,
-            initials,
+            initials: this.initialsForName(user.Full_Name),
             joinedAt: membership.Joined_At,
-            hasPaidCurrentRound: paidUserIds.has(user.User_ID),
-            isCurrentWinner: currentRound?.Winner_ID === user.User_ID,
-            cyclesWon: this.db.rounds.filter(round => round.Group_ID === groupId && round.Winner_ID === user.User_ID).length,
+            hasPaidCurrentRound: paid.some(item => item.User_ID === user.User_ID),
+            isCurrentWinner: round?.Winner_ID === user.User_ID,
+            cyclesWon: 0,
           };
-        });
-      const winnerHistory = this.db.rounds
-        .filter(round => round.Group_ID === groupId && round.Winner_ID)
-        .map(round => ({
-          roundNumber: round.Round_Number,
-          winnerName: this.requireUser(round.Winner_ID as string).Full_Name,
-        }));
-      const canCurrentUserPay = !!currentRound && this.isMember(groupId, userId) && !this.successfulContributions(currentRound.Round_ID).some(txn => txn.User_ID === userId) && group.Status === 'Active';
-      return {
-        group: clone(group),
-        currentRound: currentRound ? clone(currentRound) : null,
-        paidCount,
-        totalMembers,
-        winnerHistory,
-        contributors,
-        activeResolutionPoll: this.db.resolutionPolls.find(poll => poll.group_id === groupId && poll.status === 'Open')
-          ? this.buildResolutionPollSummary(this.db.resolutionPolls.find(poll => poll.group_id === groupId && poll.status === 'Open')!, userId)
-          : null,
-        refundTickets: this.db.refundTickets.filter(ticket => ticket.group_id === groupId).map(clone),
-        canCurrentUserPay,
+        }),
+        activeResolutionPoll: null,
+        refundTickets: [],
+        canCurrentUserPay: !!round && group.Status === 'Active' && activeMembers.some(item => item.User_ID === userId) && !paid.some(item => item.User_ID === userId),
         isFrozen: group.Status === 'Frozen',
       };
     },
 
     createRequest: async (userId: string, input: CreateGroupInput): Promise<GroupRecord> => {
-      const user = this.requireUser(userId);
-      this.assertVerifiedMember(user);
+      this.assertVerifiedMember(userId);
       const group: GroupRecord = {
         Group_ID: makeId('group'),
-        Creator_ID: user.User_ID,
+        Creator_ID: userId,
         Group_Name: input.groupName,
         Amount: input.amount,
         Max_Members: input.maxMembers,
@@ -955,311 +312,112 @@ export class MockBackend implements AppServices {
         Start_Date: new Date().toISOString().slice(0, 10),
         Description: input.description,
       };
-      this.db.groups.unshift(group);
-      this.db.auditLogs.unshift(`Group request created: ${group.Group_Name} • ${user.Full_Name}`);
-      this.pushNotification(user.User_ID, 'Group request submitted', 'Your Equb request is pending admin approval.');
+      this.db.groups.push(group);
       return clone(group);
     },
 
     listPendingApprovals: async (): Promise<GroupApprovalItem[]> => {
       return this.db.groups
-        .filter(group => (group.Status === 'Pending' || group.Status === 'Frozen') && !this.db.rejectedGroupIds.includes(group.Group_ID))
-        .map(group => ({ group: clone(group), creator: clone(this.requireUser(group.Creator_ID)), note: 'Review amount, membership size, and creator status.' }));
+        .filter(group => group.Status === 'Pending' || group.Status === 'Frozen')
+        .map(group => ({
+          group: clone(group),
+          creator: clone(this.requireUser(group.Creator_ID)),
+          note: group.Status === 'Frozen' ? 'Frozen group pending recovery decision.' : 'Pending admin review.',
+        }));
     },
 
     approve: async (groupId: string): Promise<void> => {
       const group = this.requireGroup(groupId);
       group.Status = 'Active';
-      group.Virtual_Acc_Ref = group.Virtual_Acc_Ref || `UEQ-${Math.floor(1000 + Math.random() * 9000)}`;
-      this.db.auditLogs.unshift(`Group approved: ${group.Group_Name}`);
-      this.pushNotification(group.Creator_ID, 'Group approved', 'Your Equb is now active and visible in browseable groups.', {
-        actionRoute: 'member/group',
-        relatedEntityType: 'EqubGroup',
-        relatedEntityId: group.Group_ID,
-        severity: 'Success',
-      });
+      group.Virtual_Acc_Ref = group.Virtual_Acc_Ref || `UEQ-${group.Group_ID.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+      this.ensureOpenRound(groupId);
+      this.ensureMembership(group.Group_ID, group.Creator_ID);
     },
 
     reject: async (groupId: string): Promise<void> => {
-      const group = this.requireGroup(groupId);
-      if (!this.db.rejectedGroupIds.includes(group.Group_ID)) {
-        this.db.rejectedGroupIds.push(group.Group_ID);
-      }
-      this.db.auditLogs.unshift(`Group rejected: ${group.Group_Name}`);
-      this.pushNotification(group.Creator_ID, 'Group rejected', 'Your Equb request was rejected during admin review.');
+      this.db.groups = this.db.groups.filter(group => group.Group_ID !== groupId);
     },
 
     freeze: async (groupId: string): Promise<void> => {
-      const group = this.requireGroup(groupId);
-      group.Status = 'Frozen';
-      this.db.auditLogs.unshift(`Group frozen for compliance: ${group.Group_Name}`);
-      this.pushNotification(group.Creator_ID, 'Group frozen', 'Admin compliance review temporarily paused this group.', {
-        actionRoute: 'member/group',
-        relatedEntityType: 'EqubGroup',
-        relatedEntityId: group.Group_ID,
-        severity: 'Warning',
-      });
+      this.requireGroup(groupId).Status = 'Frozen';
     },
 
     resolveFreeze: async (groupId: string): Promise<void> => {
-      const group = this.requireGroup(groupId);
-      group.Status = 'Active';
-      this.db.auditLogs.unshift(`Group freeze resolved manually: ${group.Group_Name}`);
-      this.pushNotification(group.Creator_ID, 'Group resumed', 'Admin reviewed the default case and resumed the group.', {
-        actionRoute: 'member/group',
-        relatedEntityType: 'EqubGroup',
-        relatedEntityId: group.Group_ID,
-        severity: 'Success',
-      });
+      this.requireGroup(groupId).Status = 'Active';
     },
 
-    createResolutionPoll: async (groupId: string): Promise<GroupStatusSnapshot['activeResolutionPoll']> => {
-      const group = this.requireGroup(groupId);
-      if (group.Status !== 'Frozen') {
-        throw new Error('Resolution polls are only available for frozen groups.');
-      }
-      const existing = this.db.resolutionPolls.find(poll => poll.group_id === groupId && poll.status === 'Open');
-      if (existing) {
-        return this.buildResolutionPollSummary(existing, group.Creator_ID);
-      }
-      const activeMemberIds = this.db.memberships
-        .filter(item => item.Group_ID === groupId && item.Status === 'Active')
-        .map(item => item.User_ID);
-      const eligibleVoterIds = activeMemberIds.length > 0
-        ? activeMemberIds
-        : this.db.users
-          .filter(user => user.Role === 'Member' && user.KYC_Status === 'Verified')
-          .slice(0, Math.min(group.Max_Members, 5))
-          .map(user => user.User_ID);
-      const poll: GroupResolutionPollRecord = {
-        id: makeId('poll'),
-        group_id: groupId,
-        freeze_event_id: `freeze-${groupId}`,
-        created_by_admin_id: 'user-admin',
-        status: 'Open',
-        opens_at: nowIso(),
-        closes_at: plusMinutes(60 * 24),
-        required_threshold_type: 'SimpleMajority',
-        eligible_voter_user_ids: eligibleVoterIds,
-        winning_option_id: null,
-        closed_at: null,
-        metadata: {},
-        created_at: nowIso(),
-        updated_at: nowIso(),
-      };
-      const options: GroupResolutionPollOptionRecord[] = [
-        ['Continue group', 'Resume while reserves stay frozen.', 'ContinueWithReserveFrozen'],
-        ['Keep frozen', 'Pause for more admin follow-up.', 'KeepFrozenForReview'],
-        ['Simulate refunds', 'Create refund tickets for eligible contributors.', 'CreateRefundTickets'],
-      ].map(([label, description, action], index) => ({
-        id: makeId('option'),
-        poll_id: poll.id,
-        option_label: label,
-        option_description: description,
-        resolution_action: action as GroupResolutionPollOptionRecord['resolution_action'],
-        display_order: index + 1,
-        created_at: nowIso(),
-      }));
-      this.db.resolutionPolls.unshift(poll);
-      this.db.resolutionPollOptions.unshift(...options);
-      this.db.auditLogs.unshift(`Resolution poll opened: ${group.Group_Name}`);
-      this.pushNotification(group.Creator_ID, 'Resolution poll opened', 'Members can vote on the frozen group case.');
-      return this.buildResolutionPollSummary(poll, group.Creator_ID);
-    },
-
-    voteResolutionPoll: async (groupId: string, pollId: string, optionId: string): Promise<void> => {
-      const poll = this.db.resolutionPolls.find(item => item.id === pollId && item.group_id === groupId && item.status === 'Open');
-      if (!poll) {
-        throw new Error('This resolution poll is not open.');
-      }
-      const voterId = poll.eligible_voter_user_ids[0];
-      if (!voterId) {
-        throw new Error('No eligible voter is available.');
-      }
-      if (this.db.resolutionVotes.some(vote => vote.poll_id === pollId && vote.voter_user_id === voterId)) {
-        throw new Error('You have already voted on this resolution poll.');
-      }
-      this.db.resolutionVotes.unshift({
-        id: makeId('vote'),
-        poll_id: pollId,
-        voter_user_id: voterId,
-        option_id: optionId,
-        voted_at: nowIso(),
-      });
-      this.db.auditLogs.unshift(`Resolution vote recorded for ${groupId}`);
-    },
-
-    closeResolutionPoll: async (groupId: string, pollId: string): Promise<void> => {
-      const poll = this.db.resolutionPolls.find(item => item.id === pollId && item.group_id === groupId);
-      if (!poll) {
-        throw new Error('Resolution poll not found.');
-      }
-      poll.status = 'Expired';
-      poll.closed_at = nowIso();
-      poll.updated_at = nowIso();
-      const group = this.requireGroup(groupId);
-      group.Status = 'Frozen';
-      const refundTickets: RefundTicketRecord[] = poll.eligible_voter_user_ids.map(userId => ({
-        id: makeId('refund'),
-        group_id: groupId,
-        round_id: this.currentOpenRound(groupId)?.Round_ID ?? null,
-        user_id: userId,
-        amount: group.Amount,
-        currency: 'ETB',
-        reason: 'Simulated refund after unresolved frozen group poll.',
-        status: 'Created',
-        calculation_snapshot: { poll_id: pollId },
-        offset_applied_amount: 0,
-        created_by_event_id: poll.freeze_event_id,
-        created_at: nowIso(),
-        processed_at: null,
-      }));
-      this.db.refundTickets.unshift(...refundTickets);
-    },
+    createResolutionPoll: async (): Promise<GroupStatusSnapshot['activeResolutionPoll']> => null,
+    voteResolutionPoll: async (): Promise<void> => undefined,
+    closeResolutionPoll: async (): Promise<void> => undefined,
 
     joinGroup: async (userId: string, groupId: string): Promise<void> => {
-      const user = this.requireUser(userId);
-      this.assertVerifiedMember(user);
+      this.assertVerifiedMember(userId);
       const group = this.requireGroup(groupId);
-
       if (group.Status !== 'Active') {
         throw new Error('Only active groups can be joined.');
       }
-      if (this.isMember(groupId, userId)) {
-        throw new Error('You are already a participant in this group.');
-      }
-      if (this.activeMembershipCount(groupId) >= group.Max_Members) {
-        throw new Error('This group is already full.');
-      }
-
-      this.db.memberships.push({
-        Membership_ID: makeId('membership'),
-        Group_ID: groupId,
-        User_ID: userId,
-        Joined_At: nowIso(),
-        Status: 'Active',
-      });
-      this.pushNotification(userId, 'Joined group', `You joined ${group.Group_Name} and can now contribute to the current round.`, {
-        actionRoute: 'member/group',
-        relatedEntityType: 'EqubGroup',
-        relatedEntityId: group.Group_ID,
-        severity: 'Success',
-      });
+      this.ensureMembership(groupId, userId);
+      this.ensureOpenRound(groupId);
     },
 
     getDashboard: async (userId: string): Promise<DashboardSnapshot> => {
-      const activeGroups = this.db.memberships
-        .filter(item => item.User_ID === userId && item.Status === 'Active')
-        .map(item => clone(this.requireGroup(item.Group_ID)))
-        .filter(group => group.Status !== 'Completed');
-      const groupId = activeGroups[0]?.Group_ID ?? null;
-      const currentGroup = groupId ? this.requireGroup(groupId) : null;
+      const user = this.requireUser(userId);
+      const activeMemberships = this.db.memberships.filter(item => item.User_ID === userId && item.Status === 'Active');
+      const activeGroups = activeMemberships
+        .map(membership => this.db.groups.find(group => group.Group_ID === membership.Group_ID))
+        .filter((group): group is GroupRecord => !!group && group.Status !== 'Completed');
+      const currentGroup = activeGroups[0] ?? null;
       const currentRound = currentGroup ? this.currentOpenRound(currentGroup.Group_ID) : null;
-      const paidCount = currentRound ? this.successfulContributions(currentRound.Round_ID).length : 0;
-      const totalMembers = currentGroup ? this.activeMembershipCount(currentGroup.Group_ID) : 0;
-      const totalSaved = this.db.transactions
-        .filter(item => item.User_ID === userId && item.Type === 'Contribution' && item.Status === 'Successful')
-        .reduce((sum, item) => sum + item.Amount, 0);
-      const readyPayout = this.readyPayout(userId);
-      const reliabilityProfile = this.reliabilityProfileForUser(userId);
-      const recentTransactions = this.db.transactions
-        .filter(item => item.User_ID === userId)
-        .sort((a, b) => b.Date.localeCompare(a.Date))
-        .slice(0, 5)
-        .map(clone);
-
+      const paid = currentRound ? this.successfulContributions(currentRound.Round_ID) : [];
+      const recentTransactions = this.db.transactions.filter(item => item.User_ID === userId).sort((a, b) => b.Date.localeCompare(a.Date));
       return {
+        ...emptyDashboard(this.kycStateForUser(user.User_ID)),
         currentGroup: currentGroup ? clone(currentGroup) : null,
-        activeGroups,
+        activeGroups: activeGroups.map(clone),
         currentRound: currentRound ? clone(currentRound) : null,
-        paidCount,
-        totalMembers,
-        totalSaved,
-        readyPayout,
-        recentTransactions,
-        kycState: clone(this.kycStateForUser(userId)),
-        reliabilityProfile: clone(reliabilityProfile),
+        paidCount: paid.length,
+        totalMembers: currentGroup ? this.db.memberships.filter(item => item.Group_ID === currentGroup.Group_ID && item.Status === 'Active').length : 0,
+        totalSaved: recentTransactions.filter(item => item.Type === 'Contribution' && item.Status === 'Successful').reduce((sum, item) => sum + item.Amount, 0),
+        readyPayout: recentTransactions.filter(item => item.Type === 'Payout' && item.Status === 'Pending').reduce((sum, item) => sum + item.Amount, 0),
+        recentTransactions: recentTransactions.slice(0, 5).map(clone),
       };
     },
   };
 
   formation = {
-    listPublic: async (_userId: string): Promise<GroupFormationRequestSummary[]> => {
-      return this.db.groupRequests
-        .filter(request => request.visibility === 'Public' && request.status === 'Forming')
-        .map(request => this.toFormationSummary(request));
-    },
-
-    listMine: async (userId: string): Promise<GroupFormationRequestSummary[]> => {
-      return this.db.groupRequests
-        .filter(request => request.creator_id === userId)
-        .sort((left, right) => right.updated_at.localeCompare(left.updated_at))
-        .map(request => this.toFormationSummary(request));
-    },
-
-    listPendingApproval: async (): Promise<GroupFormationRequestSummary[]> => {
-      return this.db.groupRequests
-        .filter(request => request.status === 'PendingApproval' && request.visibility !== 'Private')
-        .map(request => this.toFormationSummary(request));
-    },
-
-    getRequest: async (_userId: string, requestId: string): Promise<GroupFormationDetail> => {
-      return this.toFormationDetail(this.requireFormationRequest(requestId));
-    },
-
-    lookupInviteCode: async (userId: string, inviteCode: string): Promise<GroupFormationDetail> => {
-      const user = this.requireUser(userId);
-      this.assertVerifiedMember(user);
-      const normalizedCode = inviteCode.trim().toUpperCase();
-      const invitation = this.db.groupInvitations.find(item => item.invite_code?.toUpperCase() === normalizedCode && item.status === 'Pending');
+    listPublic: async (_userId: string): Promise<GroupFormationRequestSummary[]> => this.db.groupRequests.filter(item => item.visibility === 'Public' && item.status === 'Forming').map(clone),
+    listMine: async (userId: string): Promise<GroupFormationRequestSummary[]> => this.db.groupRequests.filter(item => item.creator_id === userId).map(clone),
+    listPendingApproval: async (): Promise<GroupFormationRequestSummary[]> => this.db.groupRequests.filter(item => item.status === 'PendingApproval' && item.visibility !== 'Private').map(clone),
+    getRequest: async (_userId: string, requestId: string): Promise<GroupFormationDetail> => this.toFormationDetail(this.requireFormationRequest(requestId)),
+    lookupInviteCode: async (_userId: string, inviteCode: string): Promise<GroupFormationDetail> => {
+      const invitation = this.db.groupInvitations.find(item => item.invite_code === inviteCode.trim().toUpperCase() && item.status === 'Pending');
       if (!invitation) {
-        throw new Error('Invitation was not found.');
+        throw new Error('Invite code was not found.');
       }
-      const request = this.requireFormationRequest(invitation.group_request_id);
-      if (request.status !== 'Forming') {
-        throw new Error('This group request is not accepting invitations.');
-      }
-      if (request.expires_at && request.expires_at <= nowIso()) {
-        throw new Error('This group request has expired.');
-      }
-      return {
-        ...this.toFormationDetail(request),
-        joinRequests: this.db.groupJoinRequests
-          .filter(item => item.group_request_id === request.id && item.user_id === userId)
-          .map(clone),
-      };
+      return this.toFormationDetail(this.requireFormationRequest(invitation.group_request_id));
     },
-
     createRequest: async (userId: string, input: CreateGroupFormationInput): Promise<GroupFormationDetail> => {
-      const user = this.requireUser(userId);
-      this.assertVerifiedMember(user);
-      const minMembers = input.minMembers ?? 5;
-      if (!Number.isInteger(minMembers) || minMembers < 5) {
-        throw new Error('Minimum members must be at least 5.');
-      }
-      if (!Number.isInteger(input.maxMembers) || input.maxMembers < minMembers) {
-        throw new Error('Maximum members must be greater than or equal to minimum members.');
-      }
-      const request: GroupRequestRecord = {
+      this.assertVerifiedMember(userId);
+      const request: GroupFormationRequestSummary = {
         id: makeId('formation'),
-        creator_id: user.User_ID,
+        creator_id: userId,
         submitted_by: null,
         proposed_group_name: input.groupName,
         description: input.description ?? null,
         contribution_amount: input.amount,
         frequency: input.frequency,
-        min_members: minMembers,
+        min_members: input.minMembers ?? Math.min(5, input.maxMembers),
         max_members: input.maxMembers,
         visibility: input.visibility,
-        invite_mode: input.inviteMode ?? (input.visibility === 'Public' ? 'PublicRequest' : 'InviteCodeAndDirect'),
+        invite_mode: input.inviteMode ?? (input.visibility === 'Private' ? 'InviteCodeAndDirect' : 'PublicRequest'),
         status: 'Forming',
-        risk_level: 'Low',
+        risk_level: input.visibility === 'Private' ? 'Medium' : 'Low',
         terms_version: input.termsVersion ?? 'phase2-v1',
         agreement_required: true,
         vesting_enabled: input.vestingEnabled ?? true,
         vesting_disabled_by_creator: input.vestingEnabled === false,
-        risk_warning_accepted_at: input.vestingEnabled === false ? nowIso() : null,
-        expires_at: plusMinutes(60 * 24 * 3),
+        risk_warning_accepted_at: input.riskWarningAccepted ? nowIso() : null,
+        expires_at: plusMinutes(60 * 24 * 7),
         submitted_at: null,
         reviewed_by: null,
         reviewed_at: null,
@@ -1269,307 +427,139 @@ export class MockBackend implements AppServices {
         created_group_at: null,
         created_at: nowIso(),
         updated_at: nowIso(),
+        accepted_participant_count: 1,
+        remaining_slots: Math.max(input.maxMembers - 1, 0),
       };
-      const creatorParticipant: GroupJoinRequestRecord = {
-        id: makeId('join'),
-        group_request_id: request.id,
-        user_id: user.User_ID,
-        status: 'Accepted',
-        requested_at: nowIso(),
-        accepted_at: nowIso(),
-        rejected_at: null,
-        removed_at: null,
-        decision_by: user.User_ID,
-        decision_reason: 'Creator automatically added to the forming group.',
-      };
-      this.db.groupRequests.unshift(request);
-      this.db.groupJoinRequests.unshift(creatorParticipant);
-      this.db.auditLogs.unshift(`Formation request created: ${request.proposed_group_name} • ${user.Full_Name}`);
+      this.db.groupRequests.push(request);
+      this.db.groupJoinRequests.push(this.makeJoinRequest(request.id, userId, 'Accepted', userId, 'Creator automatically added.'));
       return this.toFormationDetail(request);
     },
-
-    requestJoin: async (userId: string, requestId: string, terms: FormationTermsAcceptance): Promise<GroupFormationDetail> => {
-      const user = this.requireUser(userId);
-      this.assertVerifiedMember(user);
+    requestJoin: async (userId: string, requestId: string, _terms: FormationTermsAcceptance): Promise<GroupFormationDetail> => {
+      this.assertVerifiedMember(userId);
       const request = this.requireFormationRequest(requestId);
-      if (request.status !== 'Forming' || request.visibility !== 'Public') {
-        throw new Error('This group request is not accepting public join requests.');
-      }
-      if (!terms.groupTermsAccepted || terms.acceptedTermsVersion !== request.terms_version) {
-        throw new Error('The current group terms must be accepted before requesting to join.');
-      }
-      let joinRequest = this.db.groupJoinRequests.find(item => item.group_request_id === requestId && item.user_id === userId);
-      if (!joinRequest) {
-        joinRequest = {
-          id: makeId('join'),
-          group_request_id: requestId,
-          user_id: userId,
-          status: 'Requested',
-          requested_at: nowIso(),
-          accepted_at: null,
-          rejected_at: null,
-          removed_at: null,
-          decision_by: null,
-          decision_reason: `Accepted group terms ${request.terms_version}`,
-        };
-        this.db.groupJoinRequests.unshift(joinRequest);
+      const existing = this.db.groupJoinRequests.find(item => item.group_request_id === requestId && item.user_id === userId);
+      if (!existing) {
+        this.db.groupJoinRequests.push(this.makeJoinRequest(requestId, userId, 'Requested', null, 'Accepted group terms.'));
       }
       return this.toFormationDetail(request);
     },
-
     acceptJoin: async (userId: string, joinRequestId: string, decisionReason?: string): Promise<GroupFormationDetail> => {
-      const joinRequest = this.requireJoinRequest(joinRequestId);
-      const request = this.requireFormationRequest(joinRequest.group_request_id);
+      const join = this.requireJoinRequest(joinRequestId);
+      const request = this.requireFormationRequest(join.group_request_id);
       if (request.creator_id !== userId) {
-        throw new Error('Only the group request creator can manage formation participants.');
+        throw new Error('Only the creator can accept participants.');
       }
-      joinRequest.status = 'Accepted';
-      joinRequest.accepted_at = nowIso();
-      joinRequest.decision_by = userId;
-      joinRequest.decision_reason = decisionReason ?? 'Creator accepted participant into the forming group.';
+      join.status = 'Accepted';
+      join.accepted_at = nowIso();
+      join.decision_by = userId;
+      join.decision_reason = decisionReason ?? 'Accepted by creator.';
       return this.toFormationDetail(request);
     },
-
     removeParticipant: async (userId: string, joinRequestId: string, decisionReason?: string): Promise<GroupFormationDetail> => {
-      const joinRequest = this.requireJoinRequest(joinRequestId);
-      const request = this.requireFormationRequest(joinRequest.group_request_id);
+      const join = this.requireJoinRequest(joinRequestId);
+      const request = this.requireFormationRequest(join.group_request_id);
       if (request.creator_id !== userId) {
-        throw new Error('Only the group request creator can manage formation participants.');
+        throw new Error('Only the creator can remove participants.');
       }
-      joinRequest.status = joinRequest.status === 'Requested' ? 'Rejected' : 'Removed';
-      joinRequest.decision_by = userId;
-      joinRequest.decision_reason = decisionReason ?? 'Creator removed participant from the forming group.';
-      joinRequest.removed_at = joinRequest.status === 'Removed' ? nowIso() : joinRequest.removed_at;
-      joinRequest.rejected_at = joinRequest.status === 'Rejected' ? nowIso() : joinRequest.rejected_at;
+      join.status = 'Removed';
+      join.removed_at = nowIso();
+      join.decision_by = userId;
+      join.decision_reason = decisionReason ?? 'Removed by creator.';
       return this.toFormationDetail(request);
     },
-
     invite: async (userId: string, input: FormationInvitationInput): Promise<{ detail: GroupFormationDetail; invitation: GroupInvitationRecord }> => {
       const request = this.requireFormationRequest(input.requestId);
       if (request.creator_id !== userId) {
-        throw new Error('Only the group request creator can create invitations.');
-      }
-      if (request.status !== 'Forming') {
-        throw new Error('Only forming group requests can create invitations.');
-      }
-      const target = input.targetUserId || input.invitedPhoneOrStudentId?.trim();
-      if (request.invite_mode === 'PublicRequest' && target) {
-        throw new Error('Public forming groups only support shareable invite codes.');
+        throw new Error('Only the creator can invite participants.');
       }
       const invitation: GroupInvitationRecord = {
         id: makeId('invite'),
         group_request_id: request.id,
         invited_user_id: input.targetUserId ?? null,
-        invited_phone_or_student_id: input.invitedPhoneOrStudentId?.trim() || null,
-        invite_code: input.inviteCode?.trim().toUpperCase() ?? makeId('code').toUpperCase(),
+        invited_phone_or_student_id: input.invitedPhoneOrStudentId ?? null,
+        invite_code: input.inviteCode?.trim().toUpperCase() ?? `UNI-${Math.floor(1000 + Math.random() * 9000)}`,
         status: 'Pending',
-        expires_at: request.expires_at,
+        expires_at: plusMinutes(60 * 24 * 7),
         created_by: userId,
         accepted_at: null,
         declined_at: null,
         created_at: nowIso(),
       };
-      this.db.groupInvitations.unshift(invitation);
+      this.db.groupInvitations.push(invitation);
       return { detail: this.toFormationDetail(request), invitation: clone(invitation) };
     },
-
     acceptInvite: async (userId: string, input: FormationTermsAcceptance & { invitationId?: string; inviteCode?: string }): Promise<GroupFormationDetail> => {
-      const user = this.requireUser(userId);
-      this.assertVerifiedMember(user);
-      const normalizedCode = input.inviteCode?.trim().toUpperCase();
-      const invitation = this.db.groupInvitations.find(item => (input.invitationId && item.id === input.invitationId) || (normalizedCode && item.invite_code?.toUpperCase() === normalizedCode));
+      const invitation = this.db.groupInvitations.find(item =>
+        (input.invitationId && item.id === input.invitationId) || (input.inviteCode && item.invite_code === input.inviteCode.trim().toUpperCase()),
+      );
       if (!invitation) {
-        throw new Error('Invitation was not found.');
+        throw new Error('Invite was not found.');
       }
       const request = this.requireFormationRequest(invitation.group_request_id);
-      if (request.status !== 'Forming') {
-        throw new Error('This group request is not accepting invitations.');
-      }
-      if (request.expires_at && request.expires_at <= nowIso()) {
-        throw new Error('This group request has expired.');
-      }
-      if (!input.groupTermsAccepted || input.acceptedTermsVersion !== request.terms_version) {
-        throw new Error('The current group terms must be accepted before accepting an invite.');
-      }
-      const reusableInviteCode = Boolean(input.inviteCode && invitation.invite_code && !invitation.invited_user_id && !invitation.invited_phone_or_student_id);
-      if (!reusableInviteCode && invitation.status !== 'Pending') {
-        throw new Error('Invitation is no longer pending.');
-      }
-      if (invitation.invited_user_id && invitation.invited_user_id !== userId) {
-        throw new Error('This invitation belongs to a different member.');
-      }
-      if (invitation.invited_phone_or_student_id && invitation.invited_phone_or_student_id !== user.Phone_Number && invitation.invited_phone_or_student_id !== user.User_ID) {
-        throw new Error('This invitation belongs to a different member.');
-      }
-
-      let joinRequest = this.db.groupJoinRequests.find(item => item.group_request_id === request.id && item.user_id === userId);
-      if (joinRequest?.status === 'Accepted') {
-        return this.toFormationDetail(request);
-      }
-      if (this.acceptedFormationCount(request.id) >= request.max_members) {
-        throw new Error('This group request is already full.');
-      }
-      if (!reusableInviteCode) {
-        invitation.status = 'Accepted';
-        invitation.accepted_at = nowIso();
-      }
-      if (!joinRequest) {
-        joinRequest = {
-          id: makeId('join'),
-          group_request_id: request.id,
-          user_id: userId,
-          status: 'Accepted',
-          requested_at: nowIso(),
-          accepted_at: nowIso(),
-          rejected_at: null,
-          removed_at: null,
-          decision_by: invitation.created_by,
-          decision_reason: `Accepted invite ${invitation.id} with group terms ${request.terms_version}`,
-        };
-        this.db.groupJoinRequests.unshift(joinRequest);
-      } else {
-        joinRequest.status = 'Accepted';
-        joinRequest.accepted_at = nowIso();
-        joinRequest.rejected_at = null;
-        joinRequest.removed_at = null;
-        joinRequest.decision_by = invitation.created_by;
-        joinRequest.decision_reason = `Accepted invite ${invitation.id} with group terms ${request.terms_version}`;
+      const existing = this.db.groupJoinRequests.find(item => item.group_request_id === request.id && item.user_id === userId);
+      if (!existing) {
+        this.db.groupJoinRequests.push(this.makeJoinRequest(request.id, userId, 'Accepted', invitation.created_by, 'Invite accepted.'));
       }
       return this.toFormationDetail(request);
     },
-
     submitForApproval: async (userId: string, requestId: string): Promise<GroupFormationDetail> => {
       const request = this.requireFormationRequest(requestId);
       if (request.creator_id !== userId) {
-        throw new Error('Only the group request creator can activate this request.');
+        throw new Error('Only the creator can submit this forming group.');
       }
-      if (this.acceptedFormationCount(requestId) < request.min_members) {
+      const accepted = this.acceptedFormationCount(requestId);
+      if (accepted < request.min_members) {
         throw new Error(`At least ${request.min_members} accepted participants are required before this group can start.`);
       }
       if (request.visibility === 'Private') {
-        const group = this.activateFormationRequest(request, 'Private invite-based group started by creator.');
-        this.db.auditLogs.unshift(`Private formation started: ${group.Group_Name}`);
-        return this.toFormationDetail(request);
+        const group = this.activateFormationRequest(request, 'Private group started by creator.');
+        request.status = 'Approved';
+        request.approved_group_id = group.Group_ID;
+      } else {
+        request.status = 'PendingApproval';
+        request.submitted_by = userId;
+        request.submitted_at = nowIso();
       }
-      request.status = 'PendingApproval';
-      request.submitted_by = userId;
-      request.submitted_at = nowIso();
-      request.updated_at = nowIso();
       return this.toFormationDetail(request);
     },
-
-    adminApprove: async (requestId: string, decisionReason?: string): Promise<GroupRecord> => {
-      const request = this.requireFormationRequest(requestId);
-      return clone(this.activateFormationRequest(request, decisionReason ?? 'Approved by admin.'));
-    },
-
+    adminApprove: async (requestId: string): Promise<GroupRecord> => this.activateFormationRequest(this.requireFormationRequest(requestId), 'Approved by admin.'),
     adminReject: async (requestId: string, decisionReason?: string): Promise<GroupFormationDetail> => {
       const request = this.requireFormationRequest(requestId);
       request.status = 'Rejected';
       request.rejection_reason = decisionReason ?? 'Rejected by admin.';
-      request.approval_decision_note = request.rejection_reason;
       request.reviewed_at = nowIso();
-      request.updated_at = nowIso();
       return this.toFormationDetail(request);
     },
   };
 
   payments = {
-    payContribution: async (userId: string, groupId: string, method: PaymentMethod): Promise<PaymentResult> => {
-      return this.recordContribution(userId, groupId, method);
-    },
-
+    payContribution: async (userId: string, groupId: string, method: PaymentMethod): Promise<PaymentResult> => this.recordContribution(userId, groupId, method),
     startContributionUssd: async (userId: string, groupId: string): Promise<UssdSessionState> => {
-      const { group } = this.assertContributionReady(userId, groupId);
-      const sessionId = makeId('ussd');
-      this.db.ussdSessions[sessionId] = {
-        sessionId,
-        userId,
-        groupId,
-        stage: 'AwaitMenu',
-        expiresAt: plusMinutes(3),
-      };
-      return this.toUssdSessionState(this.db.ussdSessions[sessionId], group);
+      this.assertContributionReady(userId, groupId);
+      const session: UssdSessionRecord = { sessionId: makeId('ussd'), userId, groupId, stage: 'AwaitMenu', expiresAt: plusMinutes(5) };
+      this.db.ussdSessions[session.sessionId] = session;
+      return this.toUssdSessionState(session);
     },
-
     submitContributionUssd: async (userId: string, sessionId: string, input: string): Promise<UssdSessionState> => {
       const session = this.db.ussdSessions[sessionId];
       if (!session || session.userId !== userId) {
-        throw new Error('USSD session was not found. Start again.');
+        throw new Error('USSD session was not found.');
       }
-
-      const group = this.requireGroup(session.groupId);
-      const reply = input.trim();
-
-      if (session.expiresAt < nowIso()) {
-        session.stage = 'Expired';
-        session.error = 'Session expired. Dial the short code again.';
-        return this.toUssdSessionState(session, group);
-      }
-
-      if (session.stage === 'Completed' || session.stage === 'Cancelled' || session.stage === 'Expired') {
-        return this.toUssdSessionState(session, group);
-      }
-
-      if (reply === '0') {
+      if (input === '0') {
         session.stage = 'Cancelled';
-        session.error = undefined;
-        return this.toUssdSessionState(session, group);
+        return this.toUssdSessionState(session);
       }
-
-      switch (session.stage) {
-        case 'AwaitMenu':
-          if (reply !== '1') {
-            session.error = 'Reply with 1 to pay the merchant or 0 to cancel.';
-            return this.toUssdSessionState(session, group);
-          }
-          session.stage = 'AwaitReference';
-          session.error = undefined;
-          return this.toUssdSessionState(session, group);
-        case 'AwaitReference':
-          if (reply.toUpperCase() !== group.Virtual_Acc_Ref.toUpperCase()) {
-            session.error = `Reference must match ${group.Virtual_Acc_Ref}.`;
-            return this.toUssdSessionState(session, group);
-          }
-          session.merchantRef = reply.toUpperCase();
-          session.stage = 'AwaitAmount';
-          session.error = undefined;
-          return this.toUssdSessionState(session, group);
-        case 'AwaitAmount':
-          if (Number(reply) !== group.Amount) {
-            session.error = `Amount must be exactly ${group.Amount} ETB.`;
-            return this.toUssdSessionState(session, group);
-          }
-          session.amount = group.Amount;
-          session.stage = 'AwaitConfirm';
-          session.error = undefined;
-          return this.toUssdSessionState(session, group);
-        case 'AwaitConfirm':
-          if (reply !== '1') {
-            session.error = 'Reply with 1 to confirm or 0 to cancel.';
-            return this.toUssdSessionState(session, group);
-          }
-          session.stage = 'AwaitPin';
-          session.error = undefined;
-          return this.toUssdSessionState(session, group);
-        case 'AwaitPin':
-          if (!/^\d{6}$/.test(reply)) {
-            session.error = 'Enter your 6-digit Telebirr PIN.';
-            return this.toUssdSessionState(session, group);
-          }
-          session.paymentResult = await this.recordContribution(userId, group.Group_ID, 'MockUSSD');
-          session.stage = 'Completed';
-          session.error = undefined;
-          return this.toUssdSessionState(session, group);
-        default:
-          return this.toUssdSessionState(session, group);
+      const order: UssdSessionState['stage'][] = ['AwaitMenu', 'AwaitReference', 'AwaitAmount', 'AwaitConfirm', 'AwaitPin'];
+      const index = order.indexOf(session.stage);
+      if (session.stage === 'AwaitPin') {
+        session.paymentResult = await this.recordContribution(userId, session.groupId, 'MockUSSD');
+        session.stage = 'Completed';
+      } else if (index >= 0) {
+        session.stage = order[index + 1];
       }
+      return this.toUssdSessionState(session);
     },
-
-    listTransactions: async (userId: string): Promise<TransactionRecord[]> => {
-      return this.db.transactions.filter(item => item.User_ID === userId).sort((a, b) => b.Date.localeCompare(a.Date)).map(clone);
-    },
-
+    listTransactions: async (userId: string): Promise<TransactionRecord[]> => this.db.transactions.filter(item => item.User_ID === userId).sort((a, b) => b.Date.localeCompare(a.Date)).map(clone),
     getWallet: async (userId: string): Promise<WalletSnapshot> => ({
       balance: this.readyPayout(userId),
       readyPayout: this.readyPayout(userId),
@@ -1577,7 +567,6 @@ export class MockBackend implements AppServices {
       pendingReserveReleases: 0,
       defaultDestination: 'Internal wallet clearance',
     }),
-
     withdrawPayout: async (userId: string): Promise<void> => {
       const payout = this.db.transactions.find(item => item.User_ID === userId && item.Type === 'Payout' && item.Status === 'Pending');
       if (!payout) {
@@ -1585,156 +574,183 @@ export class MockBackend implements AppServices {
       }
       payout.Status = 'Successful';
       payout.Date = nowIso();
-      this.db.providerLogs.unshift({ provider: payout.Payment_Method, status: 'Successful', message: `Wallet cleared for payout ${userId}`, createdAt: nowIso() });
-      this.pushNotification(userId, 'Withdrawal recorded', 'Your wallet payout was cleared from the internal ledger.', {
-        actionRoute: 'member/wallet',
-        relatedEntityType: 'Transaction',
-        relatedEntityId: makeId('withdrawal'),
-        severity: 'Success',
-      });
     },
   };
 
   notifications = {
-    listForUser: async (userId: string): Promise<AppNotification[]> => {
-      return clone((this.db.notifications[userId] ?? []).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
-    },
-
+    listForUser: async (userId: string): Promise<AppNotification[]> => clone((this.db.notifications[userId] ?? []).sort((a, b) => b.createdAt.localeCompare(a.createdAt))),
     markAllRead: async (userId: string): Promise<void> => {
       (this.db.notifications[userId] ?? []).forEach(item => {
         item.unread = false;
       });
     },
-
-    sendReminderBatch: async (): Promise<ReminderBatchResult> => {
-      const groups = this.db.groups.filter(group => group.Status === 'Active');
-      this.db.reminderQueue = groups.map(group => {
-        const round = this.currentOpenRound(group.Group_ID);
-        if (!round) {
-          return `${group.Group_Name} • no open round`;
-        }
-        const unpaid = this.activeMembershipCount(group.Group_ID) - this.successfulContributions(round.Round_ID).length;
-        return `${group.Group_Name} • ${Math.max(unpaid, 0)} unpaid members • reminder queued`;
-      });
-      this.db.providerLogs.unshift({ provider: 'ReminderEngine', status: 'Successful', message: `Reminder batch generated for ${this.db.reminderQueue.length} groups`, createdAt: nowIso() });
-      return { queue: clone(this.db.reminderQueue), sentAt: nowIso() };
-    },
+    sendReminderBatch: async (): Promise<ReminderBatchResult> => ({ queue: [], sentAt: nowIso() }),
   };
 
   reports = {
     getAdminOverview: async (): Promise<AdminOverview> => ({
-      pendingKycCount: this.db.users.filter(user => user.Role === 'Member' && user.KYC_Status === 'Unverified').length,
-      pendingGroupCount: this.db.groups.filter(group => group.Status === 'Pending').length + this.db.groupRequests.filter(request => request.status === 'PendingApproval' && request.visibility !== 'Private').length,
+      pendingKycCount: this.db.users.filter(user => this.kycStateForUser(user.User_ID).status === 'PendingReview').length,
+      pendingGroupCount: this.db.groups.filter(group => group.Status === 'Pending' || group.Status === 'Frozen').length + this.db.groupRequests.filter(request => request.status === 'PendingApproval').length,
       activeGroupCount: this.db.groups.filter(group => group.Status === 'Active').length,
-      exportsCount: 3,
+      exportsCount: 0,
       logs: clone(this.db.auditLogs),
-      reminderQueue: clone(this.db.reminderQueue),
-      providerLogs: clone(this.db.providerLogs),
-      reliabilitySummary: this.reliabilitySummary(),
-      auditTimeline: this.db.auditLogs.map((log, index) => ({
-        id: `mock-audit-${index}`,
-        eventType: log.split(' • ')[0].toLowerCase().replace(/\s+/g, '_'),
-        actorRole: index % 2 === 0 ? 'Admin' : 'System',
-        actorName: index % 2 === 0 ? 'Saba Admin' : null,
-        entityType: 'demo_event',
-        entityId: null,
-        createdAt: nowIso(),
-        summary: log,
-      })),
+      reminderQueue: [],
+      providerLogs: [],
+      auditTimeline: [],
+      reliabilitySummary: {},
     }),
+    listReports: async (): Promise<ReportSummary[]> => [],
+    exportReport: async (title: string, format: 'PDF' | 'CSV'): Promise<ExportedReport> => ({
+      fileName: `${title.toLowerCase().replace(/\s+/g, '-')}.${format.toLowerCase()}`,
+      format,
+      content: '',
+    }),
+  };
 
-    listReports: async (): Promise<ReportSummary[]> => [
-      { title: 'Total transaction volume', format: 'PDF', description: 'Aggregated contribution and payout volume.' },
-      { title: 'Banned users and rejected groups', format: 'CSV', description: 'Compliance status export.' },
-      { title: 'Payout success and failure', format: 'PDF', description: 'Operational payout delivery summary.' },
-    ],
-
-    exportReport: async (title: string, format: 'PDF' | 'CSV'): Promise<ExportedReport> => {
-      const content = format === 'CSV'
-        ? 'title,value\nTotal transaction volume,5000\nPending KYC,1'
-        : `Report: ${title}\nGenerated: ${nowIso()}\nTransactions: ${this.db.transactions.length}`;
-      return {
-        fileName: `${title.toLowerCase().replace(/\s+/g, '-')}.${format.toLowerCase()}`,
-        format,
-        content,
+  profile = {
+    getProfile: async (userId: string): Promise<UserProfile> => this.ensureProfile(userId),
+    updateProfile: async (userId: string, input: Partial<UserProfile>): Promise<UserProfile> => {
+      const current = this.ensureProfile(userId);
+      const updated: UserProfile = {
+        ...current,
+        university: input.university ?? current.university,
+        academicYear: input.academicYear ?? current.academicYear,
+        language: input.language ?? current.language,
+        theme: input.theme ?? current.theme,
+        notificationPreference: input.notificationPreference ?? current.notificationPreference,
+        walletLabel: input.walletLabel ?? current.walletLabel,
+        avatar: input.avatar ?? current.avatar,
+        updatedAt: nowIso(),
       };
+      this.db.profiles[userId] = updated;
+      return clone(updated);
+    },
+    ensureAvatarSeed: async (userId: string) => this.ensureProfile(userId).avatar,
+  };
+
+  accounts = {
+    listSlots: async (): Promise<AccountSlot[]> => clone(this.db.accountSlots),
+    saveCurrent: async (session: AuthSession): Promise<AccountSlot> => {
+      const slot: AccountSlot = {
+        userId: session.user.userId,
+        displayName: session.user.fullName,
+        role: session.user.role,
+        phoneNumber: session.user.phoneNumber,
+        avatarSeed: session.user.userId,
+        lastActiveAt: nowIso(),
+        tokenState: 'Available',
+      };
+      this.db.accountSlots = [slot, ...this.db.accountSlots.filter(item => item.userId !== slot.userId)];
+      return clone(slot);
+    },
+    switchTo: async (userId: string) => ({
+      token: Object.entries(this.db.sessions).find(([, value]) => value.userId === userId)?.[0] ?? null,
+      slot: clone(this.db.accountSlots.find(item => item.userId === userId) ?? null),
+    }),
+    removeSlot: async (userId: string): Promise<void> => {
+      this.db.accountSlots = this.db.accountSlots.filter(item => item.userId !== userId);
     },
   };
 
-  private requireFormationRequest(requestId: string): GroupRequestRecord {
-    const request = this.db.groupRequests.find(item => item.id === requestId);
-    if (!request) {
-      throw new Error('Group formation request was not found.');
-    }
-    return request;
-  }
+  announcements = {
+    listForGroup: async (input: { groupId?: string | null; groupRequestId?: string | null }): Promise<GroupAnnouncement[]> =>
+      this.db.announcements
+        .filter(item => !item.archivedAt)
+        .filter(item => input.groupId ? item.groupId === input.groupId : true)
+        .filter(item => input.groupRequestId ? item.groupRequestId === input.groupRequestId : true)
+        .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt.localeCompare(a.createdAt))
+        .map(clone),
+    create: async (input: { groupId?: string | null; groupRequestId?: string | null; title: string; body: string; priority?: GroupAnnouncement['priority']; pinned?: boolean }): Promise<GroupAnnouncement> => {
+      const announcement: GroupAnnouncement = {
+        id: makeId('announcement'),
+        groupId: input.groupId ?? null,
+        groupRequestId: input.groupRequestId ?? null,
+        createdBy: 'mock-admin',
+        title: input.title,
+        body: input.body,
+        priority: input.priority ?? 'Normal',
+        pinned: input.pinned ?? false,
+        scope: input.groupRequestId ? 'FormingGroup' : 'ApprovedGroup',
+        archivedAt: null,
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      };
+      this.db.announcements.unshift(announcement);
+      return clone(announcement);
+    },
+    update: async (id: string, input: Partial<{ title: string; body: string; priority: GroupAnnouncement['priority']; pinned: boolean }>): Promise<GroupAnnouncement> => {
+      const announcement = this.db.announcements.find(item => item.id === id);
+      if (!announcement) {
+        throw new Error('Announcement was not found.');
+      }
+      Object.assign(announcement, input, { updatedAt: nowIso() });
+      return clone(announcement);
+    },
+    archive: async (id: string): Promise<void> => {
+      const announcement = this.db.announcements.find(item => item.id === id);
+      if (announcement) {
+        announcement.archivedAt = nowIso();
+        announcement.updatedAt = nowIso();
+      }
+    },
+  };
 
-  private requireJoinRequest(joinRequestId: string): GroupJoinRequestRecord {
-    const joinRequest = this.db.groupJoinRequests.find(item => item.id === joinRequestId);
-    if (!joinRequest) {
-      throw new Error('Group formation participant request was not found.');
-    }
-    return joinRequest;
-  }
-
-  private acceptedFormationCount(requestId: string) {
-    return this.db.groupJoinRequests.filter(item => item.group_request_id === requestId && item.status === 'Accepted').length;
-  }
-
-  private activateFormationRequest(request: GroupRequestRecord, decisionReason: string): GroupRecord {
-    if (request.status === 'Approved' && request.approved_group_id) {
-      return this.requireGroup(request.approved_group_id);
-    }
-    request.status = 'Approved';
-    request.approval_decision_note = decisionReason;
-    request.reviewed_at = nowIso();
-    const group: GroupRecord = {
-      Group_ID: makeId('group'),
-      Creator_ID: request.creator_id,
-      Group_Name: request.proposed_group_name,
-      Amount: request.contribution_amount,
-      Max_Members: request.max_members,
-      Frequency: request.frequency,
-      Virtual_Acc_Ref: `UEQ-${Math.floor(1000 + Math.random() * 9000)}`,
-      Status: 'Active',
-      Start_Date: new Date().toISOString().slice(0, 10),
-      Description: request.description ?? '',
-    };
-    request.approved_group_id = group.Group_ID;
-    request.created_group_at = nowIso();
-    this.db.groups.unshift(group);
-    this.db.groupJoinRequests
-      .filter(join => join.group_request_id === request.id && join.status === 'Accepted')
-      .forEach(join => {
-        if (!this.db.memberships.some(membership => membership.Group_ID === group.Group_ID && membership.User_ID === join.user_id)) {
-          this.db.memberships.push({
-            Membership_ID: makeId('membership'),
-            Group_ID: group.Group_ID,
-            User_ID: join.user_id,
-            Joined_At: nowIso(),
-            Status: 'Active',
-          });
-        }
+  simulation = {
+    getSnapshot: async (): Promise<SimulationSnapshot> => this.simulationSnapshot(),
+    runCommand: async (command: SimulationCommand): Promise<SimulationCommandResult> => {
+      this.db.simulationEvents.unshift({
+        id: command.id,
+        commandType: command.type,
+        actorUserId: null,
+        entityType: typeof command.payload.entityType === 'string' ? command.payload.entityType : null,
+        entityId: typeof command.payload.entityId === 'string' ? command.payload.entityId : null,
+        createdAt: nowIso(),
+        metadata: command.payload,
       });
-    return group;
+      return { ok: true, commandId: command.id, message: 'Mock simulation command recorded.', snapshot: this.simulationSnapshot() };
+    },
+  };
+
+  private createSession(user: UserRecord): AuthSession {
+    const token = makeId('session');
+    this.db.sessions[token] = { userId: user.User_ID, expiresAt: plusMinutes(60 * 24 * 7) };
+    return { token, user: this.toSessionUser(user) };
   }
 
-  private toFormationSummary(request: GroupRequestRecord): GroupFormationRequestSummary {
-    const acceptedCount = this.acceptedFormationCount(request.id);
-    return {
-      ...clone(request),
-      accepted_participant_count: acceptedCount,
-      remaining_slots: Math.max(request.max_members - acceptedCount, 0),
+  private ensureProfile(userId: string): UserProfile {
+    this.requireUser(userId);
+    const existing = this.db.profiles[userId];
+    if (existing) {
+      return clone(existing);
+    }
+    const created: UserProfile = {
+      userId,
+      university: null,
+      academicYear: null,
+      language: 'English',
+      theme: 'Light',
+      notificationPreference: 'PushAndSms',
+      walletLabel: null,
+      avatar: {
+        seed: userId,
+        style: 'Geometric',
+        palette: 'blue',
+      },
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
     };
+    this.db.profiles[userId] = created;
+    return clone(created);
   }
 
-  private toFormationDetail(request: GroupRequestRecord): GroupFormationDetail {
+  private simulationSnapshot(): SimulationSnapshot {
     return {
-      groupRequest: clone(request),
-      joinRequests: this.db.groupJoinRequests.filter(item => item.group_request_id === request.id).map(clone),
-      invitations: this.db.groupInvitations.filter(item => item.group_request_id === request.id).map(clone),
-      accepted_participant_count: this.acceptedFormationCount(request.id),
-      remaining_slots: Math.max(request.max_members - this.acceptedFormationCount(request.id), 0),
+      generatedAt: nowIso(),
+      groups: this.db.groups.map(clone),
+      rounds: this.db.rounds.map(clone),
+      memberships: this.db.memberships.map(clone),
+      transactions: this.db.transactions.map(clone),
+      events: this.db.simulationEvents.map(clone),
     };
   }
 
@@ -1768,39 +784,58 @@ export class MockBackend implements AppServices {
     return group;
   }
 
-  private currentOpenRound(groupId: string): RoundRecord | null {
+  private currentOpenRound(groupId: string) {
     return this.db.rounds.find(item => item.Group_ID === groupId && item.Status === 'Open') ?? null;
+  }
+
+  private ensureOpenRound(groupId: string): RoundRecord {
+    const existing = this.currentOpenRound(groupId);
+    if (existing) {
+      return existing;
+    }
+    const next: RoundRecord = {
+      Round_ID: makeId('round'),
+      Group_ID: groupId,
+      Round_Number: 1,
+      Winner_ID: null,
+      Draw_Date: null,
+      Status: 'Open',
+    };
+    this.db.rounds.push(next);
+    return next;
+  }
+
+  private ensureMembership(groupId: string, userId: string) {
+    if (!this.db.memberships.some(item => item.Group_ID === groupId && item.User_ID === userId && item.Status === 'Active')) {
+      this.db.memberships.push({
+        Membership_ID: makeId('membership'),
+        Group_ID: groupId,
+        User_ID: userId,
+        Joined_At: nowIso(),
+        Status: 'Active',
+      });
+    }
   }
 
   private successfulContributions(roundId: string) {
     return this.db.transactions.filter(item => item.Round_ID === roundId && item.Type === 'Contribution' && item.Status === 'Successful');
   }
 
-  private buildResolutionPollSummary(poll: GroupResolutionPollRecord, currentUserId: string): GroupStatusSnapshot['activeResolutionPoll'] {
-    const options = this.db.resolutionPollOptions
-      .filter(option => option.poll_id === poll.id)
-      .sort((a, b) => a.display_order - b.display_order);
-    const votes = this.db.resolutionVotes.filter(vote => vote.poll_id === poll.id);
-    const voteCounts = Object.fromEntries(options.map(option => [
-      option.id,
-      votes.filter(vote => vote.option_id === option.id).length,
-    ]));
-
-    return {
-      poll: clone(poll),
-      options: options.map(clone),
-      voteCounts,
-      requiredVotes: Math.floor(poll.eligible_voter_user_ids.length / 2) + 1,
-      eligibleVoterCount: poll.eligible_voter_user_ids.length,
-      currentUserVote: votes.find(vote => vote.voter_user_id === currentUserId) ?? null,
-    };
+  private assertVerifiedMember(userId: string) {
+    const user = this.requireUser(userId);
+    if (user.Role !== 'Member') {
+      throw new Error('This action is only available to members.');
+    }
+    if (user.KYC_Status !== 'Verified') {
+      throw new Error('KYC verification is required for this action.');
+    }
   }
 
   private kycStateForUser(userId: string): MemberKycState {
     const user = this.requireUser(userId);
-    const existing = this.db.kycStates[userId];
-    if (existing) {
-      return existing;
+    const explicit = this.db.kycStates[userId];
+    if (explicit) {
+      return explicit;
     }
     if (user.KYC_Status === 'Verified') {
       return { status: 'Verified', canSubmit: false };
@@ -1811,52 +846,145 @@ export class MockBackend implements AppServices {
     return { status: user.Student_ID_Img ? 'PendingReview' : 'NotSubmitted', canSubmit: !user.Student_ID_Img };
   }
 
-  private reliabilityProfileForUser(userId: string) {
-    const existing = this.db.reliabilityProfiles.find(profile => profile.user_id === userId);
-    if (existing) {
-      return existing;
+  private requireFormationRequest(requestId: string): GroupFormationRequestSummary {
+    const request = this.db.groupRequests.find(item => item.id === requestId);
+    if (!request) {
+      throw new Error('Group formation request was not found.');
     }
+    return request;
+  }
+
+  private requireJoinRequest(joinRequestId: string): GroupJoinRequestRecord {
+    const request = this.db.groupJoinRequests.find(item => item.id === joinRequestId);
+    if (!request) {
+      throw new Error('Group formation participant request was not found.');
+    }
+    return request;
+  }
+
+  private makeJoinRequest(groupRequestId: string, userId: string, status: GroupJoinRequestRecord['status'], decisionBy: string | null, decisionReason: string): GroupJoinRequestRecord {
+    const now = nowIso();
     return {
+      id: makeId('join'),
+      group_request_id: groupRequestId,
       user_id: userId,
-      public_status: this.requireUser(userId).KYC_Status === 'Banned' ? 'Banned' : 'New',
-      completed_groups_count: 0,
-      perfect_completed_groups_count: 0,
-      late_payment_count: 0,
-      default_count: 0,
-      restriction_count: 0,
-      current_maturity_completed_count: 0,
-      updated_at: nowIso(),
-    } satisfies UserReliabilityProfileRecord;
+      status,
+      requested_at: now,
+      accepted_at: status === 'Accepted' ? now : null,
+      rejected_at: null,
+      removed_at: null,
+      decision_by: decisionBy,
+      decision_reason: decisionReason,
+    };
   }
 
-  private reliabilitySummary() {
-    return this.db.reliabilityProfiles.reduce<Partial<Record<ReliabilityPublicStatus, number>>>((summary, profile) => {
-      summary[profile.public_status] = (summary[profile.public_status] ?? 0) + 1;
-      return summary;
-    }, {});
+  private acceptedFormationCount(requestId: string) {
+    return this.db.groupJoinRequests.filter(item => item.group_request_id === requestId && item.status === 'Accepted').length;
   }
 
-  private activeMembershipCount(groupId: string) {
-    return this.db.memberships.filter(item => item.Group_ID === groupId && item.Status === 'Active').length;
+  private toFormationDetail(request: GroupFormationRequestSummary): GroupFormationDetail {
+    const accepted = this.acceptedFormationCount(request.id);
+    return {
+      groupRequest: clone({
+        ...request,
+        accepted_participant_count: accepted,
+        remaining_slots: Math.max(request.max_members - accepted, 0),
+      }),
+      joinRequests: this.db.groupJoinRequests.filter(item => item.group_request_id === request.id).map(clone),
+      invitations: this.db.groupInvitations.filter(item => item.group_request_id === request.id).map(clone),
+      accepted_participant_count: accepted,
+      remaining_slots: Math.max(request.max_members - accepted, 0),
+    };
   }
 
-  private isMember(groupId: string, userId: string) {
-    return this.db.memberships.some(item => item.Group_ID === groupId && item.User_ID === userId && item.Status === 'Active');
+  private activateFormationRequest(request: GroupFormationRequestSummary, decisionReason: string): GroupRecord {
+    request.status = 'Approved';
+    request.reviewed_at = nowIso();
+    request.approval_decision_note = decisionReason;
+    const group: GroupRecord = {
+      Group_ID: makeId('group'),
+      Creator_ID: request.creator_id,
+      Group_Name: request.proposed_group_name,
+      Amount: request.contribution_amount,
+      Max_Members: request.max_members,
+      Frequency: request.frequency,
+      Virtual_Acc_Ref: `UEQ-${Math.floor(1000 + Math.random() * 9000)}`,
+      Status: 'Active',
+      Start_Date: new Date().toISOString().slice(0, 10),
+      Description: request.description ?? '',
+    };
+    request.approved_group_id = group.Group_ID;
+    request.created_group_at = nowIso();
+    this.db.groups.push(group);
+    this.db.groupJoinRequests
+      .filter(join => join.group_request_id === request.id && join.status === 'Accepted')
+      .forEach(join => this.ensureMembership(group.Group_ID, join.user_id));
+    this.ensureOpenRound(group.Group_ID);
+    return clone(group);
+  }
+
+  private assertContributionReady(userId: string, groupId: string) {
+    this.assertVerifiedMember(userId);
+    const group = this.requireGroup(groupId);
+    const round = this.ensureOpenRound(groupId);
+    if (group.Status !== 'Active') {
+      throw new Error('Only active groups can accept contributions.');
+    }
+    if (!this.db.memberships.some(item => item.Group_ID === groupId && item.User_ID === userId && item.Status === 'Active')) {
+      throw new Error('You must join the group before paying contributions.');
+    }
+    if (this.successfulContributions(round.Round_ID).some(item => item.User_ID === userId)) {
+      throw new Error('You have already paid for this round.');
+    }
+    return { group, round };
+  }
+
+  private recordContribution(userId: string, groupId: string, method: PaymentMethod): PaymentResult {
+    const { group, round } = this.assertContributionReady(userId, groupId);
+    const transaction: TransactionRecord = {
+      Trans_ID: makeId('txn'),
+      User_ID: userId,
+      Round_ID: round.Round_ID,
+      Amount: group.Amount,
+      Type: 'Contribution',
+      Payment_Method: method,
+      Gateway_Ref: `GW-${Math.floor(100000 + Math.random() * 900000)}`,
+      Status: 'Successful',
+      Date: nowIso(),
+    };
+    this.db.transactions.push(transaction);
+    this.pushNotification(userId, 'Contribution received', `Your ${method} payment for ${group.Group_Name} was reconciled.`, {
+      actionRoute: 'member/group',
+      relatedEntityType: 'EqubGroup',
+      relatedEntityId: group.Group_ID,
+      severity: 'Success',
+    });
+    return {
+      receiptRef: transaction.Gateway_Ref,
+      amount: group.Amount,
+      method,
+      autoDrawTriggered: false,
+      payoutAmount: 0,
+    };
+  }
+
+  private toUssdSessionState(session: UssdSessionRecord): UssdSessionState {
+    return {
+      sessionId: session.sessionId,
+      shortCode: '*127#',
+      providerLabel: 'Telebirr',
+      stage: session.stage,
+      prompt: session.stage === 'Completed' ? 'Payment successful.' : 'Telebirr testing session.',
+      inputLabel: session.stage === 'AwaitPin' ? 'PIN' : 'Reply',
+      expiresAt: session.expiresAt,
+      allowCancel: !['Completed', 'Cancelled', 'Expired'].includes(session.stage),
+      expectsMaskedInput: session.stage === 'AwaitPin',
+      paymentResult: session.paymentResult,
+    };
   }
 
   private readyPayout(userId: string) {
-    return this.db.transactions
-      .filter(item => item.User_ID === userId && item.Type === 'Payout' && item.Status === 'Pending')
-      .reduce((sum, item) => sum + item.Amount, 0);
-  }
-
-  private assertVerifiedMember(user: UserRecord) {
-    if (user.Role !== 'Member') {
-      throw new Error('This action is only available to members.');
-    }
-    if (user.KYC_Status !== 'Verified') {
-      throw new Error('KYC verification is required for this action.');
-    }
+    return this.db.transactions.filter(item => item.User_ID === userId && item.Type === 'Payout' && item.Status === 'Pending').reduce((sum, item) => sum + item.Amount, 0);
   }
 
   private pushNotification(userId: string, title: string, body: string, route?: Pick<AppNotification, 'actionRoute' | 'relatedEntityType' | 'relatedEntityId' | 'severity'>) {
@@ -1865,188 +993,8 @@ export class MockBackend implements AppServices {
     this.db.notifications[userId] = target;
   }
 
-  private assertContributionReady(userId: string, groupId: string) {
-    this.requireUser(userId);
-    const group = this.requireGroup(groupId);
-    const round = this.currentOpenRound(groupId);
-    if (!round) {
-      throw new Error('There is no open round for this group.');
-    }
-    if (group.Status !== 'Active') {
-      throw new Error('Only active groups can accept contributions.');
-    }
-    if (!this.isMember(groupId, userId)) {
-      throw new Error('You must join the group before paying contributions.');
-    }
-    const alreadyPaid = this.successfulContributions(round.Round_ID).some(item => item.User_ID === userId);
-    if (alreadyPaid) {
-      throw new Error('You have already paid for this round.');
-    }
-    return { group, round };
-  }
-
-  private async recordContribution(userId: string, groupId: string, method: PaymentMethod): Promise<PaymentResult> {
-    const { group, round } = this.assertContributionReady(userId, groupId);
-    const receiptRef = `GW-${Math.floor(100000 + Math.random() * 900000)}`;
-    const transaction: TransactionRecord = {
-      Trans_ID: makeId('txn'),
-      User_ID: userId,
-      Round_ID: round.Round_ID,
-      Amount: group.Amount,
-      Type: 'Contribution',
-      Payment_Method: method,
-      Gateway_Ref: receiptRef,
-      Status: 'Successful',
-      Date: nowIso(),
-    };
-    this.db.transactions.unshift(transaction);
-    this.db.providerLogs.unshift({ provider: method, status: 'Successful', message: `Contribution reconciled for ${group.Group_Name}`, createdAt: nowIso() });
-    this.pushNotification(userId, 'Contribution received', `Your ${method} payment for ${group.Group_Name} was successfully reconciled.`, {
-      actionRoute: 'member/group',
-      relatedEntityType: 'EqubGroup',
-      relatedEntityId: group.Group_ID,
-      severity: 'Success',
-    });
-
-    const payoutAmount = this.tryCompleteRound(group, round, userId);
-    return {
-      receiptRef,
-      amount: group.Amount,
-      method,
-      autoDrawTriggered: payoutAmount > 0,
-      payoutAmount,
-    };
-  }
-
-  private toUssdSessionState(session: UssdSessionRecord, group: GroupRecord): UssdSessionState {
-    const base = {
-      sessionId: session.sessionId,
-      shortCode: '*127#',
-      providerLabel: 'Telebirr',
-      stage: session.stage,
-      expiresAt: session.expiresAt,
-      allowCancel: session.stage !== 'Completed' && session.stage !== 'Cancelled' && session.stage !== 'Expired',
-      error: session.error,
-    };
-
-    switch (session.stage) {
-      case 'AwaitMenu':
-        return {
-          ...base,
-          prompt: ['Telebirr', '1. Pay merchant', '2. Buy airtime', '3. Check balance', '0. Cancel'].join('\n'),
-          inputLabel: 'Reply with a number',
-        };
-      case 'AwaitReference':
-        return {
-          ...base,
-          prompt: ['Pay merchant', `${group.Group_Name}`, `Enter merchant ref`, `Use ${group.Virtual_Acc_Ref}`].join('\n'),
-          inputLabel: 'Merchant reference',
-        };
-      case 'AwaitAmount':
-        return {
-          ...base,
-          prompt: ['Enter amount', `Round contribution: ${group.Amount} ETB`, 'Exact amount is required'].join('\n'),
-          inputLabel: 'Amount',
-        };
-      case 'AwaitConfirm':
-        return {
-          ...base,
-          prompt: ['Confirm payment', `Group: ${group.Group_Name}`, `Ref: ${group.Virtual_Acc_Ref}`, `Amount: ${group.Amount} ETB`, '1. Confirm', '0. Cancel'].join('\n'),
-          inputLabel: 'Reply with a number',
-        };
-      case 'AwaitPin':
-        return {
-          ...base,
-          prompt: ['Authorize payment', `Enter your 6-digit Telebirr PIN`, `${group.Amount} ETB -> ${group.Group_Name}`].join('\n'),
-          inputLabel: 'PIN',
-          expectsMaskedInput: true,
-        };
-      case 'Completed':
-        return {
-          ...base,
-          allowCancel: false,
-          prompt: ['Payment successful', `${group.Amount} ETB sent`, `Ref: ${session.paymentResult?.receiptRef ?? '-'}`, 'SMS confirmation will follow shortly.'].join('\n'),
-          inputLabel: '',
-          paymentResult: session.paymentResult,
-        };
-      case 'Cancelled':
-        return {
-          ...base,
-          allowCancel: false,
-          prompt: 'Session cancelled.\nNo contribution was recorded.',
-          inputLabel: '',
-        };
-      case 'Expired':
-        return {
-          ...base,
-          allowCancel: false,
-          prompt: 'Session expired.\nStart the USSD prompt again.',
-          inputLabel: '',
-        };
-      default:
-        return {
-          ...base,
-          prompt: 'USSD session unavailable.',
-          inputLabel: '',
-        };
-    }
-  }
-
-  private tryCompleteRound(group: GroupRecord, round: RoundRecord, payerUserId: string) {
-    const paidCount = this.successfulContributions(round.Round_ID).length;
-    const totalMembers = this.activeMembershipCount(group.Group_ID);
-    if (paidCount !== totalMembers) {
-      return 0;
-    }
-
-    round.Status = 'Locked';
-    const priorWinners = this.db.rounds
-      .filter(item => item.Group_ID === group.Group_ID && item.Winner_ID)
-      .map(item => item.Winner_ID as string);
-    const eligibleUserIds = this.db.memberships
-      .filter(item => item.Group_ID === group.Group_ID && item.Status === 'Active')
-      .map(item => item.User_ID)
-      .filter(userId => this.successfulContributions(round.Round_ID).some(txn => txn.User_ID === userId))
-      .filter(userId => !priorWinners.includes(userId));
-
-    const winnerId = eligibleUserIds.includes(payerUserId) ? payerUserId : eligibleUserIds[0];
-    round.Winner_ID = winnerId ?? null;
-    round.Draw_Date = nowIso();
-    round.Status = 'Completed';
-
-    let payoutAmount = 0;
-    if (winnerId) {
-      payoutAmount = group.Amount * totalMembers;
-      this.db.transactions.unshift({
-        Trans_ID: makeId('txn'),
-        User_ID: winnerId,
-        Round_ID: round.Round_ID,
-        Amount: payoutAmount,
-        Type: 'Payout',
-        Payment_Method: 'MockUSSD',
-        Gateway_Ref: `PO-${Math.floor(100000 + Math.random() * 900000)}`,
-        Status: 'Pending',
-        Date: nowIso(),
-      });
-      this.pushNotification(winnerId, 'Winner selected automatically', `${group.Group_Name} round ${round.Round_Number} completed and your payout is ready.`, {
-        actionRoute: 'member/wallet',
-        relatedEntityType: 'EqubGroup',
-        relatedEntityId: group.Group_ID,
-        severity: 'Success',
-      });
-    }
-
-    const nextRound: RoundRecord = {
-      Round_ID: makeId('round'),
-      Group_ID: group.Group_ID,
-      Round_Number: round.Round_Number + 1,
-      Winner_ID: null,
-      Draw_Date: null,
-      Status: 'Open',
-    };
-    this.db.rounds.push(nextRound);
-    this.db.auditLogs.unshift(`Round ${round.Round_Number} auto-completed for ${group.Group_Name}`);
-    return payoutAmount;
+  private initialsForName(name: string) {
+    return name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase() || 'UE';
   }
 }
 

@@ -1,0 +1,177 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, Segoe UI, system-ui, sans-serif;
+  color: #102033;
+  background: #f5f8fc;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: white;
+  background: #0b63e5;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.shell {
+  padding: 28px;
+}
+
+.hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #0b63e5;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 34px;
+  line-height: 1.05;
+}
+
+.hero p:last-child {
+  max-width: 620px;
+  margin-top: 10px;
+  color: #5c6b7d;
+  line-height: 1.5;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 18px;
+}
+
+.panel {
+  min-height: 260px;
+  padding: 18px;
+  border: 1px solid #dbe5f2;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 14px 34px rgba(31, 56, 88, 0.08);
+}
+
+.wide {
+  grid-column: 1 / -1;
+  min-height: 160px;
+}
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.panelHeader span {
+  color: #6e7c8e;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.deviceList {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.device {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  width: 100%;
+  color: #102033;
+  text-align: left;
+  background: #f6f9fd;
+  border: 1px solid #dfe8f4;
+}
+
+.device.selected {
+  border-color: #0b63e5;
+  background: #eef5ff;
+}
+
+.device span {
+  color: #637186;
+  font-size: 12px;
+}
+
+.device em {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  color: #0b63e5;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.secondary {
+  width: 100%;
+  color: #0b63e5;
+  background: #eaf2ff;
+}
+
+label {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 13px;
+  color: #46576d;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+input,
+select {
+  width: 100%;
+  border: 1px solid #d8e2ef;
+  border-radius: 8px;
+  padding: 11px 12px;
+  color: #102033;
+  background: #fbfdff;
+}
+
+.empty,
+.log p {
+  color: #66758a;
+  line-height: 1.5;
+}
+
+.log {
+  display: grid;
+  gap: 8px;
+}

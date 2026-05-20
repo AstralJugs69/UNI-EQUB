@@ -1,18 +1,14 @@
 import React from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { GeneratedAvatar } from '../../components/GeneratedAvatar';
 import { Icon } from '../../components/Icon';
 import { AppScreen, LoadingState, Pill, SectionCard, StatusBanner } from '../../components/ui';
-import { useDashboardQuery } from '../../hooks/useAppQueries';
+import { useAccountSlotsQuery, useDashboardQuery, useProfileQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
 import { iconSize, palette } from '../../theme/tokens';
 import { memberStyles } from './styles';
-
-function initialsFor(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return `${parts[0]?.[0] ?? 'U'}${parts[1]?.[0] ?? parts[0]?.[1] ?? 'E'}`.toUpperCase();
-}
 
 function maskPhone(phone: string) {
   const compact = phone.replace(/\s+/g, '');
@@ -117,8 +113,10 @@ function ProfileOptionRow({
 
 export function ProfileScreen() {
   const navigation = useNavigation<any>();
-  const { session, logout } = useAuth();
+  const { session, logout, switchAccount } = useAuth();
   const { data: dashboard } = useDashboardQuery();
+  const { data: profile } = useProfileQuery();
+  const { data: accountSlots } = useAccountSlotsQuery();
 
   if (!session) {
     return <LoadingState title="Loading profile" subtitle="Preparing account and settings." />;
@@ -139,12 +137,7 @@ export function ProfileScreen() {
     <AppScreen contentStyle={memberStyles.profileScreenContent}>
       <View style={memberStyles.profileHero}>
         <View style={memberStyles.profileAvatarLarge}>
-          <Text style={memberStyles.profileAvatarText}>{initialsFor(session.user.fullName)}</Text>
-          {isVerified ? (
-            <View style={memberStyles.profileAvatarBadge}>
-              <Icon name="check" size={13} color={palette.white} />
-            </View>
-          ) : null}
+          <GeneratedAvatar descriptor={profile?.avatar} labelSeed={session.user.fullName} size={92} verified={isVerified} />
         </View>
         <Text style={memberStyles.profileHeroName}>{session.user.fullName}</Text>
         <View style={memberStyles.profileHeroMetaRow}>
@@ -170,8 +163,8 @@ export function ProfileScreen() {
           )}
         />
         <View style={memberStyles.profileOverviewGrid}>
-          <OverviewItem icon="school" label="University" value="Addis Ababa University" />
-          <OverviewItem icon="calendar-month" label="Year" value="3rd Year" />
+          <OverviewItem icon="school" label="University" value={profile?.university ?? 'Not set'} />
+          <OverviewItem icon="calendar-month" label="Year" value={profile?.academicYear ?? 'Not set'} />
           <OverviewItem icon="phone" label="Phone" value={maskPhone(session.user.phoneNumber)} />
           <OverviewItem icon="badge" label="Member ID" value={memberId} />
           <OverviewItem icon="schedule" label="Joined" value={monthYear(dashboard?.kycState?.submittedAt)} />
@@ -194,10 +187,26 @@ export function ProfileScreen() {
       <SectionCard style={memberStyles.profileSectionCard}>
         <ProfileCardHeader icon="settings" title="Preferences" subtitle="Customize your app experience" />
         <ProfileOptionRow icon="notifications" title="Notifications" rightLabel="Push and SMS reminders on" onPress={() => navigation.navigate(routes.notifications)} />
-        <ProfileOptionRow icon="language" title="Language" rightLabel="English" />
-        <ProfileOptionRow icon="wb-sunny" title="Theme" rightLabel="Light" />
+        <ProfileOptionRow icon="language" title="Language" rightLabel={profile?.language ?? 'English'} />
+        <ProfileOptionRow icon="wb-sunny" title="Theme" rightLabel={profile?.theme ?? 'Light'} />
         <ProfileOptionRow icon="shield" title="Privacy" rightLabel="Manage visibility" />
       </SectionCard>
+
+      {accountSlots?.length ? (
+        <SectionCard style={memberStyles.profileMenuCard}>
+          <ProfileCardHeader icon="switch-account" title="Account switching" subtitle="Saved accounts on this device" />
+          {accountSlots.map(slot => (
+            <ProfileOptionRow
+              key={slot.userId}
+              icon="account-circle"
+              title={slot.displayName}
+              subtitle={slot.phoneNumber}
+              rightLabel={slot.userId === session.user.userId ? 'Current' : slot.tokenState === 'Available' ? 'Switch' : 'Sign in'}
+              onPress={slot.userId === session.user.userId ? undefined : () => { switchAccount(slot.userId).catch(error => Alert.alert('Account switch', error instanceof Error ? error.message : 'Unable to switch accounts.')); }}
+            />
+          ))}
+        </SectionCard>
+      ) : null}
 
       <SectionCard style={memberStyles.profileMenuCard}>
         <ProfileOptionRow icon="help-outline" title="Help Center" />

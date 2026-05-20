@@ -1,7 +1,6 @@
 import { decode as decodeBase64 } from 'base64-arraybuffer';
 import { supabase } from '../supabaseClient';
 import { loadSessionToken } from '../storage';
-import { mockBackend } from '../mock/mockBackend';
 import type { KycService, KycSubmissionInput } from '../contracts';
 import type { AuthSession, KycDocumentRecord, KycReviewItem, KycSubmissionRecord, SessionUser, UserRecord } from '../../types/domain';
 import { assertLiveEnvelope, readLiveFunctionError } from './liveFunctionError';
@@ -45,16 +44,6 @@ async function invokeWithSession<T>(body: Record<string, unknown>): Promise<T> {
     throw new Error('No active session token was found.');
   }
   return invoke<T>({ ...body, token });
-}
-
-function toSessionUser(user: UserRecord): SessionUser {
-  return {
-    userId: user.User_ID,
-    fullName: user.Full_Name,
-    phoneNumber: user.Phone_Number,
-    role: user.Role,
-    kycStatus: user.KYC_Status,
-  };
 }
 
 async function uploadKycDocumentRefs(userId: string, input: KycSubmissionInput, token: string): Promise<StoredKycDocumentRef[]> {
@@ -103,7 +92,6 @@ export const liveKycService: KycService = {
       imageRef: storedRefs[0]?.storageRef,
       documentRefs: storedRefs,
     });
-    mockBackend.setUserKycStatus(userId, response.user.KYC_Status, storedRefs[0]?.storageRef);
     return { token: response.token, user: response.sessionUser };
   },
 
@@ -120,7 +108,6 @@ export const liveKycService: KycService = {
       imageRef: storedRefs[0]?.storageRef,
       documentRefs: storedRefs,
     });
-    mockBackend.setUserKycStatus(userId, response.user.KYC_Status, storedRefs[0]?.storageRef);
     return { token: response.token, user: response.sessionUser };
   },
 
@@ -138,17 +125,14 @@ export const liveKycService: KycService = {
   },
 
   async approve(userId: string) {
-    const response = await invokeWithSession<{ user: UserRecord }>({ action: 'approve', userId });
-    mockBackend.syncExternalUser(toSessionUser(response.user));
+    await invokeWithSession<{ user: UserRecord }>({ action: 'approve', userId });
   },
 
   async ban(userId: string) {
-    const response = await invokeWithSession<{ user: UserRecord }>({ action: 'ban', userId });
-    mockBackend.syncExternalUser(toSessionUser(response.user));
+    await invokeWithSession<{ user: UserRecord }>({ action: 'ban', userId });
   },
 
   async requestResubmission(userId: string) {
-    const response = await invokeWithSession<{ user: UserRecord }>({ action: 'needsResubmission', userId });
-    mockBackend.syncExternalUser(toSessionUser(response.user));
+    await invokeWithSession<{ user: UserRecord }>({ action: 'needsResubmission', userId });
   },
 };

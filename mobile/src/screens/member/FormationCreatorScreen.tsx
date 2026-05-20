@@ -3,7 +3,7 @@ import { Pressable, Share, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { InlineError, InputField, ListRow, LoadingState, MetricTile, Pill, PrimaryCTA, ScreenScroll, SecondaryCTA, SectionCard, StatusBanner, TopAppBar, TitleBlock } from '../../components/ui';
 import { Icon } from '../../components/Icon';
-import { useFormationGroupQuery, useMemberActions } from '../../hooks/useAppQueries';
+import { useFormationGroupQuery, useGroupAnnouncementsQuery, useMemberActions } from '../../hooks/useAppQueries';
 import { iconSize, palette } from '../../theme/tokens';
 import { formatCurrency } from './shared';
 import { memberStyles } from './styles';
@@ -12,6 +12,7 @@ export function FormationCreatorScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const requestId = route.params?.requestId ?? '';
   const { data } = useFormationGroupQuery(requestId);
+  const { data: announcements } = useGroupAnnouncementsQuery({ groupRequestId: requestId });
   const {
     acceptFormationJoin,
     inviteFormation,
@@ -125,6 +126,22 @@ export function FormationCreatorScreen({ route }: any) {
       ) : null}
       {request.status === 'Forming' && acceptedRemaining > 0 ? (
         <StatusBanner tone="info" title={`${acceptedRemaining} more accepted member${acceptedRemaining === 1 ? '' : 's'} needed`} />
+      ) : null}
+      {announcements?.length ? (
+        <SectionCard variant="soft">
+          <Text style={memberStyles.sectionTitle}>Announcement board</Text>
+          <View style={memberStyles.listGroup}>
+            {announcements.map(item => (
+              <ListRow
+                key={item.id}
+                title={item.title}
+                subtitle={item.body}
+                right={<Pill label={item.priority} tone={item.priority === 'Critical' ? 'bad' : item.priority === 'High' ? 'warn' : 'neutral'} />}
+                leadingIcon={item.pinned ? 'push-pin' : 'campaign'}
+              />
+            ))}
+          </View>
+        </SectionCard>
       ) : null}
       {canInvite ? (
         <SectionCard>

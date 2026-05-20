@@ -1,9 +1,11 @@
 ﻿import type {
   AdminOverview,
   AppNotification,
+  AccountSlot,
   AuthSession,
   DashboardSnapshot,
   ExportedReport,
+  GroupAnnouncement,
   GroupApprovalItem,
   GroupFormationDetail,
   GroupFormationRequestSummary,
@@ -18,6 +20,10 @@
   ReminderBatchResult,
   ReportSummary,
   SessionUser,
+  SimulationCommand,
+  SimulationCommandResult,
+  SimulationSnapshot,
+  UserProfile,
   UssdSessionState,
   WalletSnapshot,
 } from '../../types/domain';
@@ -159,6 +165,50 @@ export interface ReportService {
   exportReport(title: string, format: 'PDF' | 'CSV'): Promise<ExportedReport>;
 }
 
+export interface ProfileUpdateInput {
+  university?: string | null;
+  academicYear?: string | null;
+  language?: string;
+  theme?: UserProfile['theme'];
+  notificationPreference?: UserProfile['notificationPreference'];
+  walletLabel?: string | null;
+  avatarSeed?: string;
+}
+
+export interface ProfileService {
+  getProfile(userId: string): Promise<UserProfile>;
+  updateProfile(userId: string, input: ProfileUpdateInput): Promise<UserProfile>;
+  ensureAvatarSeed(userId: string): Promise<UserProfile['avatar']>;
+}
+
+export interface AccountService {
+  listSlots(): Promise<AccountSlot[]>;
+  saveCurrent(session: AuthSession): Promise<AccountSlot>;
+  switchTo(userId: string): Promise<{ token: string | null; slot: AccountSlot | null }>;
+  removeSlot(userId: string): Promise<void>;
+}
+
+export interface AnnouncementInput {
+  groupId?: string | null;
+  groupRequestId?: string | null;
+  title: string;
+  body: string;
+  priority?: GroupAnnouncement['priority'];
+  pinned?: boolean;
+}
+
+export interface AnnouncementService {
+  listForGroup(input: { groupId?: string | null; groupRequestId?: string | null }): Promise<GroupAnnouncement[]>;
+  create(input: AnnouncementInput): Promise<GroupAnnouncement>;
+  update(id: string, input: Partial<AnnouncementInput>): Promise<GroupAnnouncement>;
+  archive(id: string): Promise<void>;
+}
+
+export interface SimulationService {
+  getSnapshot(): Promise<SimulationSnapshot>;
+  runCommand(command: SimulationCommand): Promise<SimulationCommandResult>;
+}
+
 export interface AppServices {
   auth: AuthService;
   kyc: KycService;
@@ -167,4 +217,8 @@ export interface AppServices {
   payments: PaymentService;
   notifications: NotificationService;
   reports: ReportService;
+  profile: ProfileService;
+  accounts: AccountService;
+  announcements: AnnouncementService;
+  simulation: SimulationService;
 }

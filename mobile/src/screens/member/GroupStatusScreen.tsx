@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
 import { EmptyState, ListRow, LoadingState, Pill, PrimaryCTA, ScreenScroll, SecondaryCTA, SectionCard, StatusBanner } from '../../components/ui';
-import { useDashboardQuery, useGroupStatusQuery, useMemberActions } from '../../hooks/useAppQueries';
+import { useDashboardQuery, useGroupAnnouncementsQuery, useGroupStatusQuery, useMemberActions } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { iconSize, palette } from '../../theme/tokens';
 import type { GroupStatusSnapshot } from '../../types/domain';
@@ -433,6 +433,7 @@ export function GroupStatusScreen({ route }: any) {
   const { data: dashboard } = useDashboardQuery();
   const groupId = route.params?.groupId ?? dashboard?.currentGroup?.Group_ID ?? '';
   const { data: status } = useGroupStatusQuery(groupId);
+  const { data: announcements } = useGroupAnnouncementsQuery({ groupId });
   const { voteResolutionPoll } = useMemberActions();
 
   if (!groupId && dashboard) {
@@ -458,6 +459,25 @@ export function GroupStatusScreen({ route }: any) {
         onPress={() => navigation.navigate(routes.payment, { groupId: status.group.Group_ID })}
       />
       {status.isFrozen ? <StatusBanner tone="danger" title="This group is currently frozen." body="Payments and round advancement stay paused until the compliance review is lifted." /> : null}
+      {announcements?.length ? (
+        <SectionCard style={memberStyles.winnerHistoryCard}>
+          <View style={memberStyles.rowBetween}>
+            <Text style={memberStyles.winnerHistoryTitle}>Announcement board</Text>
+            <Pill label={`${announcements.length}`} tone="active" />
+          </View>
+          <View style={memberStyles.listGroup}>
+            {announcements.map(item => (
+              <ListRow
+                key={item.id}
+                title={item.title}
+                subtitle={item.body}
+                leadingIcon={item.pinned ? 'push-pin' : 'campaign'}
+                right={<Pill label={item.priority} tone={item.priority === 'Critical' ? 'bad' : item.priority === 'High' ? 'warn' : 'neutral'} />}
+              />
+            ))}
+          </View>
+        </SectionCard>
+      ) : null}
       <ResolutionPollSection
         status={status}
         voting={voteResolutionPoll.isPending}

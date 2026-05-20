@@ -13,6 +13,9 @@ export const queryKeys = {
   groupStatus: (groupId: string) => ['group-status', groupId] as const,
   history: ['history'] as const,
   wallet: ['wallet'] as const,
+  profile: ['profile'] as const,
+  accountSlots: ['account-slots'] as const,
+  announcements: (scope: string, id: string) => ['announcements', scope, id] as const,
   notifications: ['notifications'] as const,
   adminOverview: ['admin-overview'] as const,
   pendingKyc: ['pending-kyc'] as const,
@@ -107,6 +110,34 @@ export function useWalletQuery() {
     queryKey: queryKeys.wallet,
     enabled: !!session,
     queryFn: () => services.payments.getWallet(session!.user.userId),
+  });
+}
+
+export function useProfileQuery() {
+  const services = useServices();
+  const { session } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.profile,
+    enabled: !!session,
+    queryFn: () => services.profile.getProfile(session!.user.userId),
+  });
+}
+
+export function useAccountSlotsQuery() {
+  const services = useServices();
+  return useQuery({
+    queryKey: queryKeys.accountSlots,
+    queryFn: () => services.accounts.listSlots(),
+  });
+}
+
+export function useGroupAnnouncementsQuery(input: { groupId?: string | null; groupRequestId?: string | null }) {
+  const services = useServices();
+  const key = input.groupId ? queryKeys.announcements('group', input.groupId) : queryKeys.announcements('formation', input.groupRequestId ?? 'none');
+  return useQuery({
+    queryKey: key,
+    enabled: !!input.groupId || !!input.groupRequestId,
+    queryFn: () => services.announcements.listForGroup(input),
   });
 }
 

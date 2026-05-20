@@ -594,3 +594,117 @@ export interface RefundTicketRecord {
   created_at: string;
   processed_at: string | null;
 }
+
+export interface SeedScenarioManifest {
+  name: string;
+  description: string;
+  dependencies: string[];
+  deterministic: boolean;
+  destructive: boolean;
+}
+
+export interface SeedRunSummary {
+  scenario: string;
+  target: 'local' | 'linked' | 'staging';
+  startedAt: string;
+  completedAt: string;
+  created: Record<string, number>;
+  wipedTables: string[];
+  warnings: string[];
+}
+
+export interface AvatarDescriptor {
+  seed: string;
+  style: 'Initials' | 'Geometric' | 'Orbital';
+  palette: string;
+}
+
+export interface UserProfile {
+  userId: string;
+  university: string | null;
+  academicYear: string | null;
+  language: string;
+  theme: 'Light' | 'Dark' | 'System';
+  notificationPreference: 'PushAndSms' | 'PushOnly' | 'SmsOnly' | 'None';
+  walletLabel: string | null;
+  avatar: AvatarDescriptor;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AccountSlot {
+  userId: string;
+  displayName: string;
+  role: UserRole;
+  phoneNumber: string;
+  avatarSeed: string;
+  lastActiveAt: string;
+  tokenState: 'Available' | 'Expired' | 'Missing';
+}
+
+export type GroupAnnouncementPriority = 'Normal' | 'High' | 'Critical';
+export type GroupAnnouncementScope = 'ApprovedGroup' | 'FormingGroup';
+
+export interface GroupAnnouncement {
+  id: string;
+  groupId: string | null;
+  groupRequestId: string | null;
+  createdBy: string;
+  title: string;
+  body: string;
+  priority: GroupAnnouncementPriority;
+  pinned: boolean;
+  scope: GroupAnnouncementScope;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SimulationDevice {
+  id: string;
+  transport: string;
+  model?: string | null;
+  product?: string | null;
+  authorized: boolean;
+  appInstalled: boolean;
+  appRunning: boolean;
+}
+
+export interface SimulationCommand {
+  id: string;
+  type:
+    | 'Navigate'
+    | 'SelectActiveGroup'
+    | 'SelectPersona'
+    | 'Refresh'
+    | 'ShowBanner'
+    | 'PaymentReturn'
+    | 'SpeedTime'
+    | 'BackendLifecycle';
+  payload: Record<string, unknown>;
+  issuedAt: string;
+}
+
+export interface SimulationSnapshot {
+  generatedAt: string;
+  groups: GroupRecord[];
+  rounds: RoundRecord[];
+  memberships: MembershipRecord[];
+  transactions: TransactionRecord[];
+  events: Array<{
+    id: string;
+    commandType: string;
+    actorUserId: string | null;
+    entityType: string | null;
+    entityId: string | null;
+    createdAt: string;
+    metadata: Record<string, unknown>;
+  }>;
+}
+
+export interface SimulationCommandResult {
+  ok: boolean;
+  commandId: string;
+  message: string;
+  snapshot?: SimulationSnapshot;
+}

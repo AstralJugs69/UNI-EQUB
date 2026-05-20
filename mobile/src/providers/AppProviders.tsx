@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ServicesProvider } from './ServicesProvider';
 import { AuthProvider } from './AuthProvider';
+import { SimulationBridgeProvider } from './SimulationBridgeProvider';
 
 export function AppProviders({ children }: PropsWithChildren) {
   const [queryClient] = useState(
@@ -24,7 +25,9 @@ export function AppProviders({ children }: PropsWithChildren) {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <ServicesProvider>
-            <AuthProvider>{children}</AuthProvider>
+            <AuthProvider>
+              <SimulationBridgeProvider>{children}</SimulationBridgeProvider>
+            </AuthProvider>
           </ServicesProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

@@ -1,11 +1,11 @@
-﻿import React, { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 import { AppState } from 'react-native';
 import type { AppStateStatus } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import type { AuthSession, SessionUser } from '../types/domain';
 import type { KycSubmissionInput } from '../services/contracts';
-import { mockBackend } from '../services/mock/mockBackend';
 import { clearSessionToken, loadLastActiveAt, loadSessionToken, saveLastActiveAt, saveSessionToken } from '../services/storage';
-import { useDemoMode, useServices } from './ServicesProvider';
+import { useServices } from './ServicesProvider';
 
 const INACTIVITY_LIMIT_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -27,7 +27,7 @@ interface AuthContextValue {
   verifyOtp: (phoneNumber: string, otp: string) => Promise<void>;
   submitPendingKyc: (input: KycSubmissionInput) => Promise<void>;
   submitCurrentKyc: (input: KycSubmissionInput) => Promise<void>;
-  startDemo: (role: 'Member' | 'Admin') => Promise<void>;
+  switchAccount: (userId: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -35,7 +35,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const services = useServices();
-  const { disableDemoMode, enableDemoMode } = useDemoMode();
+  const queryClient = useQueryClient();
   const [authReady, setAuthReady] = useState(false);
   const [session, setSession] = useState<AuthSession | null>(null);
   const [pendingUser, setPendingUser] = useState<SessionUser | null>(null);
@@ -104,6 +104,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     login: async (phoneNumber, password, roleHint) => {
       const nextSession = await services.auth.login({ phoneNumber, password }, roleHint);
       await saveSessionToken(nextSession.token);
+      await services.accounts.saveCurrent(nextSession);
       await saveLastActiveAt(new Date().toISOString());
       setSession(nextSession);
       setPendingLogin(null);
@@ -116,6 +117,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
       const nextSession = await services.auth.completeLogin(pendingLogin.challengeToken, otp);
       await saveSessionToken(nextSession.token);
+      await services.accounts.saveCurrent(nextSession);
       await saveLastActiveAt(new Date().toISOString());
       setSession(nextSession);
       setPendingLogin(null);
@@ -145,6 +147,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
       const nextSession = await services.kyc.submitKyc(pendingUser.userId, input, pendingKycToken);
       await saveSessionToken(nextSession.token);
+      await services.accounts.saveCurrent(nextSession);
       await saveLastActiveAt(new Date().toISOString());
       setSession(nextSession);
       setPendingUser(null);
@@ -157,38 +160,41 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
       const nextSession = await services.kyc.resubmitKyc(session.user.userId, input);
       await saveSessionToken(nextSession.token);
+      await services.accounts.saveCurrent(nextSession);
       await saveLastActiveAt(new Date().toISOString());
       setSession(nextSession);
       setPendingUser(null);
       setPendingKycToken(null);
       setPendingLogin(null);
     },
-    startDemo: async role => {
-      await clearSessionToken();
-      mockBackend.reset();
-      enableDemoMode();
-      const nextSession = await mockBackend.auth.login(
-        role === 'Admin'
-          ? { phoneNumber: '0999000000', password: 'admin1234' }
-          : { phoneNumber: '0911000000', password: 'demo1234' },
-        role,
-      );
-      setSession(nextSession);
+    switchAccount: async userId => {
+      const stored = await services.accounts.switchTo(userId);
+      if (!stored.token) {
+        throw new Error('This saved account needs password sign-in again.');
+      }
+      const restored = await services.auth.restore(stored.token);
+      if (!restored) {
+        throw new Error('This saved session has expired. Sign in again to refresh it.');
+      }
+      await saveSessionToken(stored.token);
+      await services.accounts.saveCurrent(restored);
+      await saveLastActiveAt(new Date().toISOString());
+      queryClient.clear();
+      setSession(restored);
       setPendingUser(null);
       setPendingKycToken(null);
       setPendingLogin(null);
-      setAuthReady(true);
     },
     logout: async () => {
       await services.auth.logout();
       await clearSessionToken();
-      disableDemoMode();
+      queryClient.clear();
       setSession(null);
       setPendingUser(null);
       setPendingKycToken(null);
       setPendingLogin(null);
     },
-  }), [authReady, disableDemoMode, enableDemoMode, pendingKycToken, pendingLogin, pendingUser, services, session]);
+  }), [authReady, pendingKycToken, pendingLogin, pendingUser, queryClient, services, session]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -200,6 +206,3 @@ export function useAuth() {
   }
   return context;
 }
-
-
-

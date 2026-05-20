@@ -1,7 +1,6 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { DemoModeBanner } from '../../components/DemoModeBanner';
 import { Icon } from '../../components/Icon';
 import { AppScreen, EmptyState, HeroCard, ListRow, LoadingState, MetricTile, SecondaryCTA, SectionCard, StatusBanner } from '../../components/ui';
 import { useDashboardQuery } from '../../hooks/useAppQueries';
@@ -79,7 +78,6 @@ export function DashboardScreen({ route }: any) {
   if (!group) {
     return (
       <AppScreen>
-        <DemoModeBanner />
         {route?.params?.flash ? <StatusBanner tone="success" title={route.params.flash} /> : null}
         {kycBanner ? <StatusBanner tone="warning" title={kycBanner.title} body={kycBanner.body} /> : null}
         <HeroCard>
@@ -116,7 +114,6 @@ export function DashboardScreen({ route }: any) {
 
   return (
     <AppScreen>
-      <DemoModeBanner />
       {route?.params?.flash ? <StatusBanner tone="success" title={route.params.flash} /> : null}
       {kycBanner ? <StatusBanner tone="warning" title={kycBanner.title} body={kycBanner.body} /> : null}
       <View style={memberStyles.dashboardHeroCard}>

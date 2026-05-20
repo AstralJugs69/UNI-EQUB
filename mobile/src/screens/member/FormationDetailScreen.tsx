@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { InlineError, ListRow, LoadingState, MetricTile, Pill, PrimaryCTA, ScreenScroll, SectionCard, StatusBanner, TopAppBar, TitleBlock } from '../../components/ui';
-import { useFormationGroupQuery, useMemberActions } from '../../hooks/useAppQueries';
+import { useFormationGroupQuery, useGroupAnnouncementsQuery, useMemberActions } from '../../hooks/useAppQueries';
 import { useAuth } from '../../providers/AuthProvider';
 import { formatCurrency } from './shared';
 import { memberStyles } from './styles';
@@ -12,6 +12,7 @@ export function FormationDetailScreen({ route }: any) {
   const { session } = useAuth();
   const requestId = route.params?.requestId ?? '';
   const { data } = useFormationGroupQuery(requestId);
+  const { data: announcements } = useGroupAnnouncementsQuery({ groupRequestId: requestId });
   const { requestJoinFormation } = useMemberActions();
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -74,6 +75,22 @@ export function FormationDetailScreen({ route }: any) {
         <MetricTile label="Contribution" value={formatCurrency(request.contribution_amount)} />
         <MetricTile label="Accepted" value={`${data.accepted_participant_count}/${request.min_members}`} helper={`${data.remaining_slots} slots left`} />
       </View>
+      {announcements?.length ? (
+        <SectionCard variant="soft">
+          <Text style={memberStyles.sectionTitle}>Announcement board</Text>
+          <View style={memberStyles.listGroup}>
+            {announcements.map(item => (
+              <ListRow
+                key={item.id}
+                title={item.title}
+                subtitle={item.body}
+                right={<Pill label={item.priority} tone={item.priority === 'Critical' ? 'bad' : item.priority === 'High' ? 'warn' : 'neutral'} />}
+                leadingIcon={item.pinned ? 'push-pin' : 'campaign'}
+              />
+            ))}
+          </View>
+        </SectionCard>
+      ) : null}
       <SectionCard>
         <Text style={memberStyles.sectionTitle}>Terms</Text>
         <View style={memberStyles.listGroup}>

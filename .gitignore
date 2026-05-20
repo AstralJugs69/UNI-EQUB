@@ -5,3 +5,8 @@
 
 # Supabase CLI local project state.
 supabase/.temp/
+
+# JavaScript package installs and generated desktop bundles.
+node_modules/
+desktop/node_modules/
+desktop/dist/

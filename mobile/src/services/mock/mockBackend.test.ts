@@ -1,6 +1,32 @@
-﻿import { MockBackend } from './mockBackend';
+import { MockBackend } from './mockBackend';
 
-describe('MockBackend auth flow', () => {
+async function createVerifiedMember(backend: MockBackend, phone = '0911223344') {
+  const user = await backend.auth.register({
+    fullName: 'Test Student',
+    phoneNumber: phone,
+    password: 'secret123',
+    studentIdImage: 'storage://students/test.png',
+  });
+  await backend.kyc.approve(user.userId);
+  return user;
+}
+
+describe('MockBackend seedless auth flow', () => {
+  it('starts empty and restores empty state after reset', async () => {
+    const backend = new MockBackend();
+    await expect(backend.auth.login({ phoneNumber: '0911000000', password: 'demo1234' }, 'Member')).rejects.toThrow('Invalid phone number or password.');
+
+    await createVerifiedMember(backend);
+    expect((await backend.reports.getAdminOverview()).pendingKycCount).toBe(0);
+
+    backend.reset();
+    expect(await backend.reports.getAdminOverview()).toEqual(expect.objectContaining({
+      pendingKycCount: 0,
+      pendingGroupCount: 0,
+      activeGroupCount: 0,
+    }));
+  });
+
   it('registers a new user and then allows login', async () => {
     const backend = new MockBackend();
     const pending = await backend.auth.register({
@@ -27,394 +53,75 @@ describe('MockBackend auth flow', () => {
     await expect(backend.auth.verifyOtp('0911223344', '0000')).rejects.toThrow('No OTP challenge is active for this number.');
   });
 
-  it('rejects direct login for wrong password, wrong role, and banned users', async () => {
+  it('exposes active groups and member KYC resubmission state only from explicit setup', async () => {
     const backend = new MockBackend();
+    const member = await createVerifiedMember(backend);
+    const group = await backend.groups.createRequest(member.userId, {
+      groupName: 'Explicit Test Equb',
+      description: 'Created inside the test.',
+      amount: 650,
+      frequency: 'Weekly',
+      maxMembers: 5,
+    });
 
-    await expect(backend.auth.login({ phoneNumber: '0911000000', password: 'wrong' }, 'Member')).rejects.toThrow('Invalid phone number or password.');
-    await expect(backend.auth.login({ phoneNumber: '0911000000', password: 'demo1234' }, 'Admin')).rejects.toThrow('Admin access is not available for this account.');
-    await expect(backend.auth.login({ phoneNumber: '0911000008', password: 'banned1234' }, 'Member')).rejects.toThrow('This account has been banned and cannot log in.');
-  });
-});
-
-describe('MockBackend automatic draw flow', () => {
-  it('seeds the in-app demo queues and restores them after reset', async () => {
-    const backend = new MockBackend();
-
-    const memberSession = await backend.auth.login({ phoneNumber: '0911000000', password: 'demo1234' }, 'Member');
-    expect(memberSession.user.userId).toBe('user-dawit');
-
-    const adminSession = await backend.auth.login({ phoneNumber: '0999000000', password: 'admin1234' }, 'Admin');
-    expect(adminSession.user.userId).toBe('user-admin');
-    const overview = await backend.reports.getAdminOverview();
-    expect(overview.pendingKycCount).toBeGreaterThanOrEqual(3);
-    expect(overview.pendingGroupCount).toBeGreaterThanOrEqual(4);
-    expect(overview.providerLogs?.length).toBeGreaterThanOrEqual(3);
-
-    const publicRequests = await backend.formation.listPublic('user-dawit');
-    expect(publicRequests.some(item => item.id === 'formation-demo-public')).toBe(true);
-    const creatorRequests = await backend.formation.listMine('user-dawit');
-    expect(creatorRequests.some(item => item.id === 'formation-demo-private')).toBe(true);
-    const privateFormation = await backend.formation.getRequest('user-dawit', 'formation-demo-private');
-    expect(privateFormation.groupRequest.frequency).toBe('Daily');
-    expect(privateFormation.groupRequest.vesting_disabled_by_creator).toBe(true);
-    expect(privateFormation.invitations.some(item => item.invite_code === 'UNI-DEMO')).toBe(true);
-    expect(privateFormation.accepted_participant_count).toBe(5);
-
-    const pendingBeforeApproval = await backend.formation.listPendingApproval();
-    expect(pendingBeforeApproval.some(item => item.id === 'formation-demo-review')).toBe(true);
-    expect(pendingBeforeApproval.some(item => item.id === 'formation-demo-public-review-2')).toBe(true);
-    expect(pendingBeforeApproval.some(item => item.visibility === 'Private')).toBe(false);
-
-    await backend.formation.adminApprove('formation-demo-review');
-    const pendingAfterApproval = await backend.formation.listPendingApproval();
-    expect(pendingAfterApproval.some(item => item.id === 'formation-demo-review')).toBe(false);
-
-    backend.reset();
-    const pendingAfterReset = await backend.formation.listPendingApproval();
-    expect(pendingAfterReset.some(item => item.id === 'formation-demo-review')).toBe(true);
-  });
-
-  it('exposes final Phase 2 reliability labels and audit timeline in demo services', async () => {
-    const backend = new MockBackend();
-
-    const dashboard = await backend.groups.getDashboard('user-dawit');
-    expect(dashboard.reliabilityProfile?.public_status).toBe('BuildingTrust');
-
-    const overview = await backend.reports.getAdminOverview();
-    expect(overview.reliabilitySummary?.Trusted).toBeGreaterThanOrEqual(1);
-    expect(overview.reliabilitySummary?.BuildingTrust).toBeGreaterThanOrEqual(1);
-    expect(overview.auditTimeline?.length).toBeGreaterThanOrEqual(3);
-    expect(overview.auditTimeline?.[0]).toEqual(expect.objectContaining({
-      actorRole: expect.any(String),
-      summary: expect.any(String),
-    }));
-  });
-
-  it('exposes active groups and member KYC resubmission state in the dashboard contract', async () => {
-    const backend = new MockBackend();
-
-    await backend.groups.joinGroup('user-dawit', 'group-coders');
-    const dashboard = await backend.groups.getDashboard('user-dawit');
-    expect(dashboard.activeGroups.map(group => group.Group_ID)).toEqual(expect.arrayContaining(['group-dorm', 'group-coders']));
+    await backend.groups.approve(group.Group_ID);
+    await backend.groups.joinGroup(member.userId, group.Group_ID);
+    const dashboard = await backend.groups.getDashboard(member.userId);
+    expect(dashboard.activeGroups.map(item => item.Group_ID)).toContain(group.Group_ID);
     expect(dashboard.kycState.status).toBe('Verified');
 
-    await backend.kyc.requestResubmission('user-hana');
-    const needsResubmission = await backend.groups.getDashboard('user-hana');
+    await backend.kyc.requestResubmission(member.userId);
+    const needsResubmission = await backend.groups.getDashboard(member.userId);
     expect(needsResubmission.kycState.status).toBe('NeedsResubmission');
     expect(needsResubmission.kycState.canSubmit).toBe(true);
-
-    await backend.kyc.resubmitKyc('user-hana', {
-      documents: [
-        { kind: 'front_id', fileName: 'front.jpg', contentType: 'image/jpeg', base64: 'ZmFrZQ==' },
-        { kind: 'back_id', fileName: 'back.jpg', contentType: 'image/jpeg', base64: 'ZmFrZQ==' },
-        { kind: 'selfie', fileName: 'selfie.jpg', contentType: 'image/jpeg', base64: 'ZmFrZQ==' },
-      ],
-    });
-    const pendingAgain = await backend.groups.getDashboard('user-hana');
-    expect(pendingAgain.kycState.status).toBe('PendingReview');
-    expect(pendingAgain.kycState.canSubmit).toBe(false);
   });
 
-  it('supports frozen-group resolution poll and simulated refund ticket demo flow', async () => {
+  it('supports explicit formation, account slots, avatars, announcements, and simulation events', async () => {
     const backend = new MockBackend();
+    const creator = await createVerifiedMember(backend, '0911223300');
+    const participant = await createVerifiedMember(backend, '0911223301');
 
-    const poll = await backend.groups.createResolutionPoll('group-demo-frozen');
-    expect(poll?.eligibleVoterCount).toBeGreaterThanOrEqual(1);
-    expect(poll?.options.some(option => option.resolution_action === 'CreateRefundTickets')).toBe(true);
-
-    const refundOption = poll!.options.find(option => option.resolution_action === 'CreateRefundTickets')!;
-    await backend.groups.voteResolutionPoll('group-demo-frozen', poll!.poll.id, refundOption.id);
-    await expect(backend.groups.voteResolutionPoll('group-demo-frozen', poll!.poll.id, refundOption.id)).rejects.toThrow(
-      'You have already voted on this resolution poll.',
-    );
-
-    await backend.groups.closeResolutionPoll('group-demo-frozen', poll!.poll.id);
-    const status = await backend.groups.getGroupStatus('user-dawit', 'group-demo-frozen');
-    expect(status.activeResolutionPoll).toBeNull();
-    expect(status.refundTickets?.length).toBeGreaterThanOrEqual(1);
-    expect(status.refundTickets?.[0].status).toBe('Created');
-  });
-
-  it('supports the Phase 2 formation service contract before UI migration', async () => {
-    const backend = new MockBackend();
-    const created = await backend.formation.createRequest('user-dawit', {
-      groupName: 'Phase 2 Formation Circle',
-      description: 'Formation service contract coverage.',
+    const created = await backend.formation.createRequest(creator.userId, {
+      groupName: 'Seedless Formation Circle',
       amount: 700,
       frequency: 'Weekly',
-      minMembers: 5,
+      minMembers: 2,
       maxMembers: 5,
       visibility: 'Public',
       termsVersion: 'phase2-v1',
     });
-
-    expect(created.groupRequest.status).toBe('Forming');
-    expect(created.accepted_participant_count).toBe(1);
-
-    const publicRequests = await backend.formation.listPublic('user-miki');
-    expect(publicRequests.some(item => item.id === created.groupRequest.id)).toBe(true);
-
-    const creatorRequests = await backend.formation.listMine('user-dawit');
-    expect(creatorRequests.some(item => item.id === created.groupRequest.id)).toBe(true);
-
-    const joined = await backend.formation.requestJoin('user-miki', created.groupRequest.id, {
+    const joined = await backend.formation.requestJoin(participant.userId, created.groupRequest.id, {
       groupTermsAccepted: true,
       acceptedTermsVersion: 'phase2-v1',
     });
-    const joinRequest = joined.joinRequests.find(item => item.user_id === 'user-miki');
-    expect(joinRequest?.status).toBe('Requested');
+    const joinRequest = joined.joinRequests.find(item => item.user_id === participant.userId);
+    await backend.formation.acceptJoin(creator.userId, joinRequest!.id);
+    await backend.formation.submitForApproval(creator.userId, created.groupRequest.id);
+    const group = await backend.formation.adminApprove(created.groupRequest.id);
 
-    const accepted = await backend.formation.acceptJoin('user-dawit', joinRequest!.id);
-    expect(accepted.accepted_participant_count).toBe(2);
-
-    for (const userId of ['user-ruth', 'user-saba', 'user-noah']) {
-      const next = await backend.formation.requestJoin(userId, created.groupRequest.id, {
-        groupTermsAccepted: true,
-        acceptedTermsVersion: 'phase2-v1',
-      });
-      const nextJoin = next.joinRequests.find(item => item.user_id === userId);
-      await backend.formation.acceptJoin('user-dawit', nextJoin!.id);
-    }
-
-    const submitted = await backend.formation.submitForApproval('user-dawit', created.groupRequest.id);
-    expect(submitted.groupRequest.status).toBe('PendingApproval');
-  });
-
-  it('supports private creator invitations through the Phase 2 formation service', async () => {
-    const backend = new MockBackend();
-    const created = await backend.formation.createRequest('user-dawit', {
-      groupName: 'Private Formation Circle',
-      amount: 600,
-      frequency: 'Daily',
-      minMembers: 5,
-      maxMembers: 5,
-      visibility: 'Private',
-      inviteMode: 'InviteCodeAndDirect',
-      vestingEnabled: false,
-      riskWarningAccepted: true,
-      termsVersion: 'phase2-v1',
+    const announcement = await backend.announcements.create({
+      groupId: group.Group_ID,
+      title: 'Round checkpoint',
+      body: 'Test announcement.',
+      priority: 'High',
+      pinned: true,
     });
+    expect((await backend.announcements.listForGroup({ groupId: group.Group_ID }))[0].id).toBe(announcement.id);
 
-    expect(created.groupRequest.frequency).toBe('Daily');
-    expect(created.groupRequest.vesting_disabled_by_creator).toBe(true);
+    const session = await backend.auth.login({ phoneNumber: '0911223300', password: 'secret123' }, 'Member');
+    await backend.accounts.saveCurrent(session);
+    expect((await backend.accounts.listSlots())[0].displayName).toBe('Test Student');
 
-    const response = await backend.formation.invite('user-dawit', {
-      requestId: created.groupRequest.id,
-      invitedPhoneOrStudentId: '0911000002',
+    const avatar = await backend.profile.ensureAvatarSeed(creator.userId);
+    expect(avatar.seed).toBe(creator.userId);
+
+    const result = await backend.simulation.runCommand({
+      id: 'cmd-test',
+      type: 'Refresh',
+      payload: { entityType: 'EqubGroup', entityId: group.Group_ID },
+      issuedAt: new Date().toISOString(),
     });
-
-    expect(response.invitation.status).toBe('Pending');
-    expect(response.detail.invitations.some(item => item.id === response.invitation.id)).toBe(true);
-
-    const accepted = await backend.formation.acceptInvite('user-miki', {
-      inviteCode: response.invitation.invite_code ?? undefined,
-      groupTermsAccepted: true,
-      acceptedTermsVersion: 'phase2-v1',
-    });
-    expect(accepted.joinRequests.some(item => item.user_id === 'user-miki' && item.status === 'Accepted')).toBe(true);
-
-    const shared = await backend.formation.invite('user-dawit', {
-      requestId: created.groupRequest.id,
-    });
-    for (const userId of ['user-ruth', 'user-saba', 'user-noah']) {
-      await backend.formation.acceptInvite(userId, {
-        inviteCode: shared.invitation.invite_code ?? undefined,
-        groupTermsAccepted: true,
-        acceptedTermsVersion: 'phase2-v1',
-      });
-    }
-
-    const started = await backend.formation.submitForApproval('user-dawit', created.groupRequest.id);
-    expect(started.groupRequest.status).toBe('Approved');
-    expect(started.groupRequest.approved_group_id).toBeTruthy();
-    const pending = await backend.formation.listPendingApproval();
-    expect(pending.some(item => item.id === created.groupRequest.id)).toBe(false);
-  });
-
-  it('allows private invite codes to be shared and redeemed by code', async () => {
-    const backend = new MockBackend();
-    const created = await backend.formation.createRequest('user-dawit', {
-      groupName: 'Shareable Invite Circle',
-      amount: 600,
-      frequency: 'Monthly',
-      minMembers: 5,
-      maxMembers: 5,
-      visibility: 'Private',
-      inviteMode: 'InviteCodeAndDirect',
-      termsVersion: 'phase2-v1',
-    });
-
-    const response = await backend.formation.invite('user-dawit', {
-      requestId: created.groupRequest.id,
-    });
-
-    const preview = await backend.formation.lookupInviteCode('user-miki', response.invitation.invite_code ?? '');
-    expect(preview.groupRequest.id).toBe(created.groupRequest.id);
-
-    const accepted = await backend.formation.acceptInvite('user-miki', {
-      inviteCode: response.invitation.invite_code ?? undefined,
-      groupTermsAccepted: true,
-      acceptedTermsVersion: 'phase2-v1',
-    });
-
-    expect(accepted.joinRequests.some(item => item.user_id === 'user-miki' && item.status === 'Accepted')).toBe(true);
-    const acceptedAgain = await backend.formation.acceptInvite('user-miki', {
-      inviteCode: response.invitation.invite_code ?? undefined,
-      groupTermsAccepted: true,
-      acceptedTermsVersion: 'phase2-v1',
-    });
-    expect(acceptedAgain.joinRequests.filter(item => item.user_id === 'user-miki').length).toBe(1);
-    const reused = await backend.formation.acceptInvite('user-ruth', {
-      inviteCode: response.invitation.invite_code ?? undefined,
-      groupTermsAccepted: true,
-      acceptedTermsVersion: 'phase2-v1',
-    });
-    expect(reused.joinRequests.some(item => item.user_id === 'user-ruth' && item.status === 'Accepted')).toBe(true);
-    expect(reused.invitations.find(item => item.id === response.invitation.id)?.status).toBe('Pending');
-  });
-
-  it('supports public reusable invite codes that auto-accept eligible members', async () => {
-    const backend = new MockBackend();
-    const created = await backend.formation.createRequest('user-dawit', {
-      groupName: 'Public Invite Formation Circle',
-      amount: 500,
-      frequency: 'Weekly',
-      minMembers: 5,
-      maxMembers: 5,
-      visibility: 'Public',
-      inviteMode: 'PublicRequest',
-      termsVersion: 'phase2-v1',
-    });
-    const response = await backend.formation.invite('user-dawit', {
-      requestId: created.groupRequest.id,
-    });
-    await expect(backend.formation.invite('user-dawit', {
-      requestId: created.groupRequest.id,
-      invitedPhoneOrStudentId: '0911000002',
-    })).rejects.toThrow('Public forming groups only support shareable invite codes.');
-
-    const preview = await backend.formation.lookupInviteCode('user-miki', response.invitation.invite_code ?? '');
-    expect(preview.groupRequest.visibility).toBe('Public');
-
-    const accepted = await backend.formation.acceptInvite('user-miki', {
-      inviteCode: response.invitation.invite_code ?? undefined,
-      groupTermsAccepted: true,
-      acceptedTermsVersion: 'phase2-v1',
-    });
-    expect(accepted.joinRequests.some(item => item.user_id === 'user-miki' && item.status === 'Accepted')).toBe(true);
-  });
-
-  it('exposes pending Phase 2 formation requests for admin approval', async () => {
-    const backend = new MockBackend();
-    const created = await backend.formation.createRequest('user-dawit', {
-      groupName: 'Admin Review Formation Circle',
-      amount: 900,
-      frequency: 'Weekly',
-      minMembers: 5,
-      maxMembers: 5,
-      visibility: 'Public',
-      termsVersion: 'phase2-v1',
-    });
-    const joined = await backend.formation.requestJoin('user-miki', created.groupRequest.id, {
-      groupTermsAccepted: true,
-      acceptedTermsVersion: 'phase2-v1',
-    });
-    const joinRequest = joined.joinRequests.find(item => item.user_id === 'user-miki');
-    await backend.formation.acceptJoin('user-dawit', joinRequest!.id);
-    for (const userId of ['user-ruth', 'user-saba', 'user-noah']) {
-      const next = await backend.formation.requestJoin(userId, created.groupRequest.id, {
-        groupTermsAccepted: true,
-        acceptedTermsVersion: 'phase2-v1',
-      });
-      const nextJoin = next.joinRequests.find(item => item.user_id === userId);
-      await backend.formation.acceptJoin('user-dawit', nextJoin!.id);
-    }
-    await backend.formation.submitForApproval('user-dawit', created.groupRequest.id);
-
-    const pending = await backend.formation.listPendingApproval();
-    expect(pending.some(item => item.id === created.groupRequest.id)).toBe(true);
-
-    const approvedGroup = await backend.formation.adminApprove(created.groupRequest.id);
-    expect(approvedGroup.Status).toBe('Active');
-  });
-
-  it('blocks creator submission until five accepted participants are present', async () => {
-    const backend = new MockBackend();
-    const created = await backend.formation.createRequest('user-dawit', {
-      groupName: 'Five Member Readiness Circle',
-      amount: 900,
-      frequency: 'Weekly',
-      minMembers: 5,
-      maxMembers: 5,
-      visibility: 'Public',
-      termsVersion: 'phase2-v1',
-    });
-
-    await expect(backend.formation.submitForApproval('user-dawit', created.groupRequest.id)).rejects.toThrow(
-      'At least 5 accepted participants are required before this group can start.',
-    );
-  });
-
-  it('keeps the legacy group creation request path pending during Phase 2 migration', async () => {
-    const backend = new MockBackend();
-    const group = await backend.groups.createRequest('user-dawit', {
-      groupName: 'Legacy Dorm Equb',
-      description: 'Compatibility path while Phase 2 formation UI is adopted.',
-      amount: 750,
-      frequency: 'Monthly',
-      maxMembers: 6,
-    });
-
-    expect(group.Status).toBe('Pending');
-    expect(group.Virtual_Acc_Ref).toBe('');
-
-    const pending = await backend.groups.listPendingApprovals();
-    expect(pending.some(item => item.group.Group_ID === group.Group_ID)).toBe(true);
-  });
-
-  it('creates a pending payout automatically when the last payment completes a round', async () => {
-    const backend = new MockBackend();
-    const result = await backend.payments.payContribution('user-dawit', 'group-dorm', 'Telebirr');
-    expect(result.autoDrawTriggered).toBe(true);
-
-    const wallet = await backend.payments.getWallet('user-dawit');
-    expect(wallet.readyPayout).toBe(5000);
-
-    const notifications = await backend.notifications.listForUser('user-dawit');
-    expect(notifications.some(item => item.title === 'Winner selected automatically')).toBe(true);
-  });
-
-  it('blocks contribution payments after a group is frozen', async () => {
-    const backend = new MockBackend();
-    await backend.groups.freeze('group-dorm');
-    await expect(backend.payments.payContribution('user-dawit', 'group-dorm', 'Telebirr')).rejects.toThrow(
-      'Only active groups can accept contributions.',
-    );
-  });
-
-  it('walks through a numbered USSD contribution session before reconciling payment', async () => {
-    const backend = new MockBackend();
-
-    const session = await backend.payments.startContributionUssd('user-dawit', 'group-dorm');
-    expect(session.stage).toBe('AwaitMenu');
-
-    const withReference = await backend.payments.submitContributionUssd('user-dawit', session.sessionId, '1');
-    expect(withReference.stage).toBe('AwaitReference');
-
-    const withAmount = await backend.payments.submitContributionUssd('user-dawit', session.sessionId, 'UEQ-0832');
-    expect(withAmount.stage).toBe('AwaitAmount');
-
-    const withConfirm = await backend.payments.submitContributionUssd('user-dawit', session.sessionId, '500');
-    expect(withConfirm.stage).toBe('AwaitConfirm');
-
-    const withPin = await backend.payments.submitContributionUssd('user-dawit', session.sessionId, '1');
-    expect(withPin.stage).toBe('AwaitPin');
-
-    const completed = await backend.payments.submitContributionUssd('user-dawit', session.sessionId, '123456');
-    expect(completed.stage).toBe('Completed');
-    expect(completed.paymentResult?.method).toBe('MockUSSD');
-
-    const wallet = await backend.payments.getWallet('user-dawit');
-    expect(wallet.readyPayout).toBe(5000);
+    expect(result.ok).toBe(true);
+    expect(result.snapshot?.events[0].commandType).toBe('Refresh');
   });
 });

@@ -5,7 +5,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BottomNav, LoadingState } from '../components/ui';
 import { useAuth } from '../providers/AuthProvider';
 import { routes } from './routes';
-import { DemoTourScreen, KycScreen, LoginScreen, OtpScreen, ResetPasswordScreen, SignupScreen, SplashScreen } from '../screens/auth';
+import { navigationRef } from './rootNavigation';
+import { KycScreen, LoginScreen, OtpScreen, ResetPasswordScreen, SignupScreen, SplashScreen } from '../screens/auth';
 import {
   ActiveGroupsScreen,
   CreateGroupBasicsScreen,
@@ -48,7 +49,6 @@ function AuthStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={routes.splash}>
       <Stack.Screen name={routes.splash} component={SplashScreen} />
-      <Stack.Screen name={routes.demoTour} component={DemoTourScreen} />
       <Stack.Screen name={routes.login} component={LoginScreen} />
       <Stack.Screen name={routes.signup} component={SignupScreen} />
       <Stack.Screen name={routes.otp} component={OtpScreen} />
@@ -121,5 +121,5 @@ export function AppNavigator() {
     return <LoadingScreen />;
   }
 
-  return <NavigationContainer>{!session ? <AuthStack /> : session.user.role === 'Admin' ? <AdminStack /> : <MemberStack />}</NavigationContainer>;
+  return <NavigationContainer ref={navigationRef}>{!session ? <AuthStack /> : session.user.role === 'Admin' ? <AdminStack /> : <MemberStack />}</NavigationContainer>;
 }

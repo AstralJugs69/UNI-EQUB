@@ -1,7 +1,6 @@
-﻿import { supabase } from '../supabaseClient';
+import { supabase } from '../supabaseClient';
 import type { AuthService, LoginChallenge, LoginInput, RegisterInput } from '../contracts';
 import type { AuthSession, SessionUser } from '../../types/domain';
-import { mockBackend } from '../mock/mockBackend';
 import { assertLiveEnvelope, readLiveFunctionError } from './liveFunctionError';
 
 interface Envelope<T> {
@@ -21,7 +20,6 @@ async function invoke<T>(body: unknown): Promise<T> {
 export const liveAuthService: AuthService = {
   async register(input: RegisterInput): Promise<SessionUser> {
     const response = await invoke<{ user: SessionUser }>({ action: 'register', register: input });
-    mockBackend.syncExternalUser(response.user, `hash:${input.password}`);
     return response.user;
   },
 
@@ -35,27 +33,20 @@ export const liveAuthService: AuthService = {
 
   async beginLogin(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<LoginChallenge> {
     const session = await invoke<AuthSession>({ action: 'beginLogin', beginLogin: { ...input, roleHint } });
-    mockBackend.syncExternalUser(session.user);
     return { challengeToken: session.token, phoneNumber: session.user.phoneNumber };
   },
 
   async completeLogin(challengeToken: string, _otp: string): Promise<AuthSession> {
-    const session = await invoke<AuthSession>({ action: 'restore', restore: { token: challengeToken } });
-    mockBackend.syncExternalUser(session.user);
-    return session;
+    return invoke<AuthSession>({ action: 'restore', restore: { token: challengeToken } });
   },
 
   async login(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<AuthSession> {
-    const session = await invoke<AuthSession>({ action: 'login', login: { ...input, roleHint } });
-    mockBackend.syncExternalUser(session.user);
-    return session;
+    return invoke<AuthSession>({ action: 'login', login: { ...input, roleHint } });
   },
 
   async restore(token: string): Promise<AuthSession | null> {
     try {
-      const session = await invoke<AuthSession>({ action: 'restore', restore: { token } });
-      mockBackend.syncExternalUser(session.user);
-      return session;
+      return await invoke<AuthSession>({ action: 'restore', restore: { token } });
     } catch {
       return null;
     }
