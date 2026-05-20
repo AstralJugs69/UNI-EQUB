@@ -60,6 +60,33 @@ The same value must be configured in Supabase as `UNIEQUB_CONTROLLER_SECRET` for
 
 ## Run
 
+From the repo root, use the launcher script:
+
+```powershell
+npm run desktop:app
+```
+
+For live renderer reload during controller UI work:
+
+```powershell
+npm run desktop:app:dev
+```
+
+To remove the generated bundle before launch:
+
+```powershell
+npm run desktop:app:clean
+```
+
+You can also call the script directly:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-desktop-controller.ps1 -Check
+powershell -ExecutionPolicy Bypass -File .\scripts\start-desktop-controller.ps1 -Dev
+```
+
+Lower-level package commands remain available.
+
 Start the Vite renderer:
 
 ```powershell
