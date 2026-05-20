@@ -51,3 +51,12 @@ verify_jwt = false
 
 [functions.default-maintenance]
 verify_jwt = false
+
+[functions.profile-center]
+verify_jwt = false
+
+[functions.announcement-board]
+verify_jwt = false
+
+[functions.simulation-controller]
+verify_jwt = false
