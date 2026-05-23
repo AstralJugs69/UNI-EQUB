@@ -117,6 +117,25 @@ function roundObligations(snapshot: SimulationSnapshot | null, round: RoundRecor
   return round ? snapshot?.obligations.filter(obligation => obligation.round_id === round.Round_ID) ?? [] : [];
 }
 
+function memberObligation(obligations: ContributionObligationRecord[], userId: string) {
+  return obligations.find(obligation => obligation.user_id === userId) ?? null;
+}
+
+function statusTone(status?: string | null) {
+  switch (status) {
+    case 'Paid':
+    case 'Waived':
+    case 'RefundPending':
+      return 'good';
+    case 'Late':
+      return 'warn';
+    case 'Defaulted':
+      return 'bad';
+    default:
+      return 'neutral';
+  }
+}
+
 function firstDeadline(obligations: ContributionObligationRecord[]) {
   const times = obligations
     .filter(obligation => !['Paid', 'Waived', 'RefundPending'].includes(obligation.status))
@@ -352,7 +371,9 @@ function App() {
             </select>
           </label>
           <button onClick={() => runAction('createTestPayment', { userId: selectedUser, method: 'Simulation' })} disabled={!selectedUser || busy}>Pay For Member</button>
-          <button className="secondary" onClick={() => runAction('removeMember', { userId: selectedUser })} disabled={!selectedUser || busy}>Remove Member</button>
+          <button className="secondary" onClick={() => runAction('payAllMembers', { method: 'SimulationBatch' })} disabled={!members.length || busy}>Pay Everyone</button>
+          <button className="secondary" onClick={() => runAction('payAllMembersAndContinue', { method: 'SimulationBatch' })} disabled={!members.length || busy}>Pay Everyone + Draw</button>
+          <button className="dangerGhost" onClick={() => runAction('removeMember', { userId: selectedUser })} disabled={!selectedUser || busy}>Remove Member</button>
         </div>
 
         <div className="panel">
@@ -374,6 +395,57 @@ function App() {
           </label>
           <button className="secondary" onClick={() => runAction('recordDrawSeed', { drawSeed })} disabled={busy || !drawSeed}>Record Draw Seed</button>
           <button className="secondary" onClick={() => runAction('finalizeRound', { drawSeed, winnerUserId: selectedUser || undefined })} disabled={busy || !selectedUser}>Finalize With Winner</button>
+        </div>
+
+        <div className="panel wide controlDeck">
+          <div className="panelHeader">
+            <h2>High-authority active group controls</h2>
+            <span>database-backed</span>
+          </div>
+          <div className="controlGrid">
+            <div className="controlCard">
+              <h3>Batch contribution paths</h3>
+              <p>Use these to put a whole active group into realistic payment states without tapping through every phone.</p>
+              <button onClick={() => runAction('payAllMembers', { method: 'SimulationBatch' })} disabled={!members.length || busy}>Pay Everyone</button>
+              <button onClick={() => runAction('payAllMembersAndContinue', { method: 'SimulationBatch' })} disabled={!members.length || busy}>Pay Everyone And Continue Draw</button>
+            </div>
+            <div className="controlCard">
+              <h3>Hold one member back</h3>
+              <p>Pay everyone except the selected member, then optionally open their grace period so late/default handling can be tested.</p>
+              <button onClick={() => runAction('payAllExceptMember', { userId: selectedUser, method: 'SimulationBatch' })} disabled={!selectedUser || busy}>Pay All Except Selected</button>
+              <button onClick={() => runAction('payAllExceptMemberAndContinue', { userId: selectedUser, method: 'SimulationBatch' })} disabled={!selectedUser || busy}>Pay All Except Selected + Start Grace</button>
+            </div>
+            <div className="controlCard">
+              <h3>Deadline and recovery</h3>
+              <p>Push unpaid members into late/default states and let the app reload from the refreshed source-of-truth snapshot.</p>
+              <button onClick={() => runAction('markRoundUnpaidLate')} disabled={!round || busy}>Mark Unpaid Late</button>
+              <button onClick={() => runAction('defaultSelectedMember', { userId: selectedUser })} disabled={!selectedUser || busy}>Default Selected Now</button>
+              <button className="secondary" onClick={() => runAction('processContributionDeadlines')} disabled={busy}>Run Deadline Sweep</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="panel wide">
+          <div className="panelHeader">
+            <h2>Round roster</h2>
+            <span>{paidCount}/{obligations.length || members.length} settled</span>
+          </div>
+          <div className="memberTable">
+            {members.length ? members.map((membership: MembershipRecord) => {
+              const obligation = memberObligation(obligations, membership.User_ID);
+              const selected = selectedUser === membership.User_ID;
+              return (
+                <button key={membership.User_ID} className={`memberRow ${selected ? 'selected' : ''}`} onClick={() => setSelectedUserId(membership.User_ID)}>
+                  <span>
+                    <strong>{memberName(snapshot?.users ?? [], membership.User_ID)}</strong>
+                    <small>{membership.User_ID}</small>
+                  </span>
+                  <em className={statusTone(obligation?.status)}>{obligation?.status ?? 'No obligation'}</em>
+                  <small>{obligation?.due_at ? `Due ${timeLeft(obligation.due_at)}` : 'No deadline'}</small>
+                </button>
+              );
+            }) : <p className="empty">No active members in the selected group.</p>}
+          </div>
         </div>
 
         <div className="panel wide">

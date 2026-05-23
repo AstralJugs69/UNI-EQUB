@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { InlineError, InputField, PrimaryCTA, ScreenScroll, SecondaryCTA, StatusBanner, SplitPhoneField, TitleBlock, TopAppBar } from '../../components/ui';
+import { AuthErrorBanner } from '../../components/AppErrors';
+import { InputField, PrimaryCTA, ScreenScroll, SecondaryCTA, StatusBanner, SplitPhoneField, TitleBlock, TopAppBar } from '../../components/ui';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
 import { authStyles } from './styles';
@@ -70,7 +71,7 @@ export function ResetPasswordScreen({ route }: any) {
       {requiresOtp === false ? <StatusBanner tone="info" title="OTP not required" body="Only the first registered test account is OTP-gated for this flow." /> : null}
       {sentOtp ? <StatusBanner tone="info" title="OTP required" body="Only the first registered test account must confirm OTP before reset." /> : null}
       {success ? <StatusBanner tone="success" title={success} /> : null}
-      <InlineError message={error} />
+      <AuthErrorBanner error={error} />
       {requiresOtp === null ? (
         <PrimaryCTA label="Continue" onPress={checkGateAndSend} loading={submitting} disabled={!phoneNumber || submitting} />
       ) : (

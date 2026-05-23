@@ -30,13 +30,15 @@
 
 export interface RegisterInput {
   fullName: string;
+  email: string;
   phoneNumber: string;
   password: string;
   studentIdImage: string;
 }
 
 export interface LoginInput {
-  phoneNumber: string;
+  email?: string;
+  phoneNumber?: string;
   password: string;
 }
 
@@ -66,12 +68,12 @@ export interface CreateGroupFormationInput {
   frequency: GroupRecord['Frequency'];
   minMembers?: number;
   maxMembers: number;
-  totalCycles?: number;
   visibility: 'Public' | 'Private';
   inviteMode?: 'PublicRequest' | 'InviteCode' | 'DirectInvite' | 'InviteCodeAndDirect';
   vestingEnabled?: boolean;
   riskWarningAccepted?: boolean;
   gracePeriodHours?: number;
+  joinWindowHours?: number;
   termsVersion?: string;
 }
 
@@ -95,6 +97,16 @@ export interface LoginChallenge {
 export interface RegisterResult {
   user: SessionUser;
   requiresOtp: boolean;
+  requiresEmailVerification?: boolean;
+  pendingKycToken?: string;
+}
+
+export interface EmailVerificationResult {
+  email: string;
+  verifiedAt?: string;
+  expiresAt?: string;
+  user?: SessionUser;
+  requiresOtp?: boolean;
   pendingKycToken?: string;
 }
 
@@ -102,6 +114,8 @@ export interface AuthService {
   register(input: RegisterInput): Promise<RegisterResult>;
   requestOtp(phoneNumber: string): Promise<{ challengeId: string }>;
   verifyOtp(phoneNumber: string, otp: string): Promise<{ pendingKycToken?: string }>;
+  requestEmailVerification(input: { userId?: string; email?: string }): Promise<EmailVerificationResult>;
+  verifyEmail(input: { userId?: string; code: string }): Promise<EmailVerificationResult>;
   beginLogin(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<LoginChallenge>;
   completeLogin(challengeToken: string, otp: string): Promise<AuthSession>;
   login(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<AuthSession>;
@@ -176,6 +190,8 @@ export interface ReportService {
 }
 
 export interface ProfileUpdateInput {
+  email?: string | null;
+  phoneNumber?: string | null;
   university?: string | null;
   academicYear?: string | null;
   language?: string;

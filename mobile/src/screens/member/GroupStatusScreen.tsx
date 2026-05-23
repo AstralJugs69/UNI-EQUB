@@ -329,7 +329,8 @@ function ContributionRing({
     : displayContributors.find(contributor => contributor.isWinner);
   const paidCount = contributors.filter(contributor => contributor.hasPaid).length;
   const allPaid = paidCount === contributors.length && contributors.length > 0;
-  const isFinalizingPending = isFocused && seenDrawIdsReady && allPaid && !latestDraw;
+  const waitingForDeadline = allPaid && !status.roundReadyForDraw && !latestDraw;
+  const isFinalizingPending = isFocused && seenDrawIdsReady && allPaid && !!status.roundReadyForDraw && !latestDraw;
   const shouldPresentDraw = isFocused && seenDrawIdsReady && !!latestDraw;
   const spinRotation = spinProgress.interpolate({
     inputRange: [0, 1],
@@ -418,6 +419,8 @@ function ContributionRing({
       ? 'Winner drawn'
       : isFinalizingPending
         ? 'Finalizing'
+        : waitingForDeadline
+          ? 'Waiting for deadline'
         : status.isFrozen
           ? 'Frozen'
           : formatTimeLeft(status.contributionDeadlineAt);
@@ -427,11 +430,15 @@ function ContributionRing({
     ? latestDraw.winnerName
       : isFinalizingPending
         ? 'Finalizing draw'
+        : waitingForDeadline
+          ? 'All paid'
         : `${paidCount} of ${contributors.length} paid`;
   const centerSubtitle = shouldPresentDraw && isDrawing
     ? 'Wheel is spinning'
-    : shouldPresentDraw && latestDraw
-      ? `Winner of Round ${latestDraw.roundNumber}`
+      : shouldPresentDraw && latestDraw
+        ? `Winner of Round ${latestDraw.roundNumber}`
+        : waitingForDeadline
+          ? 'Draw opens when the contribution window closes.'
       : 'Verified contributions only.';
 
   return (
@@ -474,7 +481,9 @@ function ContributionRing({
         <Text style={memberStyles.ringNoteText}>
           {shouldPresentDraw && latestDraw
             ? `Round ${latestDraw.roundNumber} has been drawn. The next contribution round is now open.`
-            : `Time left: ${formatTimeLeft(status.contributionDeadlineAt)}. The round closes only when every active member is paid.`}
+            : waitingForDeadline
+              ? `Time left: ${formatTimeLeft(status.contributionDeadlineAt)}. Everyone has paid, so the draw will run when the ${status.group.Frequency.toLowerCase()} window closes.`
+              : `Time left: ${formatTimeLeft(status.contributionDeadlineAt)}. The round closes after the deadline and every active member is paid.`}
         </Text>
       </View>
       {shouldPresentDraw && !isDrawing ? <WinnerSection winner={winner} round={latestDraw?.roundNumber ?? status.currentRound?.Round_Number} /> : null}
@@ -539,6 +548,7 @@ function ResolutionPollSection({
   }
 
   const alreadyVoted = !!poll.currentUserVote;
+  const votesCast = Object.values(poll.voteCounts).reduce((sum, count) => sum + count, 0);
   const closesOn = poll.poll.closes_at.slice(0, 10);
 
   return (
@@ -548,7 +558,7 @@ function ResolutionPollSection({
         <Pill label={alreadyVoted ? 'Voted' : 'Open'} tone={alreadyVoted ? 'good' : 'warn'} />
       </View>
       <Text style={memberStyles.pollBody}>
-        {poll.eligibleVoterCount} eligible members. {poll.requiredVotes} votes are needed by {closesOn}.
+        {votesCast}/{poll.eligibleVoterCount} votes cast. {poll.requiredVotes} votes are needed by {closesOn}.
       </Text>
       <View style={memberStyles.listGroup}>
         {poll.options.map(option => {
@@ -688,11 +698,19 @@ export function GroupStatusScreen({ route }: any) {
         seenDrawIdsReady={seenDrawIdsReady}
         onDrawSeen={handleDrawSeen}
       />
-      <PayRoundButton
-        disabled={!status.canCurrentUserPay}
-        alreadyPaid={alreadyPaidCurrentRound}
-        onPress={() => navigation.navigate(routes.payment, { groupId: status.group.Group_ID })}
-      />
+      {status.activeResolutionPoll ? (
+        <PrimaryCTA
+          label={status.activeResolutionPoll.currentUserVote ? 'View Vote Progress' : 'Vote On Resolution'}
+          icon="how-to-vote"
+          onPress={() => navigation.navigate(routes.resolutionVote, { groupId: status.group.Group_ID })}
+        />
+      ) : (
+        <PayRoundButton
+          disabled={!status.canCurrentUserPay}
+          alreadyPaid={alreadyPaidCurrentRound}
+          onPress={() => navigation.navigate(routes.payment, { groupId: status.group.Group_ID })}
+        />
+      )}
       {status.isFrozen ? <StatusBanner tone="danger" title="This group is currently frozen." body="Payments and round advancement stay paused until the compliance review is lifted." /> : null}
       {announcements?.length ? (
         <SectionCard style={memberStyles.winnerHistoryCard}>

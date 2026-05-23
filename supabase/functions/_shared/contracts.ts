@@ -13,7 +13,7 @@
   };
 }
 
-export type RegisterLoginAction = 'register' | 'requestOtp' | 'verifyOtp' | 'beginLogin' | 'completeLogin' | 'login' | 'restore' | 'otpGate' | 'resetPassword';
+export type RegisterLoginAction = 'register' | 'requestOtp' | 'verifyOtp' | 'requestEmailVerification' | 'verifyEmail' | 'beginLogin' | 'completeLogin' | 'login' | 'restore' | 'otpGate' | 'resetPassword';
 export type GroupLifecycleAction = 'listBrowseable' | 'getGroup' | 'getGroupStatus' | 'createRequest' | 'listPending' | 'approve' | 'reject' | 'freeze' | 'resolveFreeze' | 'createResolutionPoll' | 'voteResolutionPoll' | 'closeResolutionPoll' | 'join' | 'getDashboard';
 export type GroupFormationAction = 'listPublic' | 'listMine' | 'listPendingApproval' | 'getRequest' | 'lookupInviteCode' | 'createRequest' | 'requestJoin' | 'acceptJoin' | 'removeParticipant' | 'invite' | 'acceptInvite' | 'submitForApproval' | 'adminApprove' | 'adminReject';
 export type ContributionAction = 'payContribution' | 'startContributionUssd' | 'submitContributionUssd' | 'listTransactions' | 'getWallet' | 'reconcileProviderCallback';
@@ -23,13 +23,15 @@ export type PayoutAction = 'createPayoutRequest' | 'processImmediateRelease' | '
 export type ReportAction = 'getAdminOverview' | 'listReports' | 'exportReport';
 
 export interface LoginRequest {
-  phoneNumber: string;
+  email?: string;
+  phoneNumber?: string;
   password: string;
   roleHint?: 'Member' | 'Admin';
 }
 
 export interface RegisterRequest {
   fullName: string;
+  email: string;
   phoneNumber: string;
   password: string;
   studentIdImage: string;
@@ -48,6 +50,18 @@ export interface OtpVerifyRequest {
   otp: string;
 }
 
+export interface EmailVerificationRequest {
+  token?: string;
+  userId?: string;
+  email?: string;
+}
+
+export interface EmailVerifyRequest {
+  token?: string;
+  userId?: string;
+  code: string;
+}
+
 export interface OtpGateRequest {
   token?: string;
   phoneNumber?: string;
@@ -60,7 +74,8 @@ export interface ResetPasswordRequest {
 }
 
 export interface BeginLoginRequest {
-  phoneNumber: string;
+  email?: string;
+  phoneNumber?: string;
   password: string;
   roleHint?: 'Member' | 'Admin';
 }
@@ -76,6 +91,8 @@ export interface RegisterLoginPayload {
   login?: LoginRequest;
   requestOtp?: OtpRequest;
   verifyOtp?: OtpVerifyRequest;
+  requestEmailVerification?: EmailVerificationRequest;
+  verifyEmail?: EmailVerifyRequest;
   otpGate?: OtpGateRequest;
   resetPassword?: ResetPasswordRequest;
   beginLogin?: BeginLoginRequest;
@@ -109,12 +126,12 @@ export interface CreateGroupFormationRequest {
   frequency: 'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly';
   minMembers?: number;
   maxMembers: number;
-  totalCycles?: number;
   visibility: 'Public' | 'Private';
   inviteMode?: 'PublicRequest' | 'InviteCode' | 'DirectInvite' | 'InviteCodeAndDirect';
   vestingEnabled?: boolean;
   riskWarningAccepted?: boolean;
   gracePeriodHours?: number;
+  joinWindowHours?: number;
   termsVersion?: string;
 }
 

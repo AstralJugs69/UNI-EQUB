@@ -146,14 +146,18 @@ The native module drops commands unless simulation mode is enabled by the dev JS
 
 Durable lifecycle changes belong in the Supabase `simulation-controller` Edge Function, not only in the app UI. Use backend commands when you need to mutate source-of-truth state such as:
 
-- advancing simulation clock
-- marking obligations paid/late/defaulted
+- inspecting all active groups
+- paying one member, every member, or every member except a selected holdout
+- paying everyone and forcing the draw to continue immediately
+- opening a grace-period test path for the one unpaid holdout
+- advancing simulation clock or contribution deadlines by one or two days
+- marking obligations paid, late, or defaulted
 - removing members
-- freezing/resuming groups
 - creating test payments
+- recording draw seed/witness metadata
 - finalizing rounds
 
-The desktop UI currently sends ADB app commands. Backend command wiring is scaffolded in the mobile/service layer and Edge Function, and can be expanded from `desktop/src/renderer/main.tsx` when a richer controller workflow is needed.
+The desktop UI now pairs backend mutations with a device refresh command. The app should reload from database state after a controller action instead of relying on a dialog-only local effect.
 
 ## Troubleshooting
 

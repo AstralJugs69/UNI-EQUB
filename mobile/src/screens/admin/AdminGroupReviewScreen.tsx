@@ -134,6 +134,13 @@ export function AdminGroupReviewScreen({ route }: any) {
       {isFrozen ? (
         <>
           <StatusBanner tone="warning" title="Manual recovery" body="This group is frozen while admin resolves the default case. Continuing keeps reserved payouts frozen for audit review." />
+          {frozenStatus?.latestResolutionPoll && !frozenStatus.activeResolutionPoll && frozenStatus.latestResolutionPoll.poll.status === 'Expired' ? (
+            <StatusBanner
+              tone="warning"
+              title="Member vote reached no consensus"
+              body="The vote ended without a majority. Review the case here, then resume the group, open another vote, or keep it frozen for follow-up."
+            />
+          ) : null}
           <InlineError message={error} />
           {frozenStatus?.activeResolutionPoll ? (
             <SecondaryCTA

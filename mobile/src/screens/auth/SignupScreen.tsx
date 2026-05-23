@@ -1,26 +1,46 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { AppScreen, InlineError, InputField, PrimaryCTA, SectionCard, SplitPhoneField, SecondaryCTA, TopAppBar } from '../../components/ui';
+import { AuthErrorBanner } from '../../components/AppErrors';
+import { AppScreen, InputField, PrimaryCTA, SectionCard, SplitPhoneField, SecondaryCTA, TopAppBar } from '../../components/ui';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
+import { validateEmail, validateEthiopianPhone, validateFullName, validatePassword } from '../../utils/validation';
 import { authStyles } from './styles';
 
 export function SignupScreen() {
   const navigation = useNavigation<any>();
   const { register, requestOtp } = useAuth();
   const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({ fullName: '', email: '', phoneNumber: '', password: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit() {
+    const nextErrors = {
+      fullName: validateFullName(fullName),
+      email: validateEmail(email),
+      phoneNumber: validateEthiopianPhone(phoneNumber),
+      password: validatePassword(password),
+    };
+    setFieldErrors(nextErrors);
+    if (nextErrors.fullName || nextErrors.email || nextErrors.phoneNumber || nextErrors.password) {
+      return;
+    }
     try {
       setError('');
       setSubmitting(true);
-      const result = await register(fullName, phoneNumber, password);
-      if (result.requiresOtp) {
+      const result = await register(fullName.trim().replace(/\s+/g, ' '), email.trim().toLowerCase(), phoneNumber, password);
+      if (result.requiresEmailVerification) {
+        navigation.navigate(routes.emailVerify, {
+          userId: result.user.userId,
+          email: result.user.email,
+          requiresOtp: result.requiresOtp,
+        });
+      } else if (result.requiresOtp) {
         await requestOtp(phoneNumber);
         navigation.navigate(routes.otp);
       } else {
@@ -48,14 +68,16 @@ export function SignupScreen() {
       </View>
       <SectionCard>
         <SplitPhoneField value={phoneNumber} onChangeText={setPhoneNumber} />
-        <InputField label="Full Name" value={fullName} onChangeText={setFullName} leadingIcon="person" />
+        {fieldErrors.phoneNumber ? <Text style={authStyles.loginFieldError}>{fieldErrors.phoneNumber}</Text> : null}
+        <InputField label="Email Address" value={email} onChangeText={setEmail} leadingIcon="alternate-email" autoCapitalize="none" keyboardType="email-address" error={fieldErrors.email} />
+        <InputField label="Full Name" value={fullName} onChangeText={setFullName} leadingIcon="person" error={fieldErrors.fullName} />
       </SectionCard>
       <SectionCard variant="soft">
-        <InputField label="Password" value={password} onChangeText={setPassword} secureTextEntry leadingIcon="lock" helper="Use a password you can remember during the defense demo." />
+        <InputField label="Password" value={password} onChangeText={setPassword} secureTextEntry leadingIcon="lock" helper="Use at least 8 characters." error={fieldErrors.password} />
       </SectionCard>
-      <InlineError message={error} />
+      <AuthErrorBanner error={error} />
       <View style={authStyles.footerActions}>
-        <PrimaryCTA label="Create Account" onPress={handleSubmit} loading={submitting} disabled={!fullName || !phoneNumber || !password} />
+        <PrimaryCTA label="Create Account" onPress={handleSubmit} loading={submitting} disabled={!fullName || !email || !phoneNumber || !password} />
         <SecondaryCTA label="Back To Login" onPress={() => navigation.navigate(routes.login)} disabled={submitting} />
       </View>
     </AppScreen>

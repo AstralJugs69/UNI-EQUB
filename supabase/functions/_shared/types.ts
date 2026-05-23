@@ -46,6 +46,8 @@ export interface UserRecord {
   User_ID: string;
   Full_Name: string;
   Phone_Number: string;
+  Email?: string | null;
+  Email_Verified_At?: string | null;
   Password_Hash: string;
   Student_ID_Img: string;
   KYC_Status: KycStatus;
@@ -98,6 +100,8 @@ export interface SessionUser {
   userId: string;
   fullName: string;
   phoneNumber: string;
+  email?: string | null;
+  emailVerifiedAt?: string | null;
   role: UserRecord['Role'];
   kycStatus: UserRecord['KYC_Status'];
 }
@@ -107,6 +111,8 @@ export function toSessionUser(user: UserRecord): SessionUser {
     userId: user.User_ID,
     fullName: user.Full_Name,
     phoneNumber: user.Phone_Number,
+    email: user.Email ?? null,
+    emailVerifiedAt: user.Email_Verified_At ?? null,
     role: user.Role,
     kycStatus: user.KYC_Status,
   };
@@ -199,6 +205,9 @@ export interface GroupRequestRecord {
   vesting_enabled: boolean;
   vesting_disabled_by_creator: boolean;
   grace_period_hours?: number;
+  join_window_hours?: number;
+  join_window_ends_at?: string | null;
+  activated_at?: string | null;
   risk_warning_accepted_at: string | null;
   expires_at: string | null;
   submitted_at: string | null;

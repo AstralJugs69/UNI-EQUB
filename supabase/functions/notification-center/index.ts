@@ -205,6 +205,23 @@ async function listNotificationsForUser(user: UserRecord) {
 
   const notificationItems: AppNotification[] = [];
 
+  if (user.Role === 'Member' && (!user.Email || !user.Email_Verified_At)) {
+    notificationItems.push({
+      id: `email-unverified:${user.User_ID}`,
+      title: user.Email ? 'Verify your email' : 'Add your email address',
+      body: user.Email
+        ? 'Verify your email so UniEqub can use it for account recovery and important account notices.'
+        : 'Add an email address to complete account recovery setup and receive important account notices.',
+      createdAt: user.Created_At,
+      unread: true,
+      source: 'Derived',
+      severity: 'Warning',
+      actionRoute: 'member/profile-email',
+      relatedEntityType: 'user',
+      relatedEntityId: user.User_ID,
+    });
+  }
+
   if (user.KYC_Status === 'Unverified') {
     notificationItems.push({
       id: `kyc-pending:${user.User_ID}`,
@@ -285,7 +302,7 @@ async function listNotificationsForUser(user: UserRecord) {
         createdAt: transaction.Date,
         unread: true,
         source: 'Derived',
-        actionRoute: 'member/wallet',
+        actionRoute: 'member/transaction',
         relatedEntityType: 'Transaction',
         relatedEntityId: transaction.Trans_ID,
       });
@@ -298,7 +315,7 @@ async function listNotificationsForUser(user: UserRecord) {
         createdAt: transaction.Date,
         unread: true,
         source: 'Derived',
-        actionRoute: 'member/wallet',
+        actionRoute: 'member/transaction',
         relatedEntityType: 'Transaction',
         relatedEntityId: transaction.Trans_ID,
       });
@@ -311,7 +328,7 @@ async function listNotificationsForUser(user: UserRecord) {
         createdAt: transaction.Date,
         unread: true,
         source: 'Derived',
-        actionRoute: 'member/wallet',
+        actionRoute: 'member/transaction',
         relatedEntityType: 'Transaction',
         relatedEntityId: transaction.Trans_ID,
       });

@@ -6,6 +6,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ServicesProvider } from './ServicesProvider';
 import { AuthProvider } from './AuthProvider';
 import { SimulationBridgeProvider } from './SimulationBridgeProvider';
+import { PreferencesProvider } from './PreferencesProvider';
+import { NotificationPopupProvider } from './NotificationPopupProvider';
 
 export function AppProviders({ children }: PropsWithChildren) {
   const [queryClient] = useState(
@@ -26,7 +28,11 @@ export function AppProviders({ children }: PropsWithChildren) {
         <QueryClientProvider client={queryClient}>
           <ServicesProvider>
             <AuthProvider>
-              <SimulationBridgeProvider>{children}</SimulationBridgeProvider>
+              <PreferencesProvider>
+                <NotificationPopupProvider>
+                  <SimulationBridgeProvider>{children}</SimulationBridgeProvider>
+                </NotificationPopupProvider>
+              </PreferencesProvider>
             </AuthProvider>
           </ServicesProvider>
         </QueryClientProvider>

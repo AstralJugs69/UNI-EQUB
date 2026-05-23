@@ -1,6 +1,7 @@
 import { fail, failFromError, json } from '../_shared/contracts.ts';
 import type { CreateGroupRequest, GroupLifecyclePayload } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
+import { activateApprovedGroupIfReady, activateDueApprovedGroups, getApprovedRequestForGroup } from '../_shared/groupActivation.ts';
 import { freezeGroupForAdminReview, resolveOpenGroupFreeze } from '../_shared/groupFreeze.ts';
 import { createFrozenGroupResolutionPoll, closeResolutionPollIfReady, getGroupResolutionState, voteOnResolutionPoll } from '../_shared/groupResolution.ts';
 import { getRoundObligationProgress, markContributionObligationPaid, processDueContributionObligations } from '../_shared/obligations.ts';
@@ -26,6 +27,7 @@ interface DashboardSnapshot {
   completedGroups: AppGroupRecord[];
   currentRound: RoundRecord | null;
   contributionDeadlineAt: string | null;
+  joinWindowEndsAt?: string | null;
   paidCount: number;
   totalMembers: number;
   totalSaved: number;
@@ -33,21 +35,34 @@ interface DashboardSnapshot {
   recentTransactions: TransactionRecord[];
   kycState: MemberKycState;
   reliabilityProfile: UserReliabilityProfileRecord;
+  activeResolutionPoll?: unknown;
+  latestResolutionPoll?: unknown;
 }
 
 function contributionDeadlineFromObligations(obligations: Array<{ due_at: string | null; status: string }>) {
-  const unsettledDueTimes = obligations
+  const dueTimes = obligations
     .filter(obligation => !['Paid', 'Waived', 'RefundPending'].includes(obligation.status))
     .map(obligation => obligation.due_at)
     .filter((value): value is string => !!value)
     .map(value => new Date(value).getTime())
     .filter(value => Number.isFinite(value));
 
-  if (!unsettledDueTimes.length) {
+  const fallbackDueTimes = obligations
+    .map(obligation => obligation.due_at)
+    .filter((value): value is string => !!value)
+    .map(value => new Date(value).getTime())
+    .filter(value => Number.isFinite(value));
+  const selectedDueTimes = dueTimes.length ? dueTimes : fallbackDueTimes;
+
+  if (!selectedDueTimes.length) {
     return null;
   }
 
-  return new Date(Math.min(...unsettledDueTimes)).toISOString();
+  return new Date(Math.min(...selectedDueTimes)).toISOString();
+}
+
+function isDeadlineReached(deadline: string | null) {
+  return !!deadline && new Date(deadline).getTime() <= Date.now();
 }
 
 interface MemberKycState {
@@ -123,11 +138,17 @@ function validateCreateRequest(input: CreateGroupRequest) {
 }
 
 async function requireGroup(groupId: string) {
+  await activateDueApprovedGroups();
   const { data, error } = await supabaseAdmin.from('EqubGroup').select('*').eq('Group_ID', groupId).single();
   if (error) {
     throw error;
   }
-  return data as GroupRecord;
+  const group = data as GroupRecord;
+  if (group.Status === 'Pending') {
+    const activation = await activateApprovedGroupIfReady({ group, request: await getApprovedRequestForGroup(group.Group_ID) });
+    return activation.group;
+  }
+  return group;
 }
 
 async function getCreator(creatorId: string) {
@@ -302,7 +323,7 @@ async function getStatusContributors(
 async function getGroupStatusSnapshot(actor: UserRecord, groupId: string) {
   await processDueContributionObligations({ now: new Date(), limit: 200 });
   let group = await requireGroup(groupId);
-  let currentRound = await ensureOpenRoundForGroup(group);
+  let currentRound = group.Status === 'Active' || group.Status === 'Frozen' ? await ensureOpenRoundForGroup(group) : null;
   if (!currentRound) {
     group = await requireGroup(groupId);
   }
@@ -321,7 +342,8 @@ async function getGroupStatusSnapshot(actor: UserRecord, groupId: string) {
   ) {
     await settleObligationsFromSuccessfulTransactions(obligationProgress.obligations, paidTransactions);
     await finalizeRoundIfReady(group, currentRound);
-    currentRound = await ensureOpenRoundForGroup(await requireGroup(groupId));
+    const refreshedGroup = await requireGroup(groupId);
+    currentRound = refreshedGroup.Status === 'Active' || refreshedGroup.Status === 'Frozen' ? await ensureOpenRoundForGroup(refreshedGroup) : null;
     paidTransactions = currentRound ? await successfulContributions(currentRound.Round_ID) : [];
     obligationProgress = currentRound
       ? await getRoundObligationProgress(currentRound.Round_ID, memberships, paidTransactions)
@@ -335,16 +357,24 @@ async function getGroupStatusSnapshot(actor: UserRecord, groupId: string) {
 
   const resolutionState = await getGroupResolutionState(groupId, actor.User_ID);
 
+  const contributionDeadlineAt = contributionDeadlineFromObligations(obligationProgress.obligations);
+  const approvedRequest = group.Status === 'Pending' ? await getApprovedRequestForGroup(groupId) : null;
+
   return {
     group: toAppGroup(group),
     currentRound,
-    contributionDeadlineAt: contributionDeadlineFromObligations(obligationProgress.obligations),
+    contributionDeadlineAt,
+    joinWindowEndsAt: approvedRequest?.join_window_ends_at ?? null,
+    roundReadyForDraw: obligationProgress.totalMembers > 0
+      && obligationProgress.paidCount === obligationProgress.totalMembers
+      && isDeadlineReached(contributionDeadlineAt),
     paidCount: obligationProgress.paidCount,
     totalMembers: obligationProgress.totalMembers,
     winnerHistory: await getWinnerHistory(groupId),
     latestDraw: await getLatestDraw(groupId),
     contributors: await getStatusContributors(groupId, memberships, obligationProgress.paidUserIds, currentRound?.Winner_ID),
     activeResolutionPoll: resolutionState.activeResolutionPoll,
+    latestResolutionPoll: resolutionState.latestResolutionPoll,
     refundTickets: resolutionState.refundTickets,
     canCurrentUserPay,
     isFrozen: group.Status === 'Frozen',
@@ -374,7 +404,10 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
     if (candidateGroup.Status === 'Completed') {
       continue;
     }
-    const candidateRound = await ensureOpenRoundForGroup(candidateGroup);
+    if (candidateGroup.Status === 'Pending') {
+      continue;
+    }
+    const candidateRound = candidateGroup.Status === 'Active' || candidateGroup.Status === 'Frozen' ? await ensureOpenRoundForGroup(candidateGroup) : null;
     if (!candidateRound) {
       continue;
     }
@@ -396,7 +429,7 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
 
   if (!currentMembership && activeGroups.length) {
     currentGroup = activeGroups[0];
-    currentRound = await ensureOpenRoundForGroup(currentGroup);
+    currentRound = currentGroup.Status === 'Active' || currentGroup.Status === 'Frozen' ? await ensureOpenRoundForGroup(currentGroup) : null;
     currentMembership = ((memberships ?? []) as MembershipRecord[]).find(membership => membership.Group_ID === currentGroup?.Group_ID);
   }
 
@@ -435,6 +468,9 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
   if (payoutError) {
     throw payoutError;
   }
+  const resolutionState = currentGroup
+    ? await getGroupResolutionState(currentGroup.Group_ID, actor.User_ID)
+    : { activeResolutionPoll: null, latestResolutionPoll: null };
 
   return {
     currentGroup: currentGroup ? toAppGroup(currentGroup) : null,
@@ -449,6 +485,8 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
     recentTransactions: ((transactions ?? []) as TransactionRecord[]).map(toTransactionRecord),
     kycState: await getMemberKycState(actor),
     reliabilityProfile: await ensureReliabilityProfile(actor.User_ID),
+    activeResolutionPoll: resolutionState.activeResolutionPoll,
+    latestResolutionPoll: resolutionState.latestResolutionPoll,
   };
 }
 
@@ -526,11 +564,19 @@ Deno.serve(async request => {
 
     switch (body.action) {
       case 'listBrowseable': {
-        const { data, error } = await supabaseAdmin.from('EqubGroup').select('*').eq('Status', 'Active').order('Start_Date', { ascending: true });
+        await activateDueApprovedGroups();
+        const { data, error } = await supabaseAdmin.from('EqubGroup').select('*').eq('Status', 'Pending').order('Start_Date', { ascending: true });
         if (error) {
           throw error;
         }
-        return json({ groups: ((data ?? []) as GroupRecord[]).map(toAppGroup) });
+        const approvedJoinWindowGroups: GroupRecord[] = [];
+        for (const group of (data ?? []) as GroupRecord[]) {
+          const request = await getApprovedRequestForGroup(group.Group_ID);
+          if (request && !request.activated_at) {
+            approvedJoinWindowGroups.push(group);
+          }
+        }
+        return json({ groups: approvedJoinWindowGroups.map(toAppGroup) });
       }
 
       case 'getGroup': {
@@ -695,8 +741,8 @@ Deno.serve(async request => {
         }
         assertVerifiedMember(actor);
         const group = await requireGroup(body.groupId);
-        if (group.Status !== 'Active') {
-          return fail('Only active groups can be joined.', 400);
+        if (group.Status !== 'Pending') {
+          return fail(group.Status === 'Active' ? 'This group cycle has already started. New members can join the next join window if the group continues.' : 'This group is not open for joining.', 400);
         }
         const activeMemberships = await listActiveMemberships(group.Group_ID);
         if (activeMemberships.length >= group.Max_Members) {
@@ -724,8 +770,12 @@ Deno.serve(async request => {
         if (error) {
           throw error;
         }
-        const currentRound = await ensureInitialRound(group.Group_ID);
-        return json({ membership: data as MembershipRecord, group: toAppGroup(group), currentRound });
+        const activation = await activateApprovedGroupIfReady({
+          group,
+          request: await getApprovedRequestForGroup(group.Group_ID),
+          actor,
+        });
+        return json({ membership: data as MembershipRecord, group: toAppGroup(activation.group), currentRound: activation.round });
       }
 
       default:

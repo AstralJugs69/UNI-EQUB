@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
-import { AppScreen, InlineError } from '../../components/ui';
+import { AuthErrorBanner } from '../../components/AppErrors';
+import { AppScreen } from '../../components/ui';
 import { useAccountSlotsQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
 import { iconSize, palette } from '../../theme/tokens';
+import { validateEmail, validateEthiopianPhone, validatePassword } from '../../utils/validation';
 import { authStyles } from './styles';
 
 function RoleButton({
@@ -37,19 +39,33 @@ export function LoginScreen({ route }: { route?: { params?: { roleHint?: 'Admin'
   const { login, switchAccount } = useAuth();
   const { data: accountSlots } = useAccountSlotsQuery();
   const [role, setRole] = useState<'Member' | 'Admin'>(route?.params?.roleHint === 'Admin' ? 'Admin' : 'Member');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({ identifier: '', password: '' });
   const roleAccountSlots = (accountSlots ?? []).filter(slot => slot.role === role);
 
+  function validateIdentifier(value: string) {
+    const trimmed = value.trim();
+    return trimmed.includes('@') ? validateEmail(trimmed) : validateEthiopianPhone(trimmed);
+  }
+
   async function handleLogin() {
+    const nextErrors = {
+      identifier: validateIdentifier(identifier),
+      password: validatePassword(password),
+    };
+    setFieldErrors(nextErrors);
+    if (nextErrors.identifier || nextErrors.password) {
+      return;
+    }
     try {
       setError('');
       setSubmitting(true);
-      await login(phoneNumber, password, role);
+      await login(identifier.trim().toLowerCase(), password, role);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
@@ -59,13 +75,13 @@ export function LoginScreen({ route }: { route?: { params?: { roleHint?: 'Admin'
 
   function selectRole(nextRole: 'Member' | 'Admin') {
     setRole(nextRole);
-    setPhoneNumber('');
+    setIdentifier('');
     setPassword('');
     setAccountDropdownOpen(false);
     setError('');
   }
 
-  const disabled = submitting || !phoneNumber || !password;
+  const disabled = submitting || !identifier || !password;
 
   return (
     <AppScreen scroll={false} contentStyle={authStyles.loginScreen}>
@@ -81,34 +97,39 @@ export function LoginScreen({ route }: { route?: { params?: { roleHint?: 'Admin'
 
       <View style={authStyles.loginFormCard}>
         <View style={authStyles.loginFieldGroup}>
-          <Text style={authStyles.loginFieldLabel}>Phone number</Text>
-          <View style={authStyles.loginPhoneRow}>
-            <View style={authStyles.loginCountryBox}>
-              <Text style={authStyles.loginFlag}>ET</Text>
-              <Text style={authStyles.loginCountryCode}>+251</Text>
-              <Icon name="keyboard-arrow-down" size={iconSize.sm} color={palette.text} />
-            </View>
-            <View style={authStyles.loginInputWrap}>
-              <Icon name="phone" size={iconSize.sm} color={palette.textSoft} />
-              <TextInput
-                value={phoneNumber}
-                onChangeText={setPhoneNumber}
-                placeholder="911 00 00 00"
-                placeholderTextColor={palette.textSoft}
-                style={authStyles.loginInput}
-                keyboardType="phone-pad"
-              />
-            </View>
+          <Text style={authStyles.loginFieldLabel}>Email or phone number</Text>
+          <View style={[authStyles.loginInputWrap, !!fieldErrors.identifier && authStyles.loginInputWrapError]}>
+            <Icon name="alternate-email" size={iconSize.sm} color={palette.textSoft} />
+            <TextInput
+              value={identifier}
+              onChangeText={value => {
+                setIdentifier(value);
+                if (fieldErrors.identifier) {
+                  setFieldErrors(current => ({ ...current, identifier: validateIdentifier(value) }));
+                }
+              }}
+              placeholder="you@example.com or 0911 00 00 00"
+              placeholderTextColor={palette.textSoft}
+              style={authStyles.loginInput}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
           </View>
+          {fieldErrors.identifier ? <Text style={authStyles.loginFieldError}>{fieldErrors.identifier}</Text> : null}
         </View>
 
         <View style={authStyles.loginFieldGroup}>
           <Text style={authStyles.loginFieldLabel}>Password</Text>
-          <View style={authStyles.loginInputWrap}>
+          <View style={[authStyles.loginInputWrap, !!fieldErrors.password && authStyles.loginInputWrapError]}>
             <Icon name="lock-outline" size={iconSize.sm} color={palette.textSoft} />
             <TextInput
               value={password}
-              onChangeText={setPassword}
+              onChangeText={value => {
+                setPassword(value);
+                if (fieldErrors.password) {
+                  setFieldErrors(current => ({ ...current, password: validatePassword(value) }));
+                }
+              }}
               placeholder="Enter your password"
               placeholderTextColor={palette.textSoft}
               style={authStyles.loginInput}
@@ -123,10 +144,11 @@ export function LoginScreen({ route }: { route?: { params?: { roleHint?: 'Admin'
               <Icon name={passwordVisible ? 'visibility-off' : 'visibility'} size={iconSize.sm} color={palette.textSoft} />
             </Pressable>
           </View>
+          {fieldErrors.password ? <Text style={authStyles.loginFieldError}>{fieldErrors.password}</Text> : null}
         </View>
       </View>
 
-      <InlineError message={error} />
+      <AuthErrorBanner error={error} />
 
       {roleAccountSlots.length ? (
         <View style={authStyles.savedAccountDropdown}>

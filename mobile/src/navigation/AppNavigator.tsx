@@ -3,10 +3,12 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BottomNav, LoadingState } from '../components/ui';
+import { useNotificationsQuery } from '../hooks/useAppQueries';
 import { useAuth } from '../providers/AuthProvider';
+import { requestNotificationPermission } from '../services/native/notificationPermission';
 import { routes } from './routes';
 import { navigationRef } from './rootNavigation';
-import { KycScreen, LoginScreen, OtpScreen, ResetPasswordScreen, SignupScreen, SplashScreen } from '../screens/auth';
+import { EmailVerificationScreen, KycScreen, LoginScreen, OtpScreen, ResetPasswordScreen, SignupScreen, SplashScreen } from '../screens/auth';
 import {
   ActiveGroupsScreen,
   CreateGroupBasicsScreen,
@@ -24,7 +26,9 @@ import {
   NotificationsScreen,
   PaymentScreen,
   PaymentSuccessScreen,
+  ProfileEmailScreen,
   ProfileScreen,
+  ResolutionVoteScreen,
   TransactionDetailScreen,
   WalletScreen,
   WithdrawScreen,
@@ -42,7 +46,9 @@ const linking = {
   config: {
     screens: {
       [routes.formationDetail]: 'formation/:requestId',
+      [routes.formationJoinCode]: 'join-code/:inviteCode',
       [routes.groupDetail]: 'group/:groupId',
+      [routes.emailVerify]: 'verify-email',
       [routes.memberTabs]: {
         screens: {
           [routes.dashboard]: 'home',
@@ -59,7 +65,13 @@ function LoadingScreen() {
 
 function RoleTabBar({ state, navigation, items }: any) {
   const activeKey = state.routes[state.index]?.name ?? state.routeNames[state.index];
-  return <BottomNav items={items} activeKey={activeKey} onPress={(key: string) => navigation.navigate(key)} />;
+  const { session } = useAuth();
+  const { data: notifications = [] } = useNotificationsQuery();
+  const unreadCount = notifications.filter(item => item.unread).length;
+  const tabItems = session?.user.role === 'Member'
+    ? items.map((item: any) => item.key === routes.notifications ? { ...item, badgeCount: unreadCount } : item)
+    : items;
+  return <BottomNav items={tabItems} activeKey={activeKey} onPress={(key: string) => navigation.navigate(key)} />;
 }
 
 function AuthStack() {
@@ -68,6 +80,7 @@ function AuthStack() {
       <Stack.Screen name={routes.splash} component={SplashScreen} />
       <Stack.Screen name={routes.login} component={LoginScreen} />
       <Stack.Screen name={routes.signup} component={SignupScreen} />
+      <Stack.Screen name={routes.emailVerify} component={EmailVerificationScreen} />
       <Stack.Screen name={routes.otp} component={OtpScreen} />
       <Stack.Screen name={routes.kyc} component={KycScreen} />
       <Stack.Screen name={routes.reset} component={ResetPasswordScreen} />
@@ -101,11 +114,13 @@ function MemberStack() {
       <Stack.Screen name={routes.createBasics} component={CreateGroupBasicsScreen} />
       <Stack.Screen name={routes.createRules} component={CreateGroupRulesScreen} />
       <Stack.Screen name={routes.groupStatus} component={GroupStatusScreen} />
+      <Stack.Screen name={routes.resolutionVote} component={ResolutionVoteScreen} />
       <Stack.Screen name={routes.payment} component={PaymentScreen} />
       <Stack.Screen name={routes.mockUssd} component={MockUssdScreen} />
       <Stack.Screen name={routes.paymentSuccess} component={PaymentSuccessScreen} />
       <Stack.Screen name={routes.transactionDetail} component={TransactionDetailScreen} />
       <Stack.Screen name={routes.withdraw} component={WithdrawScreen} />
+      <Stack.Screen name={routes.profileEmail} component={ProfileEmailScreen} />
       <Stack.Screen name={routes.kyc} component={KycScreen} />
       <Stack.Screen name={routes.reset} component={ResetPasswordScreen} />
     </Stack.Navigator>
@@ -136,6 +151,12 @@ function AdminStack() {
 
 export function AppNavigator() {
   const { authReady, session } = useAuth();
+
+  React.useEffect(() => {
+    if (session?.user.role === 'Member') {
+      requestNotificationPermission().catch(() => undefined);
+    }
+  }, [session?.user.role]);
 
   if (!authReady) {
     return <LoadingScreen />;

@@ -2,14 +2,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { ProfileErrorBanner } from '../../components/AppErrors';
 import { GeneratedAvatar } from '../../components/GeneratedAvatar';
 import { Icon } from '../../components/Icon';
-import { AppScreen, InlineError, LoadingState, MetricTile, Pill, PrimaryCTA, SectionCard, StatusBanner } from '../../components/ui';
+import { AppScreen, LoadingState, MetricTile, Pill, PrimaryCTA, SectionCard, StatusBanner } from '../../components/ui';
 import { useAccountSlotsQuery, useDashboardQuery, useProfileActions, useProfileQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
+import { useAppPreferences } from '../../providers/PreferencesProvider';
 import { iconSize, palette } from '../../theme/tokens';
 import type { UserProfile } from '../../types/domain';
+import { validateEmail, validateEthiopianPhone } from '../../utils/validation';
 import { memberStyles } from './styles';
 
 type ProfilePanel = 'details' | 'notifications' | 'language' | 'theme' | 'privacy' | 'help' | 'terms' | null;
@@ -167,9 +170,10 @@ function ChoicePanel<T extends string>({
   );
 }
 
-export function ProfileScreen() {
+export function ProfileScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const { session, logout, switchAccount } = useAuth();
+  const { t } = useAppPreferences();
   const { data: dashboard } = useDashboardQuery();
   const { data: profile } = useProfileQuery();
   const { data: accountSlots } = useAccountSlotsQuery();
@@ -178,18 +182,27 @@ export function ProfileScreen() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [profileDraft, setProfileDraft] = useState({
+    email: '',
+    phoneNumber: '',
     university: '',
     academicYear: '',
-    walletLabel: '',
   });
+  const [profileDraftErrors, setProfileDraftErrors] = useState({ email: '', phoneNumber: '' });
 
   useEffect(() => {
     setProfileDraft({
+      email: profile?.email ?? session?.user.email ?? '',
+      phoneNumber: profile?.phoneNumber ?? session?.user.phoneNumber ?? '',
       university: profile?.university ?? '',
       academicYear: profile?.academicYear ?? '',
-      walletLabel: profile?.walletLabel ?? '',
     });
-  }, [profile?.academicYear, profile?.university, profile?.walletLabel]);
+  }, [profile?.academicYear, profile?.email, profile?.phoneNumber, profile?.university, session?.user.email, session?.user.phoneNumber]);
+
+  useEffect(() => {
+    if (route?.params?.flash) {
+      setSuccess(String(route.params.flash));
+    }
+  }, [route?.params?.flash]);
 
   if (!session) {
     return <LoadingState title="Loading profile" subtitle="Preparing account and settings." />;
@@ -201,6 +214,8 @@ export function ProfileScreen() {
   const memberAccountSlots = (accountSlots ?? []).filter(slot => slot.role === 'Member');
   const notificationLabel = notificationLabels[profile?.notificationPreference ?? 'PushAndSms'];
   const preferenceBusy = updateProfile.isPending || uploadProfileImage.isPending || removeProfileImage.isPending;
+  const profileEmail = profile?.email ?? session.user.email ?? '';
+  const emailVerified = !!profile?.emailVerifiedAt || !!session.user.emailVerifiedAt;
 
   const avatarNode = useMemo(() => (
     profile?.profileImageUrl ? (
@@ -226,6 +241,10 @@ export function ProfileScreen() {
 
   async function handlePickProfileImage() {
     try {
+      const currentSession = session;
+      if (!currentSession) {
+        throw new Error('No active session is available.');
+      }
       setError('');
       setSuccess('');
       const result = await launchImageLibrary({ mediaType: 'photo', includeBase64: true, quality: 0.8, selectionLimit: 1 });
@@ -259,16 +278,35 @@ export function ProfileScreen() {
   }
 
   async function handleSaveDetails() {
+    const nextErrors = {
+      email: validateEmail(profileDraft.email),
+      phoneNumber: validateEthiopianPhone(profileDraft.phoneNumber),
+    };
+    setProfileDraftErrors(nextErrors);
+    if (nextErrors.email || nextErrors.phoneNumber) {
+      return;
+    }
     try {
+      const currentSession = session;
+      if (!currentSession) {
+        throw new Error('No active session is available.');
+      }
       setError('');
       setSuccess('');
       await updateProfile.mutateAsync({
+        email: profileDraft.email.trim().toLowerCase(),
+        phoneNumber: profileDraft.phoneNumber.trim(),
         university: profileDraft.university.trim() || null,
         academicYear: profileDraft.academicYear.trim() || null,
-        walletLabel: profileDraft.walletLabel.trim() || null,
       });
-      setSuccess('Profile details saved.');
+      setSuccess('Profile details saved. Email or phone changes stay unverified until confirmation is completed.');
       setActivePanel(null);
+      if (profileDraft.email.trim().toLowerCase() !== (profile?.email ?? currentSession.user.email ?? '').trim().toLowerCase()) {
+        navigation.navigate(routes.emailVerify, {
+          userId: currentSession.user.userId,
+          email: profileDraft.email.trim().toLowerCase(),
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to save profile details.');
     }
@@ -309,7 +347,7 @@ export function ProfileScreen() {
       </View>
 
       {success ? <StatusBanner tone="success" title={success} /> : null}
-      <InlineError message={error} />
+      <ProfileErrorBanner error={error} />
 
       {dashboard?.reliabilityProfile?.public_status === 'Restricted' || dashboard?.reliabilityProfile?.public_status === 'Banned' ? (
         <StatusBanner tone="danger" title="Account actions are limited." body="Create, join, payment, or payout actions may be blocked until admin recovery is complete." />
@@ -330,8 +368,8 @@ export function ProfileScreen() {
       <SectionCard style={memberStyles.profileSectionCard}>
         <ProfileCardHeader
           icon="badge"
-          title="Account overview"
-          subtitle="Your key account details at a glance"
+          title={t('profile.accountOverview')}
+          subtitle={t('profile.accountOverviewSubtitle')}
           action={(
             <Pressable accessibilityRole="button" onPress={() => setActivePanel(activePanel === 'details' ? null : 'details')} style={memberStyles.profileViewButton}>
               <Text style={memberStyles.profileViewButtonText}>{activePanel === 'details' ? 'Close' : 'Edit profile'}</Text>
@@ -342,6 +380,7 @@ export function ProfileScreen() {
         <View style={memberStyles.profileOverviewGrid}>
           <OverviewItem icon="school" label="University" value={profile?.university ?? 'Not set'} />
           <OverviewItem icon="calendar-month" label="Year" value={profile?.academicYear ?? 'Not set'} />
+          <OverviewItem icon="alternate-email" label="Email" value={profileEmail || 'Not set'} />
           <OverviewItem icon="phone" label="Phone" value={maskPhone(session.user.phoneNumber)} />
           <OverviewItem icon="badge" label="Member ID" value={memberId} />
           <OverviewItem icon="schedule" label="Joined" value={monthYear(dashboard?.kycState?.submittedAt)} />
@@ -351,27 +390,38 @@ export function ProfileScreen() {
       {activePanel === 'details' ? (
         <SectionCard style={memberStyles.profileSectionCard} variant="soft">
           <Text style={memberStyles.sectionTitle}>Profile details</Text>
+          <TextInput value={session.user.fullName} editable={false} placeholder="Full name" placeholderTextColor={palette.textSoft} style={memberStyles.profileTextInput} />
+          <TextInput value={profileDraft.email} onChangeText={value => setProfileDraft(current => ({ ...current, email: value }))} placeholder="Email address" placeholderTextColor={palette.textSoft} style={memberStyles.profileTextInput} autoCapitalize="none" keyboardType="email-address" />
+          {profileDraftErrors.email ? <Text style={memberStyles.inlineDangerText}>{profileDraftErrors.email}</Text> : null}
+          <TextInput value={profileDraft.phoneNumber} onChangeText={value => setProfileDraft(current => ({ ...current, phoneNumber: value }))} placeholder="Phone number" placeholderTextColor={palette.textSoft} style={memberStyles.profileTextInput} keyboardType="phone-pad" />
+          {profileDraftErrors.phoneNumber ? <Text style={memberStyles.inlineDangerText}>{profileDraftErrors.phoneNumber}</Text> : null}
           <TextInput value={profileDraft.university} onChangeText={value => setProfileDraft(current => ({ ...current, university: value }))} placeholder="University" placeholderTextColor={palette.textSoft} style={memberStyles.profileTextInput} />
           <TextInput value={profileDraft.academicYear} onChangeText={value => setProfileDraft(current => ({ ...current, academicYear: value }))} placeholder="Academic year" placeholderTextColor={palette.textSoft} style={memberStyles.profileTextInput} />
-          <TextInput value={profileDraft.walletLabel} onChangeText={value => setProfileDraft(current => ({ ...current, walletLabel: value }))} placeholder="Wallet label" placeholderTextColor={palette.textSoft} style={memberStyles.profileTextInput} />
           <PrimaryCTA label="Save Profile" onPress={handleSaveDetails} loading={updateProfile.isPending} disabled={updateProfile.isPending} />
         </SectionCard>
       ) : null}
 
       <SectionCard style={memberStyles.profileSectionCard}>
-        <ProfileCardHeader icon="shield" title="Verification & security" subtitle="Your account is secure and verified" />
-        <ProfileOptionRow icon="person" title="KYC status" verified={isVerified} rightLabel={!isVerified ? kycStatus : undefined} onPress={dashboard?.kycState?.canSubmit ? () => navigation.navigate(routes.kyc) : undefined} />
+        <ProfileCardHeader icon="shield" title={t('profile.verificationSecurity')} subtitle="Your account is secure and verified" />
+        <ProfileOptionRow icon="person" title="KYC status" verified={isVerified} rightLabel={!isVerified ? kycStatus : undefined} onPress={() => navigation.navigate(routes.kyc)} />
+        <ProfileOptionRow
+          icon="alternate-email"
+          title={profileEmail ? 'Email address' : 'Add email address'}
+          subtitle={profileEmail || 'Required for verification and account recovery.'}
+          verified={emailVerified}
+          rightLabel={emailVerified ? undefined : profileEmail ? 'Verify' : 'Add'}
+          onPress={() => navigation.navigate(routes.profileEmail)}
+        />
         <ProfileOptionRow icon="lock" title="Security" rightLabel="Device protected" onPress={() => Alert.alert('Security', 'Biometric lock and session expiry are controlled by the secure device session.')} />
         <ProfileOptionRow icon="password" title="Reset password" rightLabel="OTP when required" onPress={() => navigation.navigate(routes.reset, { phoneNumber: session.user.phoneNumber })} />
-        <ProfileOptionRow icon="account-balance-wallet" title="Wallet link" rightLabel={profile?.walletLabel ?? 'Telebirr connected'} onPress={() => setActivePanel('details')} />
       </SectionCard>
 
       <SectionCard style={memberStyles.profileSectionCard}>
-        <ProfileCardHeader icon="settings" title="Preferences" subtitle="Customize your app experience" />
-        <ProfileOptionRow icon="notifications" title="Notifications" rightLabel={notificationLabel} onPress={() => setActivePanel(activePanel === 'notifications' ? null : 'notifications')} />
-        <ProfileOptionRow icon="language" title="Language" rightLabel={profile?.language ?? 'English'} onPress={() => setActivePanel(activePanel === 'language' ? null : 'language')} />
-        <ProfileOptionRow icon="wb-sunny" title="Theme" rightLabel={profile?.theme ?? 'Light'} onPress={() => setActivePanel(activePanel === 'theme' ? null : 'theme')} />
-        <ProfileOptionRow icon="shield" title="Privacy" rightLabel="Group-only profile" onPress={() => setActivePanel(activePanel === 'privacy' ? null : 'privacy')} />
+        <ProfileCardHeader icon="settings" title={t('profile.preferences')} subtitle="Customize your app experience" />
+        <ProfileOptionRow icon="notifications" title={t('profile.notifications')} rightLabel={notificationLabel} onPress={() => setActivePanel(activePanel === 'notifications' ? null : 'notifications')} />
+        <ProfileOptionRow icon="language" title={t('profile.language')} rightLabel={profile?.language ?? 'English'} onPress={() => setActivePanel(activePanel === 'language' ? null : 'language')} />
+        <ProfileOptionRow icon="wb-sunny" title={t('profile.theme')} rightLabel={profile?.theme ?? 'Light'} onPress={() => setActivePanel(activePanel === 'theme' ? null : 'theme')} />
+        <ProfileOptionRow icon="shield" title={t('profile.privacy')} rightLabel="Group-only profile" onPress={() => setActivePanel(activePanel === 'privacy' ? null : 'privacy')} />
       </SectionCard>
 
       {activePanel === 'notifications' ? (
@@ -409,9 +459,9 @@ export function ProfileScreen() {
       ) : null}
 
       <SectionCard style={memberStyles.profileMenuCard}>
-        <ProfileOptionRow icon="help-outline" title="Help Center" onPress={() => setActivePanel(activePanel === 'help' ? null : 'help')} />
-        <ProfileOptionRow icon="description" title="Terms & privacy" onPress={() => setActivePanel(activePanel === 'terms' ? null : 'terms')} />
-        <ProfileOptionRow icon="logout" title="Log out" danger onPress={confirmLogout} />
+        <ProfileOptionRow icon="help-outline" title={t('profile.help')} onPress={() => setActivePanel(activePanel === 'help' ? null : 'help')} />
+        <ProfileOptionRow icon="description" title={t('profile.terms')} onPress={() => setActivePanel(activePanel === 'terms' ? null : 'terms')} />
+        <ProfileOptionRow icon="logout" title={t('profile.logout')} danger onPress={confirmLogout} />
       </SectionCard>
 
       {activePanel === 'help' ? (
@@ -426,7 +476,7 @@ export function ProfileScreen() {
       {activePanel === 'terms' ? (
         <SectionCard style={memberStyles.profileMenuCard} variant="soft">
           <Text style={memberStyles.sectionTitle}>Terms & privacy</Text>
-          <Text style={memberStyles.mutedText}>UniEqub stores profile details, KYC status, wallet labels, notification preference, optional uploaded profile pictures, and generated avatar seeds to support verified group participation.</Text>
+          <Text style={memberStyles.mutedText}>UniEqub stores profile details, KYC status, notification preference, optional uploaded profile pictures, and generated avatar seeds to support verified group participation.</Text>
           <Text style={memberStyles.mutedText}>Profile pictures are optional. Removing one immediately falls back to the generated avatar already tied to your account.</Text>
         </SectionCard>
       ) : null}

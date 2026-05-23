@@ -1,10 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { InlineError, ListRow, LoadingState, MetricTile, Pill, PrimaryCTA, ScreenScroll, SectionCard, StatusBanner, TopAppBar, TitleBlock } from '../../components/ui';
+import { FormationErrorBanner } from '../../components/AppErrors';
+import { Icon } from '../../components/Icon';
+import { ListRow, LoadingState, MetricTile, Pill, PrimaryCTA, ScreenScroll, SectionCard, StatusBanner, TopAppBar } from '../../components/ui';
 import { useFormationGroupQuery, useGroupAnnouncementsQuery, useMemberActions } from '../../hooks/useAppQueries';
 import { useAuth } from '../../providers/AuthProvider';
-import { formatCurrency } from './shared';
+import { iconSize, palette } from '../../theme/tokens';
+import { formatCurrency, formatTimeLeft } from './shared';
 import { memberStyles } from './styles';
 
 function displayTermsVersion(value: string) {
@@ -32,6 +35,7 @@ export function FormationDetailScreen({ route }: any) {
 
   const request = data.groupRequest;
   const isPrivate = request.visibility === 'Private';
+  const acceptedPercent = request.max_members > 0 ? Math.min(100, Math.round((data.accepted_participant_count / request.max_members) * 100)) : 0;
   const canRequestJoin = request.status === 'Forming'
     && request.visibility === 'Public'
     && !currentUserJoin
@@ -55,15 +59,26 @@ export function FormationDetailScreen({ route }: any) {
   return (
     <ScreenScroll>
       <TopAppBar title="Join Forming Group" onBack={() => navigation.goBack()} />
-      <TitleBlock
-        title={request.proposed_group_name}
-        subtitle={request.description ?? (isPrivate ? 'Private invite group gathering accepted members before it starts.' : 'Public group request gathering members before admin approval.')}
-      />
       {success ? <StatusBanner tone="success" title={success} /> : null}
-      <View style={memberStyles.rowWrap}>
-        <Pill label={request.status} tone={request.status === 'Forming' ? 'good' : 'warn'} />
-        <Pill label={request.frequency} tone="active" />
-        <Pill label={request.visibility} tone="neutral" />
+      <View style={memberStyles.previewHeroCard}>
+        <View style={memberStyles.previewHeroTitleRow}>
+          <Text style={memberStyles.previewHeroTitle}>{request.proposed_group_name}</Text>
+          <View style={memberStyles.formationHubIcon}>
+            <Icon name={currentUserJoin?.status === 'Accepted' ? 'verified' : 'group-add'} size={iconSize.md} color={palette.primary} />
+          </View>
+        </View>
+        <Text style={memberStyles.previewHeroBody}>
+          {request.description ?? (isPrivate ? 'Private invite group gathering accepted members before it starts.' : 'Creator-reviewed public group gathering members before admin approval.')}
+        </Text>
+        <View style={memberStyles.rowWrap}>
+          <Pill label={request.status} tone={request.status === 'Forming' ? 'good' : 'warn'} />
+          <Pill label={request.frequency} tone="active" />
+          <Pill label={request.visibility} tone="neutral" />
+        </View>
+        <View style={memberStyles.formationProgressTrack}>
+          <View style={[memberStyles.formationProgressFill, { width: `${acceptedPercent}%` }]} />
+        </View>
+        <Text style={memberStyles.mutedText}>{data.accepted_participant_count} of {request.max_members} members accepted. Admin review starts after the creator reaches the minimum and submits.</Text>
       </View>
       {currentUserJoin ? (
         <StatusBanner
@@ -77,8 +92,9 @@ export function FormationDetailScreen({ route }: any) {
       ) : null}
       <View style={memberStyles.metricsGrid}>
         <MetricTile label="Contribution" value={formatCurrency(request.contribution_amount)} />
-        <MetricTile label="Accepted" value={`${data.accepted_participant_count}/${request.min_members}`} helper={`${data.remaining_slots} slots left`} />
-        <MetricTile label="Draw Cycles" value={`${request.total_cycles ?? request.max_members}`} helper="Before completion" tone="active" />
+        <MetricTile label="Accepted" value={`${data.accepted_participant_count}/${request.max_members}`} helper={`${Math.max(request.min_members - data.accepted_participant_count, 0)} until review`} />
+        <MetricTile label="Join Window" value={request.status === 'Approved' ? formatTimeLeft(request.join_window_ends_at) : `${request.join_window_hours ?? 72}h`} helper="After approval" />
+        <MetricTile label="Completion" value="One win each" helper="Continuation is by member vote" tone="active" />
       </View>
       {announcements?.length ? (
         <SectionCard variant="soft">
@@ -97,14 +113,16 @@ export function FormationDetailScreen({ route }: any) {
         </SectionCard>
       ) : null}
       <SectionCard>
-        <Text style={memberStyles.sectionTitle}>Terms</Text>
+        <Text style={memberStyles.sectionTitle}>How this group starts</Text>
         <View style={memberStyles.listGroup}>
-          <ListRow title={displayTermsVersion(request.terms_version)} leadingIcon="rule" />
+          <ListRow title="Creator review" subtitle="Your request goes to the group creator first." leadingIcon="how-to-reg" />
+          <ListRow title="Admin approval" subtitle={isPrivate ? 'Private groups use invite-only approval.' : 'Public groups are reviewed before they become joinable.'} leadingIcon="admin-panel-settings" />
           <ListRow
-            title={isPrivate ? 'Invite-managed group' : 'Creator-reviewed request'}
-            subtitle={isPrivate ? 'The group starts when the accepted-member minimum is met.' : 'Admin review happens after the creator submits.'}
-            leadingIcon="how-to-reg"
+            title="Join window before cycle"
+            subtitle="Contributions and draws wait until the window closes or max members join."
+            leadingIcon="hourglass-empty"
           />
+          <ListRow title="Terms version" subtitle={displayTermsVersion(request.terms_version)} leadingIcon="rule" />
         </View>
       </SectionCard>
       <SectionCard variant="soft">
@@ -121,7 +139,7 @@ export function FormationDetailScreen({ route }: any) {
           ))}
         </View>
       </SectionCard>
-      <InlineError message={error} />
+      <FormationErrorBanner error={error} />
       <PrimaryCTA
         label={currentUserJoin ? (currentUserJoin.status === 'Accepted' ? 'Accepted' : 'Requested') : 'Accept Terms And Request Join'}
         onPress={handleJoinRequest}

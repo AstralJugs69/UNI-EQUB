@@ -18,8 +18,8 @@ export function ActiveGroupsScreen() {
 
   return (
     <ScreenScroll>
-      <TopAppBar title="My Equb Groups" subtitle="Group Switcher" onBack={() => navigation.goBack()} rightLabel={`${activeGroups.length} active`} />
-      <TitleBlock title="Open a group cycle" subtitle="Active groups keep payment and draw controls here. Completed groups stay visible for history." />
+      <TopAppBar title="My Equb Groups" subtitle="Group Switcher" onBack={() => navigation.goBack()} rightLabel={`${activeGroups.length}`} />
+      <TitleBlock title="Open a group" subtitle="Join-window groups show preview details. Active groups keep payment and draw controls here." />
       {!activeGroups.length ? (
         <EmptyState icon="groups-2" title="No active groups" subtitle="Approved groups you join or create will appear here." />
       ) : activeGroups.map(group => (
@@ -27,9 +27,9 @@ export function ActiveGroupsScreen() {
           <ListRow
             title={group.Group_Name}
             subtitle={`${group.Frequency} - ${formatCurrency(group.Amount)}`}
-            right={<Pill label={group.Group_ID === data.currentGroup?.Group_ID ? 'Current' : group.Status} tone={group.Group_ID === data.currentGroup?.Group_ID ? 'active' : 'good'} />}
+            right={<Pill label={group.Status === 'Pending' ? 'Join window' : group.Group_ID === data.currentGroup?.Group_ID ? 'Current' : group.Status} tone={group.Status === 'Pending' ? 'warn' : group.Group_ID === data.currentGroup?.Group_ID ? 'active' : 'good'} />}
             leadingIcon="groups"
-            onPress={() => navigation.navigate(routes.groupStatus, { groupId: group.Group_ID })}
+            onPress={() => navigation.navigate(group.Status === 'Pending' ? routes.groupDetail : routes.groupStatus, { groupId: group.Group_ID })}
           />
         </SectionCard>
       ))}

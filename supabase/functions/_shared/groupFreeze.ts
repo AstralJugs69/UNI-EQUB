@@ -177,8 +177,10 @@ export async function createGroupFreezeEvent(input: {
   await notifyActiveMembers(input.groupId, {
     type: 'group_frozen',
     severity: 'Warning',
-    title: 'Group frozen for review',
-    message: 'A contribution default needs admin recovery review before the group continues.',
+    title: input.reason === 'CycleCompletionVote' ? 'Cycle completion vote opened' : 'Group frozen for review',
+    message: input.reason === 'CycleCompletionVote'
+      ? 'Everyone has received one draw. Vote on whether this Equb should continue, refund, or escalate.'
+      : 'A contribution default needs admin recovery review before the group continues.',
     freezeEventId: freezeEvent.id,
     metadata: { reason: input.reason },
   });

@@ -1,5 +1,6 @@
 import { fail, failFromError, json } from '../_shared/contracts.ts';
 import { verifySession } from '../_shared/auth.ts';
+import { createAndSendEmailVerification } from '../_shared/emailVerification.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import type { UserRecord } from '../_shared/types.ts';
 
@@ -31,9 +32,46 @@ function avatarSeedFor(userId: string) {
   return `uniequb:${userId}`;
 }
 
-function toProfile(row: Record<string, unknown>) {
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function validateEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email.trim());
+}
+
+function normalizePhone(phoneNumber: string) {
+  const compact = phoneNumber.replace(/[\s-]/g, '');
+  if (compact.startsWith('+251')) {
+    return `0${compact.slice(4)}`;
+  }
+  if (compact.startsWith('251')) {
+    return `0${compact.slice(3)}`;
+  }
+  if (compact.startsWith('9')) {
+    return `0${compact}`;
+  }
+  return compact;
+}
+
+function validateEthiopianPhone(phoneNumber: string) {
+  return /^(?:\+251|0)?9\d{8}$/.test(phoneNumber.replace(/[\s-]/g, ''));
+}
+
+async function getUser(userId: string) {
+  const { data, error } = await supabaseAdmin.from('User').select('*').eq('User_ID', userId).single();
+  if (error) {
+    throw error;
+  }
+  return data as UserRecord;
+}
+
+function toProfile(row: Record<string, unknown>, user?: UserRecord | null) {
   return {
     userId: row.user_id,
+    email: user?.Email ?? null,
+    emailVerifiedAt: user?.Email_Verified_At ?? null,
+    phoneNumber: user?.Phone_Number ?? null,
     university: row.university,
     academicYear: row.academic_year,
     language: row.language,
@@ -53,16 +91,18 @@ function toProfile(row: Record<string, unknown>) {
 }
 
 async function toProfileWithImage(row: Record<string, unknown>) {
+  const userId = String(row.user_id);
+  const user = await getUser(userId);
   const path = typeof row.profile_image_path === 'string' ? row.profile_image_path : null;
   if (!path) {
-    return toProfile(row);
+    return toProfile(row, user);
   }
   const bucket = typeof row.profile_image_bucket === 'string' ? row.profile_image_bucket : 'profile-pictures';
   const { data } = await supabaseAdmin.storage.from(bucket).createSignedUrl(path, 60 * 60);
   return toProfile({
     ...row,
     profile_image_signed_url: data?.signedUrl ?? null,
-  });
+  }, user);
 }
 
 async function ensureProfile(userId: string) {
@@ -215,6 +255,43 @@ Deno.serve(async request => {
       case 'updateProfile': {
         const profile = body.profile ?? {};
         await ensureProfile(userId);
+        const userUpdates: Record<string, unknown> = {};
+        let shouldSendEmailVerification = false;
+        if (typeof profile.email === 'string') {
+          const email = normalizeEmail(profile.email);
+          if (!validateEmail(email)) {
+            throw new Error('Enter a valid email address.');
+          }
+          const currentUser = await getUser(userId);
+          if (currentUser.Email?.toLowerCase() !== email) {
+            userUpdates.Email = email;
+            userUpdates.Email_Verified_At = null;
+            shouldSendEmailVerification = true;
+          }
+        }
+        if (typeof profile.phoneNumber === 'string') {
+          if (!validateEthiopianPhone(profile.phoneNumber)) {
+            throw new Error('Phone number must be a valid Ethiopian mobile number.');
+          }
+          userUpdates.Phone_Number = normalizePhone(profile.phoneNumber);
+        }
+        if (Object.keys(userUpdates).length) {
+          const { error: userError } = await supabaseAdmin
+            .from('User')
+            .update(userUpdates)
+            .eq('User_ID', userId);
+          if (userError) {
+            throw userError;
+          }
+          if (shouldSendEmailVerification) {
+            const refreshed = await getUser(userId);
+            await createAndSendEmailVerification({
+              user: refreshed,
+              email: refreshed.Email ?? '',
+              purpose: 'ProfileChange',
+            });
+          }
+        }
         const update = {
           university: profile.university ?? undefined,
           academic_year: profile.academicYear ?? undefined,

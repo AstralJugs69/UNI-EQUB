@@ -2,7 +2,7 @@ import { writeAuditEvent } from './audit.ts';
 import { loadConfigValue } from './config.ts';
 import { ledgerMemo, recordLedgerEntry } from './ledger.ts';
 import { createNotification } from './notifications.ts';
-import { resolveOpenGroupFreeze } from './groupFreeze.ts';
+import { freezeGroupForAdminReview, resolveOpenGroupFreeze } from './groupFreeze.ts';
 import { supabaseAdmin } from './supabaseAdmin.ts';
 import type {
   GroupFreezeEventRecord,
@@ -26,6 +26,12 @@ export interface GroupResolutionPollSummary {
   currentUserVote: GroupResolutionVoteRecord | null;
 }
 
+export interface GroupResolutionState {
+  activeResolutionPoll: GroupResolutionPollSummary | null;
+  latestResolutionPoll: GroupResolutionPollSummary | null;
+  refundTickets: RefundTicketRecord[];
+}
+
 const DEFAULT_OPTIONS: Array<{
   option_label: string;
   option_description: string;
@@ -33,21 +39,42 @@ const DEFAULT_OPTIONS: Array<{
   display_order: number;
 }> = [
   {
-    option_label: 'Continue group',
-    option_description: 'Resume the cycle while the default reserve stays frozen for audit review.',
+    option_label: 'Continue with missing member',
+    option_description: 'Continue the Equb with the remaining active members and keep the missing member out of the next round.',
     resolution_action: 'ContinueWithReserveFrozen',
     display_order: 1,
   },
   {
-    option_label: 'Keep frozen',
-    option_description: 'Leave the group paused for additional admin follow-up.',
+    option_label: 'Freeze and escalate',
+    option_description: 'Keep the round paused and send it to admin review.',
     resolution_action: 'KeepFrozenForReview',
     display_order: 2,
   },
   {
-    option_label: 'Simulate refunds',
-    option_description: 'Close the frozen case with refund tickets for eligible non-defaulted contributors.',
+    option_label: 'Refund this round',
+    option_description: 'Return this round’s eligible contributions to members’ wallets.',
     resolution_action: 'CreateRefundTickets',
+    display_order: 3,
+  },
+];
+
+const CYCLE_COMPLETION_OPTIONS: typeof DEFAULT_OPTIONS = [
+  {
+    option_label: 'Continue another cycle',
+    option_description: 'Start a new pass with the same active members after everyone has received one draw.',
+    resolution_action: 'ContinueWithReserveFrozen',
+    display_order: 1,
+  },
+  {
+    option_label: 'Finish and refund eligible balances',
+    option_description: 'End this Equb and create refund tickets for any eligible remaining balances.',
+    resolution_action: 'CreateRefundTickets',
+    display_order: 2,
+  },
+  {
+    option_label: 'Freeze and escalate',
+    option_description: 'Pause the group and send the completed cycle to admin review.',
+    resolution_action: 'KeepFrozenForReview',
     display_order: 3,
   },
 ];
@@ -147,6 +174,23 @@ async function findActivePoll(groupId: string) {
   return data as GroupResolutionPollRecord | null;
 }
 
+async function findLatestPoll(groupId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('group_resolution_polls')
+    .select('*')
+    .eq('group_id', groupId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    if (isMissingResolutionTable(error)) {
+      return null;
+    }
+    throw error;
+  }
+  return data as GroupResolutionPollRecord | null;
+}
+
 async function listPollOptions(pollId: string) {
   const { data, error } = await supabaseAdmin
     .from('group_resolution_poll_options')
@@ -191,7 +235,7 @@ async function notifyUsers(userIds: string[], input: {
     severity: input.severity ?? 'Info',
     title: input.title,
     message: input.message,
-    actionRoute: groupId ? 'member/group' : undefined,
+    actionRoute: groupId && input.type.startsWith('group_resolution_') ? 'member/resolution-vote' : groupId ? 'member/group' : undefined,
     relatedEntityType: groupId ? 'group' : 'group_resolution_poll',
     relatedEntityId: groupId ?? input.relatedEntityId,
     metadata: { ...(input.metadata ?? {}), poll_id: input.relatedEntityId },
@@ -258,9 +302,10 @@ export async function createFrozenGroupResolutionPoll(input: {
   }
 
   const pollRecord = poll as GroupResolutionPollRecord;
+  const optionSet = freezeEvent.reason === 'CycleCompletionVote' ? CYCLE_COMPLETION_OPTIONS : DEFAULT_OPTIONS;
   const { error: optionsError } = await supabaseAdmin
     .from('group_resolution_poll_options')
-    .insert(DEFAULT_OPTIONS.map(option => ({ ...option, poll_id: pollRecord.id })));
+    .insert(optionSet.map(option => ({ ...option, poll_id: pollRecord.id })));
   if (optionsError) {
     if (isMissingResolutionTable(optionsError)) {
       throw resolutionTablesMissingError();
@@ -283,13 +328,51 @@ export async function createFrozenGroupResolutionPoll(input: {
   await notifyUsers(eligibleVoterIds, {
     type: 'group_resolution_poll_opened',
     severity: 'Warning',
-    title: 'Frozen group vote opened',
-    message: 'Choose how this frozen group should be resolved.',
+    title: freezeEvent.reason === 'CycleCompletionVote' ? 'Cycle vote opened' : 'Frozen group vote opened',
+    message: freezeEvent.reason === 'CycleCompletionVote'
+      ? 'Choose whether to continue this Equb, refund eligible balances, or escalate to admin review.'
+      : 'Choose how this frozen group should be resolved.',
     relatedEntityId: pollRecord.id,
     metadata: { group_id: input.groupId, closes_at: closesAt.toISOString() },
   });
 
   return getGroupResolutionState(input.groupId, input.admin.User_ID);
+}
+
+async function getSystemAdmin() {
+  const { data, error } = await supabaseAdmin
+    .from('User')
+    .select('*')
+    .eq('Role', 'Admin')
+    .order('Created_At', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+  if (!data) {
+    throw new Error('A bootstrap admin is required before cycle completion votes can be opened.');
+  }
+  return data as UserRecord;
+}
+
+export async function openCycleCompletionVote(input: {
+  group: GroupRecord;
+  roundId: string;
+  activeMemberIds: string[];
+}) {
+  const admin = await getSystemAdmin();
+  await freezeGroupForAdminReview({
+    groupId: input.group.Group_ID,
+    triggerRoundId: input.roundId,
+    reason: 'CycleCompletionVote',
+    actor: null,
+    metadata: {
+      source: 'roundLifecycle.cycleComplete',
+      active_member_ids: input.activeMemberIds,
+    },
+  });
+  return createFrozenGroupResolutionPoll({ groupId: input.group.Group_ID, admin });
 }
 
 export async function getGroupResolutionState(groupId: string, currentUserId?: string) {
@@ -303,43 +386,49 @@ export async function getGroupResolutionState(groupId: string, currentUserId?: s
     if (isMissingResolutionTable(ticketsError)) {
       return {
         activeResolutionPoll: null,
+        latestResolutionPoll: null,
         refundTickets: [] as RefundTicketRecord[],
       };
     }
     throw ticketsError;
   }
 
-  if (!poll) {
+  const latestPoll = poll ?? await findLatestPoll(groupId);
+  if (!latestPoll) {
     return {
       activeResolutionPoll: null,
+      latestResolutionPoll: null,
       refundTickets: (tickets ?? []) as RefundTicketRecord[],
     };
   }
 
   const [options, votes] = await Promise.all([
-    listPollOptions(poll.id),
-    listPollVotes(poll.id),
+    listPollOptions(latestPoll.id),
+    listPollVotes(latestPoll.id),
   ]);
-  const eligibleVoterIds = parseEligibleIds(poll.eligible_voter_user_ids);
+  const eligibleVoterIds = parseEligibleIds(latestPoll.eligible_voter_user_ids);
   const voteCounts = Object.fromEntries(options.map(option => [option.id, 0])) as Record<string, number>;
   for (const vote of votes) {
     voteCounts[vote.option_id] = (voteCounts[vote.option_id] ?? 0) + 1;
   }
 
+  const summary = {
+    poll: {
+      ...latestPoll,
+      eligible_voter_user_ids: eligibleVoterIds,
+    },
+    options,
+    voteCounts,
+    requiredVotes: requiredSimpleMajority(eligibleVoterIds.length),
+    eligibleVoterCount: eligibleVoterIds.length,
+    currentUserVote: currentUserId
+      ? votes.find(vote => vote.voter_user_id === currentUserId) ?? null
+      : null,
+  } satisfies GroupResolutionPollSummary;
+
   return {
-    activeResolutionPoll: {
-      poll: {
-        ...poll,
-        eligible_voter_user_ids: eligibleVoterIds,
-      },
-      options,
-      voteCounts,
-      requiredVotes: requiredSimpleMajority(eligibleVoterIds.length),
-      eligibleVoterCount: eligibleVoterIds.length,
-      currentUserVote: currentUserId
-        ? votes.find(vote => vote.voter_user_id === currentUserId) ?? null
-        : null,
-    } satisfies GroupResolutionPollSummary,
+    activeResolutionPoll: latestPoll.status === 'Open' ? summary : null,
+    latestResolutionPoll: summary,
     refundTickets: (tickets ?? []) as RefundTicketRecord[],
   };
 }
@@ -449,7 +538,7 @@ async function closePollWithOption(input: {
   }
 
   const closedPoll = poll as GroupResolutionPollRecord;
-  const action = input.expired ? 'CreateRefundTickets' : input.option?.resolution_action;
+  const action = input.expired && !input.option ? null : input.option?.resolution_action;
   const resolutionAdmin = await getUser(closedPoll.created_by_admin_id);
   let refundTickets: RefundTicketRecord[] = [];
   if (action === 'CreateRefundTickets') {
@@ -524,7 +613,8 @@ export async function closeResolutionPollIfReady(input: {
     counts.set(vote.option_id, (counts.get(vote.option_id) ?? 0) + 1);
   }
   const winningOption = options.find(option => (counts.get(option.id) ?? 0) >= requiredVotes) ?? null;
-  const expired = input.forceExpired || new Date(poll.closes_at).getTime() <= Date.now();
+  const allVotesCast = eligibleVoterIds.length > 0 && votes.length >= eligibleVoterIds.length;
+  const expired = input.forceExpired || allVotesCast || new Date(poll.closes_at).getTime() <= Date.now();
   if (!winningOption && !expired) {
     return null;
   }

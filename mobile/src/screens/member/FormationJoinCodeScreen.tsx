@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { InlineError, InputField, ListRow, LoadingState, MetricTile, Pill, PrimaryCTA, ScreenScroll, SectionCard, StatusBanner, TopAppBar, TitleBlock } from '../../components/ui';
@@ -8,7 +8,7 @@ import type { GroupFormationDetail } from '../../types/domain';
 import { formatCurrency } from './shared';
 import { memberStyles } from './styles';
 
-export function FormationJoinCodeScreen() {
+export function FormationJoinCodeScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const { session } = useAuth();
   const { acceptFormationInviteCode, lookupFormationInviteCode } = useMemberActions();
@@ -18,10 +18,36 @@ export function FormationJoinCodeScreen() {
   const [success, setSuccess] = useState('');
 
   const normalizedCode = inviteCode.trim().toUpperCase();
+  const routeInviteCode = String(route?.params?.inviteCode ?? '').trim().toUpperCase();
   const currentUserJoin = useMemo(
     () => preview?.joinRequests.find(item => item.user_id === session?.user.userId) ?? null,
     [preview?.joinRequests, session?.user.userId],
   );
+
+  useEffect(() => {
+    if (!routeInviteCode) {
+      return;
+    }
+    let cancelled = false;
+    setInviteCode(routeInviteCode);
+    setError('');
+    setSuccess('');
+    setPreview(null);
+    lookupFormationInviteCode.mutateAsync(routeInviteCode)
+      .then(detail => {
+        if (!cancelled) {
+          setPreview(detail);
+        }
+      })
+      .catch(err => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Unable to find that invite code.');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [routeInviteCode]);
 
   if (!session) {
     return <LoadingState title="Loading session" subtitle="Preparing invite-code joining." />;

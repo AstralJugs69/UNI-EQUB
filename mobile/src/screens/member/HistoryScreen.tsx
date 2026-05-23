@@ -2,8 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
-import { AppScreen, EmptyState, Pill, SegmentedTabs, SectionCard, TopAppBar } from '../../components/ui';
-import { useTransactionsQuery } from '../../hooks/useAppQueries';
+import { AppScreen, EmptyState, ListRow, Pill, SegmentedTabs, SectionCard, TopAppBar } from '../../components/ui';
+import { useDashboardQuery, useTransactionsQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { iconSize, palette } from '../../theme/tokens';
 import type { TransactionRecord, TransactionType } from '../../types/domain';
@@ -84,7 +84,9 @@ function TransactionCard({
 export function HistoryScreen() {
   const navigation = useNavigation<any>();
   const { data: rows = [] } = useTransactionsQuery();
+  const { data: dashboard } = useDashboardQuery();
   const [filter, setFilter] = useState<LedgerFilter>('All');
+  const completedGroups = dashboard?.completedGroups ?? [];
 
   const totals = useMemo(() => ({
     contributions: rows.filter(item => item.Type === 'Contribution' && item.Status === 'Successful').reduce((sum, item) => sum + item.Amount, 0),
@@ -112,6 +114,23 @@ export function HistoryScreen() {
         <View style={memberStyles.ledgerSummaryDivider} />
         <LedgerSummaryTile icon="account-balance-wallet" label="Total Payouts" value={formatCurrency(totals.payouts)} tone="green" />
       </SectionCard>
+      {completedGroups.length ? (
+        <SectionCard>
+          <Text style={memberStyles.sectionTitle}>Previous Equbs</Text>
+          <View style={memberStyles.listGroup}>
+            {completedGroups.map(group => (
+              <ListRow
+                key={group.Group_ID}
+                title={group.Group_Name}
+                subtitle={`${group.Frequency} - ${formatCurrency(group.Amount)} - ${group.Max_Members} members - Started ${formatDate(group.Start_Date)}`}
+                right={<Pill label="Completed" tone="good" />}
+                leadingIcon="history"
+                onPress={() => navigation.navigate(routes.groupStatus, { groupId: group.Group_ID })}
+              />
+            ))}
+          </View>
+        </SectionCard>
+      ) : null}
       {!filteredRows.length ? (
         <EmptyState icon="receipt-long" title="No transactions yet" subtitle="Contributions and payouts will appear here as soon as the first cycle activity is recorded." />
       ) : (

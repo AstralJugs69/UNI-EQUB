@@ -26,18 +26,19 @@ export function GroupDetailScreen({ route }: any) {
   const currentRound = status?.currentRound?.Round_Number ?? '-';
   const contributors = status?.contributors ?? [];
   const winner = status?.winnerHistory?.[0];
+  const isJoinWindow = safeGroup.Status === 'Pending';
 
   async function handleJoin() {
     try {
       setError('');
       await joinGroup.mutateAsync(safeGroup.Group_ID);
-      navigation.navigate(routes.groupStatus, { groupId: safeGroup.Group_ID, flash: 'Group joined.' });
+      navigation.navigate(routes.groupStatus, { groupId: safeGroup.Group_ID, flash: safeGroup.Max_Members - totalMembers <= 1 ? 'Group joined. The cycle is starting now.' : 'Group joined. Contributions begin when the join window closes.' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to join this group right now.');
     }
   }
 
-  const joinDisabled = safeGroup.Status !== 'Active' || openSlots <= 0 || joinGroup.isPending;
+  const joinDisabled = !isJoinWindow || openSlots <= 0 || joinGroup.isPending;
 
   return (
     <ScreenScroll>
@@ -45,26 +46,40 @@ export function GroupDetailScreen({ route }: any) {
       <View style={memberStyles.imageHeroWrap}>
         <Image source={groupStudents} style={memberStyles.imageHero} resizeMode="cover" />
       </View>
-      <TitleBlock title={safeGroup.Group_Name} subtitle={safeGroup.Description} />
-      <View style={memberStyles.rowWrap}>
-        <Pill label={safeGroup.Status} tone={safeGroup.Status === 'Active' ? 'good' : safeGroup.Status === 'Pending' ? 'warn' : 'bad'} />
-        <Pill label={`Round ${currentRound}`} tone="active" />
-        <Pill label={safeGroup.Frequency} tone="neutral" />
+      <View style={memberStyles.previewHeroCard}>
+        <View style={memberStyles.previewHeroTitleRow}>
+          <Text style={memberStyles.previewHeroTitle}>{safeGroup.Group_Name}</Text>
+          <Pill label={openSlots > 0 ? `${openSlots} open` : 'Full'} tone={openSlots > 0 ? 'good' : 'warn'} />
+        </View>
+        <Text style={memberStyles.previewHeroBody}>{safeGroup.Description}</Text>
+        <View style={memberStyles.rowWrap}>
+          <Pill label={isJoinWindow ? 'Open For Joining' : safeGroup.Status} tone={safeGroup.Status === 'Active' ? 'good' : safeGroup.Status === 'Pending' ? 'warn' : 'bad'} />
+          <Pill label={isJoinWindow ? 'Cycle not started' : `Round ${currentRound}`} tone="active" />
+          <Pill label={safeGroup.Frequency} tone="neutral" />
+        </View>
+        <View style={memberStyles.formationProgressTrack}>
+          <View style={[memberStyles.formationProgressFill, { width: `${Math.min(100, Math.round((totalMembers / safeGroup.Max_Members) * 100))}%` }]} />
+        </View>
+        <Text style={memberStyles.mutedText}>
+          {isJoinWindow
+            ? 'Join before the wait time ends. Contributions and draws are still paused.'
+            : 'The current cycle has already started, so the draw pool is locked.'}
+        </Text>
       </View>
-      {safeGroup.Status !== 'Active' ? (
-        <StatusBanner tone="warning" title="This group is not joinable yet." body="Only active groups can accept new members." />
-      ) : openSlots <= 0 ? (
-        <StatusBanner tone="warning" title="This group is full." body="The group has reached its maximum member count." />
+      {isJoinWindow ? (
+        <StatusBanner tone="info" title="Join window is open" body="Contributions and draws start when the wait time ends, or immediately if the group reaches max members first." />
+      ) : safeGroup.Status === 'Active' ? (
+        <StatusBanner tone="warning" title="Cycle already started" body="This member set is locked for the current cycle. New members can join only if the group continues and opens a new join window." />
       ) : (
-        <StatusBanner tone="info" title="Running group with open slots" body="You can join this approved cycle while the group is active and not yet filled to its maximum." />
+        <StatusBanner tone="warning" title="This group is not open for joining." body="Only approved groups in their join window can accept new members." />
       )}
 
       <SectionCard>
-        <TitleBlock title="Running cycle" subtitle="Live stats from the current group cycle." />
+        <TitleBlock title={isJoinWindow ? 'Joining status' : 'Running cycle'} subtitle={isJoinWindow ? 'The draw pool is still forming. No contribution is due yet.' : 'Live stats from the current group cycle.'} />
         <View style={memberStyles.metricsGrid}>
           <MetricTile label="Contribution" value={formatCurrency(safeGroup.Amount)} />
-          <MetricTile label="Paid This Round" value={`${paidCount}/${totalMembers}`} helper={`${progressPercent}% verified`} tone={progressPercent === 100 ? 'good' : 'active'} />
-          <MetricTile label="Time Left" value={formatTimeLeft(status?.contributionDeadlineAt)} />
+          <MetricTile label={isJoinWindow ? 'Joined' : 'Paid This Round'} value={`${isJoinWindow ? totalMembers : paidCount}/${safeGroup.Max_Members}`} helper={isJoinWindow ? `${openSlots} open slots` : `${progressPercent}% verified`} tone={progressPercent === 100 ? 'good' : 'active'} />
+          <MetricTile label={isJoinWindow ? 'Join Window' : 'Time Left'} value={formatTimeLeft(isJoinWindow ? status?.joinWindowEndsAt : status?.contributionDeadlineAt)} />
           <MetricTile label="Open Slots" value={`${openSlots}/${safeGroup.Max_Members}`} tone={openSlots > 0 ? 'good' : 'warn'} />
         </View>
       </SectionCard>
@@ -80,7 +95,7 @@ export function GroupDetailScreen({ route }: any) {
       </SectionCard>
 
       <SectionCard>
-        <TitleBlock title="Contributors" subtitle="Current active members and this round's payment state." />
+        <TitleBlock title={isJoinWindow ? 'Joined members' : 'Contributors'} subtitle={isJoinWindow ? 'These members will enter the first draw pool when the cycle starts.' : "Current active members and this round's payment state."} />
         <View style={memberStyles.listGroup}>
           {contributors.length ? contributors.map(contributor => (
             <ListRow
@@ -88,7 +103,7 @@ export function GroupDetailScreen({ route }: any) {
               title={contributor.fullName}
               subtitle={`${contributor.cyclesWon} win${contributor.cyclesWon === 1 ? '' : 's'} so far`}
               leadingIcon={contributor.isCurrentWinner ? 'emoji-events' : 'account-circle'}
-              right={<Pill label={contributor.hasPaidCurrentRound ? 'Paid' : 'Due'} tone={contributor.hasPaidCurrentRound ? 'good' : 'warn'} />}
+              right={<Pill label={isJoinWindow ? 'Joined' : contributor.hasPaidCurrentRound ? 'Paid' : 'Due'} tone={isJoinWindow || contributor.hasPaidCurrentRound ? 'good' : 'warn'} />}
             />
           )) : (
             <Text style={memberStyles.mutedText}>Contributor details will appear once the current round opens.</Text>
@@ -106,7 +121,7 @@ export function GroupDetailScreen({ route }: any) {
       </SectionCard>
       <InlineError message={error} />
       <PrimaryCTA
-        label={safeGroup.Status !== 'Active' ? 'Waiting For Approval' : openSlots <= 0 ? 'Group Full' : 'Join Group'}
+        label={isJoinWindow ? (openSlots <= 0 ? 'Group Full' : 'Join Before Cycle Starts') : safeGroup.Status === 'Active' ? 'Cycle Already Started' : 'Not Open For Joining'}
         onPress={handleJoin}
         loading={joinGroup.isPending}
         disabled={joinDisabled}

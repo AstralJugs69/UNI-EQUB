@@ -274,6 +274,15 @@ export const authStyles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  loginInputWrapError: {
+    borderColor: palette.danger,
+    backgroundColor: '#FFF8F8',
+  },
+  loginFieldError: {
+    color: palette.danger,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   loginInput: {
     flex: 1,
     color: palette.text,

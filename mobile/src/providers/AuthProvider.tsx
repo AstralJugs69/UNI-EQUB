@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 import type { AppStateStatus } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AuthSession, SessionUser } from '../types/domain';
-import type { KycSubmissionInput } from '../services/contracts';
+import type { KycSubmissionInput, RegisterResult } from '../services/contracts';
 import { clearSessionToken, loadLastActiveAt, loadSessionToken, saveLastActiveAt, saveSessionToken } from '../services/storage';
 import { useServices } from './ServicesProvider';
 
@@ -19,12 +19,14 @@ interface AuthContextValue {
   session: AuthSession | null;
   pendingUser: SessionUser | null;
   pendingLogin: PendingLoginChallenge | null;
-  login: (phoneNumber: string, password: string, roleHint?: 'Member' | 'Admin') => Promise<void>;
-  beginLogin: (phoneNumber: string, password: string, roleHint?: 'Member' | 'Admin') => Promise<void>;
+  login: (emailOrPhone: string, password: string, roleHint?: 'Member' | 'Admin') => Promise<void>;
+  beginLogin: (emailOrPhone: string, password: string, roleHint?: 'Member' | 'Admin') => Promise<void>;
   completeLogin: (otp: string) => Promise<void>;
-  register: (fullName: string, phoneNumber: string, password: string) => Promise<{ requiresOtp: boolean }>;
+  register: (fullName: string, email: string, phoneNumber: string, password: string) => Promise<RegisterResult>;
   requestOtp: (phoneNumber: string) => Promise<void>;
   verifyOtp: (phoneNumber: string, otp: string) => Promise<void>;
+  requestEmailVerification: (input?: { userId?: string; email?: string }) => Promise<void>;
+  verifyEmail: (input: { userId?: string; code: string }) => Promise<{ requiresOtp: boolean }>;
   getOtpGate: (input: { token?: string; phoneNumber?: string }) => Promise<{ requiresOtp: boolean; phoneNumber?: string | null }>;
   resetPassword: (phoneNumber: string, newPassword: string, otp?: string) => Promise<{ requiresOtp: boolean; reset: boolean }>;
   submitPendingKyc: (input: KycSubmissionInput) => Promise<void>;
@@ -99,12 +101,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
     session,
     pendingUser,
     pendingLogin,
-    beginLogin: async (phoneNumber, password, roleHint) => {
-      const challenge = await services.auth.beginLogin({ phoneNumber, password }, roleHint);
+    beginLogin: async (emailOrPhone, password, roleHint) => {
+      const challenge = await services.auth.beginLogin(emailOrPhone.includes('@') ? { email: emailOrPhone, password } : { phoneNumber: emailOrPhone, password }, roleHint);
       setPendingLogin(challenge);
     },
-    login: async (phoneNumber, password, roleHint) => {
-      const nextSession = await services.auth.login({ phoneNumber, password }, roleHint);
+    login: async (emailOrPhone, password, roleHint) => {
+      const nextSession = await services.auth.login(emailOrPhone.includes('@') ? { email: emailOrPhone, password } : { phoneNumber: emailOrPhone, password }, roleHint);
       await saveSessionToken(nextSession.token);
       await services.accounts.saveCurrent(nextSession);
       await saveLastActiveAt(new Date().toISOString());
@@ -126,16 +128,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setPendingUser(null);
       setPendingKycToken(null);
     },
-    register: async (fullName, phoneNumber, password) => {
+    register: async (fullName, email, phoneNumber, password) => {
       const result = await services.auth.register({
         fullName,
+        email,
         phoneNumber,
         password,
         studentIdImage: 'storage://students/pending-upload.png',
       });
       setPendingUser(result.user);
       setPendingKycToken(result.pendingKycToken ?? null);
-      return { requiresOtp: result.requiresOtp };
+      return result;
     },
     requestOtp: async phoneNumber => {
       await services.auth.requestOtp(phoneNumber);
@@ -143,6 +146,30 @@ export function AuthProvider({ children }: PropsWithChildren) {
     verifyOtp: async (phoneNumber, otp) => {
       const response = await services.auth.verifyOtp(phoneNumber, otp);
       setPendingKycToken(response.pendingKycToken ?? null);
+    },
+    requestEmailVerification: async input => {
+      await services.auth.requestEmailVerification({
+        userId: input?.userId ?? pendingUser?.userId ?? session?.user.userId,
+        email: input?.email ?? pendingUser?.email ?? session?.user.email ?? undefined,
+      });
+    },
+    verifyEmail: async input => {
+      const response = await services.auth.verifyEmail({
+        userId: input.userId ?? pendingUser?.userId ?? session?.user.userId,
+        code: input.code,
+      });
+      if (response.pendingKycToken) {
+        setPendingKycToken(response.pendingKycToken);
+      }
+      if (response.user) {
+        if (pendingUser?.userId === response.user.userId) {
+          setPendingUser(response.user);
+        }
+        if (session?.user.userId === response.user.userId) {
+          setSession(current => current ? { ...current, user: response.user! } : current);
+        }
+      }
+      return { requiresOtp: response.requiresOtp ?? false };
     },
     getOtpGate: input => services.auth.getOtpGate(input),
     resetPassword: (phoneNumber, newPassword, otp) => services.auth.resetPassword({ phoneNumber, newPassword, otp }),

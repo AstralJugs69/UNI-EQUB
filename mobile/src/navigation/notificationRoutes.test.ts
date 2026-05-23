@@ -34,6 +34,12 @@ describe('resolveNotificationRoute', () => {
     }))).toEqual({ name: routes.memberTabs, params: { screen: routes.wallet } });
 
     expect(resolveNotificationRoute(notification({
+      actionRoute: 'member/transaction',
+      relatedEntityType: 'Transaction',
+      relatedEntityId: 'txn-1',
+    }))).toEqual({ name: routes.transactionDetail, params: { transactionId: 'txn-1' } });
+
+    expect(resolveNotificationRoute(notification({
       type: 'group_join_requested',
       actionRoute: 'member/group-formation',
       relatedEntityType: 'group_requests',
@@ -46,6 +52,19 @@ describe('resolveNotificationRoute', () => {
       relatedEntityType: 'group_requests',
       relatedEntityId: 'request-1',
     }))).toEqual({ name: routes.formationDetail, params: { requestId: 'request-1' } });
+
+    expect(resolveNotificationRoute(notification({
+      actionRoute: 'member/profile-email',
+      relatedEntityType: 'user',
+      relatedEntityId: 'user-1',
+    }))).toEqual({ name: routes.profileEmail });
+
+    expect(resolveNotificationRoute(notification({
+      type: 'group_resolution_poll_opened',
+      actionRoute: 'member/resolution-vote',
+      relatedEntityType: 'group',
+      relatedEntityId: 'group-1',
+    }))).toEqual({ name: routes.resolutionVote, params: { groupId: 'group-1' } });
   });
 
   it('routes admin review notifications without trusting raw route names', () => {
@@ -54,6 +73,13 @@ describe('resolveNotificationRoute', () => {
       relatedEntityType: 'group_requests',
       relatedEntityId: 'request-1',
     }), 'Admin')).toEqual({ name: routes.adminGroupReview, params: { kind: 'formation', requestId: 'request-1' } });
+
+    expect(resolveNotificationRoute(notification({
+      type: 'group_resolution_poll_closed',
+      actionRoute: 'admin/group-review',
+      relatedEntityType: 'group',
+      relatedEntityId: 'group-1',
+    }), 'Admin')).toEqual({ name: routes.adminGroupReview, params: { kind: 'frozen', groupId: 'group-1' } });
 
     expect(resolveNotificationRoute(notification({
       actionRoute: 'AdminGroups',

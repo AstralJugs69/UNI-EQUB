@@ -30,35 +30,43 @@ async function getLatestRound(groupId: string) {
   return data as RoundRecord | null;
 }
 
-async function listActiveMemberCount(groupId: string) {
-  const { count, error } = await supabaseAdmin
+async function listActiveMemberIds(groupId: string) {
+  const { data, error } = await supabaseAdmin
     .from('GroupMembers')
-    .select('Membership_ID', { count: 'exact', head: true })
+    .select('User_ID')
     .eq('Group_ID', groupId)
     .eq('Status', 'Active');
   if (error) {
     throw error;
   }
-  return count ?? 0;
+  return (data ?? []).map(item => (item as { User_ID: string }).User_ID);
 }
 
-async function loadGroupTotalCycles(groupId: string, fallback: number) {
+async function listWinnerIds(groupId: string) {
   const { data, error } = await supabaseAdmin
-    .from('group_requests')
-    .select('*')
-    .eq('approved_group_id', groupId)
-    .eq('status', 'Approved')
-    .order('created_at', { ascending: false })
-    .limit(1);
-
+    .from('Round')
+    .select('Winner_ID')
+    .eq('Group_ID', groupId)
+    .not('Winner_ID', 'is', null);
   if (error) {
-    return fallback;
+    throw error;
   }
+  return new Set((data ?? []).map(item => (item as { Winner_ID: string }).Winner_ID));
+}
 
-  const request = data?.[0] as { total_cycles?: number | null; terms_version?: string | null } | undefined;
-  const metadataCycles = request?.terms_version?.match(/(?:^|\|)cycles=(\d+)/)?.[1];
-  const totalCycles = Number(request?.total_cycles ?? metadataCycles ?? fallback);
-  return Number.isFinite(totalCycles) && totalCycles > 0 ? totalCycles : fallback;
+async function hasContinuationApproval(groupId: string, roundId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('group_freeze_events')
+    .select('id')
+    .eq('group_id', groupId)
+    .eq('trigger_round_id', roundId)
+    .eq('reason', 'CycleCompletionVote')
+    .eq('status', 'ResolvedContinue')
+    .limit(1);
+  if (error) {
+    throw error;
+  }
+  return !!data?.length;
 }
 
 async function completeGroup(groupId: string) {
@@ -85,10 +93,17 @@ export async function ensureOpenRoundForGroup(group: GroupRecord) {
 
   const latestRound = await getLatestRound(group.Group_ID);
   const nextRoundNumber = latestRound ? Number(latestRound.Round_Number) + 1 : 1;
-  const totalCycles = await loadGroupTotalCycles(group.Group_ID, Math.max(await listActiveMemberCount(group.Group_ID), 1));
-  if (latestRound && latestRound.Status === 'Completed' && Number(latestRound.Round_Number) >= totalCycles) {
-    await completeGroup(group.Group_ID);
-    return null;
+  if (latestRound && latestRound.Status === 'Completed') {
+    const activeMemberIds = await listActiveMemberIds(group.Group_ID);
+    const winnerIds = await listWinnerIds(group.Group_ID);
+    if (
+      activeMemberIds.length > 0
+      && activeMemberIds.every(userId => winnerIds.has(userId))
+      && !await hasContinuationApproval(group.Group_ID, latestRound.Round_ID)
+    ) {
+      await completeGroup(group.Group_ID);
+      return null;
+    }
   }
 
   const { data, error } = await supabaseAdmin

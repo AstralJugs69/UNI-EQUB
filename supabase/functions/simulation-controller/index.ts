@@ -4,6 +4,7 @@ import { createNotification } from '../_shared/notifications.ts';
 import {
   ensureContributionObligationsForRound,
   getContributionObligationForUserRound,
+  listRoundObligations,
   markContributionObligationLate,
   markContributionObligationPaid,
   processDueContributionObligations,
@@ -156,7 +157,24 @@ async function listActiveMemberships(groupId: string) {
   return (data ?? []) as MembershipRecord[];
 }
 
-async function createSimulatedContribution(group: GroupRecord, round: RoundRecord, userId: string, method = 'Simulation') {
+function isSettledContribution(obligation: ContributionObligationRecord | null) {
+  return !!obligation && ['Paid', 'Waived', 'RefundPending'].includes(obligation.status);
+}
+
+async function notifySimulatedPayment(group: GroupRecord, userId: string) {
+  await createNotification({
+    userId,
+    type: 'simulation_contribution_paid',
+    severity: 'Success',
+    title: 'Simulation payment recorded',
+    message: `${group.Group_Name} contribution was marked paid by the controller.`,
+    actionRoute: 'member/group-cycle',
+    relatedEntityType: 'EqubGroup',
+    relatedEntityId: group.Group_ID,
+  });
+}
+
+async function recordSimulatedContribution(group: GroupRecord, round: RoundRecord, userId: string, method = 'Simulation') {
   const memberships = await listActiveMemberships(group.Group_ID);
   if (!memberships.some(membership => membership.User_ID === userId)) {
     throw new Error('Selected user is not an active member of this group.');
@@ -166,8 +184,14 @@ async function createSimulatedContribution(group: GroupRecord, round: RoundRecor
   if (!obligation) {
     throw new Error('No contribution obligation exists for this user and round.');
   }
-  if (['Paid', 'Waived', 'RefundPending'].includes(obligation.status)) {
-    throw new Error('This user is already settled for the current round.');
+  if (isSettledContribution(obligation)) {
+    return {
+      userId,
+      paid: false,
+      skipped: true,
+      transaction: null,
+      message: 'Already settled.',
+    };
   }
 
   const { data: transaction, error } = await supabaseAdmin.from('Transaction').insert({
@@ -185,19 +209,112 @@ async function createSimulatedContribution(group: GroupRecord, round: RoundRecor
   }
 
   await markContributionObligationPaid(obligation.id, (transaction as TransactionRecord).Trans_ID);
-  const lifecycle = await finalizeRoundIfReady(group, round);
-  await createNotification({
+  await notifySimulatedPayment(group, userId);
+  return {
     userId,
-    type: 'simulation_contribution_paid',
-    severity: 'Success',
-    title: 'Simulation payment recorded',
-    message: `${group.Group_Name} contribution was marked paid by the controller.`,
-    actionRoute: 'member/group-cycle',
-    relatedEntityType: 'EqubGroup',
-    relatedEntityId: group.Group_ID,
-  });
+    paid: true,
+    skipped: false,
+    transaction: transaction as TransactionRecord,
+    message: 'Payment recorded.',
+  };
+}
+
+async function createSimulatedContribution(group: GroupRecord, round: RoundRecord, userId: string, method = 'Simulation') {
+  const result = await recordSimulatedContribution(group, round, userId, method);
+  if (result.skipped) {
+    throw new Error('This user is already settled for the current round.');
+  }
+  const lifecycle = await finalizeRoundIfReady(group, round);
 
   return lifecycle.autoDrawTriggered ? 'Payment recorded and round finalized.' : 'Payment recorded.';
+}
+
+async function forceRoundContributionDeadline(roundId: string, mode: 'due' | 'grace') {
+  const now = Date.now();
+  const dueAt = new Date(now - 1000).toISOString();
+  const graceEndsAt = mode === 'grace'
+    ? new Date(now - 1000).toISOString()
+    : new Date(now + 6 * 60 * 60 * 1000).toISOString();
+  const { error } = await supabaseAdmin
+    .from('contribution_obligations')
+    .update({ due_at: dueAt, grace_ends_at: graceEndsAt, updated_at: new Date().toISOString() })
+    .eq('round_id', roundId)
+    .in('status', ['Unpaid', 'PendingPayment', 'Late', 'Paid', 'Waived', 'RefundPending']);
+  if (error) {
+    throw error;
+  }
+}
+
+async function payMembersInRound(input: {
+  group: GroupRecord;
+  round: RoundRecord;
+  exceptUserId?: string | null;
+  forceContinue?: boolean;
+  method?: string;
+}) {
+  const memberships = await listActiveMemberships(input.group.Group_ID);
+  const userIds = memberships
+    .map(membership => membership.User_ID)
+    .filter(userId => userId !== input.exceptUserId);
+
+  if (!userIds.length) {
+    throw new Error('No eligible active members were found for this batch payment.');
+  }
+
+  await ensureContributionObligationsForRound(input.group, input.round);
+  const results = [];
+  for (const userId of userIds) {
+    results.push(await recordSimulatedContribution(input.group, input.round, userId, input.method ?? 'SimulationBatch'));
+  }
+
+  const paid = results.filter(result => result.paid).length;
+  const skipped = results.filter(result => result.skipped).length;
+  let suffix = `Paid ${paid} member${paid === 1 ? '' : 's'}`;
+  if (skipped) {
+    suffix += `, skipped ${skipped} already-settled member${skipped === 1 ? '' : 's'}`;
+  }
+
+  if (input.forceContinue) {
+    await forceRoundContributionDeadline(input.round.Round_ID, 'due');
+    const dueResult = await processDueContributionObligations({ now: new Date(), limit: 200 });
+    const lifecycle = await finalizeRoundIfReady(input.group, input.round);
+    if (lifecycle.autoDrawTriggered) {
+      suffix += ' and finalized the round.';
+    } else if (input.exceptUserId) {
+      suffix += ` and opened the grace period for the unpaid member. ${dueResult.late.length} obligation(s) are late.`;
+    } else {
+      suffix += '; the round is ready, but finalization did not trigger.';
+    }
+  }
+
+  return suffix;
+}
+
+async function defaultSelectedMemberNow(group: GroupRecord, round: RoundRecord, userId: string) {
+  const obligation = await getContributionObligationForUserRound(round.Round_ID, userId);
+  if (!obligation) {
+    throw new Error('No contribution obligation exists for this user and round.');
+  }
+  const now = new Date(Date.now() - 1000).toISOString();
+  const { error } = await supabaseAdmin
+    .from('contribution_obligations')
+    .update({ due_at: now, grace_ends_at: now, updated_at: new Date().toISOString() })
+    .eq('id', obligation.id);
+  if (error) {
+    throw error;
+  }
+  const result = await processDueContributionObligations({ now: new Date(), limit: 200 });
+  return `Deadline sweep complete. ${result.defaulted.length} obligation(s) defaulted.`;
+}
+
+async function markRoundUnpaidMembersLate(group: GroupRecord, round: RoundRecord) {
+  await ensureContributionObligationsForRound(group, round);
+  const obligations = await listRoundObligations(round.Round_ID);
+  const unpaid = obligations.filter(obligation => ['Unpaid', 'PendingPayment'].includes(obligation.status));
+  for (const obligation of unpaid) {
+    await markContributionObligationLate(obligation.id);
+  }
+  return `Marked ${unpaid.length} unpaid obligation(s) Late.`;
 }
 
 async function skipActiveGroupTime(group: GroupRecord, round: RoundRecord, days: number) {
@@ -270,9 +387,50 @@ async function runBackendCommand(command: SimulationCommand) {
       }
       return createSimulatedContribution(group, round, requireString(payload.userId, 'userId'), String(payload.method ?? 'Simulation'));
     }
+    case 'payAllMembers':
+    case 'payAllMembersAndContinue': {
+      if (!group || !round) {
+        throw new Error('groupId is required for batch payments.');
+      }
+      return payMembersInRound({
+        group,
+        round,
+        forceContinue: payload.action === 'payAllMembersAndContinue',
+        method: String(payload.method ?? 'SimulationBatch'),
+      });
+    }
+    case 'payAllExceptMember':
+    case 'payAllExceptMemberAndContinue': {
+      if (!group || !round) {
+        throw new Error('groupId is required for batch payments.');
+      }
+      return payMembersInRound({
+        group,
+        round,
+        exceptUserId: requireString(payload.userId, 'userId'),
+        forceContinue: payload.action === 'payAllExceptMemberAndContinue',
+        method: String(payload.method ?? 'SimulationBatch'),
+      });
+    }
     case 'markObligationLate': {
       await markContributionObligationLate(requireString(payload.obligationId, 'obligationId'));
       return 'Obligation marked Late.';
+    }
+    case 'markRoundUnpaidLate': {
+      if (!group || !round) {
+        throw new Error('groupId is required for late controls.');
+      }
+      return markRoundUnpaidMembersLate(group, round);
+    }
+    case 'defaultSelectedMember': {
+      if (!group || !round) {
+        throw new Error('groupId is required for default controls.');
+      }
+      return defaultSelectedMemberNow(group, round, requireString(payload.userId, 'userId'));
+    }
+    case 'processContributionDeadlines': {
+      const result = await processDueContributionObligations({ now: new Date(), limit: 500 });
+      return `Processed contribution deadlines. ${result.late.length} late and ${result.defaulted.length} defaulted.`;
     }
     case 'skipTime': {
       if (!group || !round) {

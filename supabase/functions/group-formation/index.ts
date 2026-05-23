@@ -3,12 +3,11 @@ import { writeAuditEvent } from '../_shared/audit.ts';
 import { edgeRequestSummary, fail, failFromError, json } from '../_shared/contracts.ts';
 import type { CreateGroupFormationRequest, GroupFormationAction, GroupFormationPayload } from '../_shared/contracts.ts';
 import { loadConfigValue } from '../_shared/config.ts';
+import { activateApprovedGroupIfReady } from '../_shared/groupActivation.ts';
 import { createNotification } from '../_shared/notifications.ts';
-import { ensureContributionObligationsForRound } from '../_shared/obligations.ts';
 import { getReliabilityJoinGate } from '../_shared/reliability.ts';
-import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import type { ContributionObligationRecord, GroupInvitationRecord, GroupJoinParticipantProfile, GroupJoinRequestRecord, GroupRecord, GroupRequestRecord, MembershipRecord, RoundRecord, UserRecord, UserReliabilityProfileRecord } from '../_shared/types.ts';
+import type { GroupInvitationRecord, GroupJoinParticipantProfile, GroupJoinRequestRecord, GroupRecord, GroupRequestRecord, MembershipRecord, UserRecord, UserReliabilityProfileRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,11 +42,11 @@ type UserProfileRow = {
 
 function isMissingGroupRequestOptionalColumn(error: unknown) {
   const message = error instanceof Error ? error.message : JSON.stringify(error ?? {});
-  return message.includes('grace_period_hours') || message.includes('total_cycles');
+  return message.includes('grace_period_hours') || message.includes('total_cycles') || message.includes('join_window_hours') || message.includes('join_window_ends_at') || message.includes('activated_at');
 }
 
-function encodeTermsWithFallbackMetadata(termsVersion: string, totalCycles: number, gracePeriodHours: number) {
-  return `${termsVersion}|cycles=${totalCycles}|grace=${gracePeriodHours}`;
+function encodeTermsWithFallbackMetadata(termsVersion: string, gracePeriodHours: number) {
+  return `${termsVersion}|grace=${gracePeriodHours}`;
 }
 
 function readNumberFromTermsMetadata(value: string | null | undefined, key: 'cycles' | 'grace') {
@@ -203,12 +202,12 @@ function validateCreateRequestInput(input: CreateGroupFormationRequest | undefin
 
   const vestingEnabled = input.vestingEnabled ?? true;
   const gracePeriodHours = input.gracePeriodHours ?? 6;
+  const joinWindowHours = input.joinWindowHours ?? 72;
   if (!Number.isInteger(gracePeriodHours) || gracePeriodHours < 1 || gracePeriodHours > 72) {
     throw new Error('Grace period must be between 1 and 72 hours.');
   }
-  const totalCycles = input.totalCycles ?? input.maxMembers;
-  if (!Number.isInteger(totalCycles) || totalCycles < 1 || totalCycles > 120) {
-    throw new Error('Total draw cycles must be between 1 and 120.');
+  if (!Number.isInteger(joinWindowHours) || joinWindowHours < 1 || joinWindowHours > 168) {
+    throw new Error('Join window must be between 1 and 168 hours.');
   }
   if (!vestingEnabled && visibility !== 'Private') {
     throw new Error('Only private invite-based group requests can disable payout vesting.');
@@ -230,11 +229,11 @@ function validateCreateRequestInput(input: CreateGroupFormationRequest | undefin
     frequency,
     minMembers,
     maxMembers: input.maxMembers,
-    totalCycles,
     visibility,
     inviteMode,
     vestingEnabled,
     gracePeriodHours,
+    joinWindowHours,
     termsVersion: cleanText(input.termsVersion) || 'phase2-v1',
   };
 }
@@ -265,7 +264,7 @@ async function createFormationRequest(actor: UserRecord, createRequest: CreateGr
   const payloadWithOptionalColumns = {
     ...insertPayload,
     grace_period_hours: input.gracePeriodHours,
-    total_cycles: input.totalCycles,
+    join_window_hours: input.joinWindowHours,
   };
 
   let { data: groupRequest, error } = await supabaseAdmin
@@ -282,7 +281,7 @@ async function createFormationRequest(actor: UserRecord, createRequest: CreateGr
       .from('group_requests')
       .insert({
         ...insertPayload,
-        terms_version: encodeTermsWithFallbackMetadata(input.termsVersion, input.totalCycles, input.gracePeriodHours),
+        terms_version: encodeTermsWithFallbackMetadata(input.termsVersion, input.gracePeriodHours),
       })
       .select('*')
       .single();
@@ -547,7 +546,20 @@ async function getFormationRequestDetail(actor: UserRecord, body: GroupFormation
     throw error;
   }
 
-  const groupRequest = data as GroupRequestRecord;
+  let groupRequest = data as GroupRequestRecord;
+  if (groupRequest.status === 'Approved' && groupRequest.approved_group_id && !groupRequest.activated_at) {
+    const group = await getGroupById(groupRequest.approved_group_id);
+    await activateApprovedGroupIfReady({ group, request: groupRequest, actor });
+    const { data: refreshedRequest, error: refreshError } = await supabaseAdmin
+      .from('group_requests')
+      .select('*')
+      .eq('id', groupRequest.id)
+      .single();
+    if (refreshError) {
+      throw refreshError;
+    }
+    groupRequest = refreshedRequest as GroupRequestRecord;
+  }
   const { data: joinRows, error: joinError } = await supabaseAdmin
     .from('group_join_requests')
     .select('*')
@@ -1357,7 +1369,7 @@ async function ensureCanonicalGroupForRequest(request: GroupRequestRecord) {
       Max_Members: request.max_members,
       Frequency: request.frequency,
       Virtual_Acc_Ref: buildVirtualRef(groupId),
-      Status: 'Active',
+      Status: 'Pending',
       Start_Date: new Date().toISOString().slice(0, 10),
     })
     .select('*')
@@ -1420,8 +1432,8 @@ async function notifyFormationApproval(request: GroupRequestRecord, group: Group
       type: 'GroupFormationApproved',
       severity: 'Success',
       title: 'Group approved',
-      message: `${group.Group_Name} is now active.`,
-      actionRoute: 'member/group',
+      message: `${group.Group_Name} is approved and open for members until the join window closes.`,
+      actionRoute: 'member/group-preview',
       relatedEntityType: 'EqubGroup',
       relatedEntityId: group.Group_ID,
       metadata: {
@@ -1445,9 +1457,10 @@ async function activateFormationRequest(input: {
 
   const group = await ensureCanonicalGroupForRequest(input.request);
   const memberships = await ensureCanonicalMemberships(group, input.acceptedParticipantUserIds);
-  const round = await ensureOpenRoundForGroup(group) as RoundRecord;
-  const obligations = await ensureContributionObligationsForRound(group, round, contributionTimingForRequest(group, input.request));
   const now = new Date().toISOString();
+  const joinWindowEndsAt = input.acceptedParticipantUserIds.length >= input.request.max_members
+    ? now
+    : new Date(Date.now() + Number(input.request.join_window_hours ?? 72) * 60 * 60 * 1000).toISOString();
   const { data: updatedRequest, error: updateError } = await supabaseAdmin
     .from('group_requests')
     .update({
@@ -1457,6 +1470,7 @@ async function activateFormationRequest(input: {
       approval_decision_note: input.decisionReason,
       approved_group_id: group.Group_ID,
       created_group_at: now,
+      join_window_ends_at: joinWindowEndsAt,
     })
     .eq('id', input.request.id)
     .select('*')
@@ -1467,6 +1481,11 @@ async function activateFormationRequest(input: {
   }
 
   const participantNotifications = await notifyFormationApproval(updatedRequest as GroupRequestRecord, group, input.acceptedParticipantUserIds);
+  const activation = await activateApprovedGroupIfReady({
+    group,
+    request: updatedRequest as GroupRequestRecord,
+    actor: input.actor,
+  });
   await writeAuditEvent({
     actor: input.actor,
     eventType: input.eventType,
@@ -1474,20 +1493,22 @@ async function activateFormationRequest(input: {
     entityId: input.request.id,
     metadata: {
       group_id: group.Group_ID,
-      round_id: round.Round_ID,
+      join_window_ends_at: joinWindowEndsAt,
+      activated_immediately: activation.activated,
+      round_id: activation.round?.Round_ID ?? null,
       accepted_participant_count: input.acceptedParticipantUserIds.length,
       membership_count: memberships.length,
-      obligation_count: obligations.length,
+      obligation_count: activation.obligations.length,
       visibility: input.request.visibility,
     },
   });
 
   return json({
     groupRequest: updatedRequest as GroupRequestRecord,
-    group,
+    group: activation.group,
     memberships,
-    round,
-    obligations: obligations as ContributionObligationRecord[],
+    round: activation.round,
+    obligations: activation.obligations,
     accepted_participant_count: input.acceptedParticipantUserIds.length,
     remaining_slots: Math.max(input.request.max_members - input.acceptedParticipantUserIds.length, 0),
     notifications: {

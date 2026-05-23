@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
-import { InlineError, InputField, LoadingState, PrimaryCTA, ScreenScroll, SecondaryCTA, SectionCard, StatusBanner, TopAppBar } from '../../components/ui';
+import { PaymentErrorBanner } from '../../components/AppErrors';
+import { InputField, LoadingState, PrimaryCTA, ScreenScroll, SecondaryCTA, SectionCard, StatusBanner, TopAppBar } from '../../components/ui';
 import { useGroupQuery, useGroupStatusQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
@@ -154,7 +155,7 @@ export function PaymentScreen({ route }: any) {
         <SectionCard>
           <InputField label="OTP Code" value={otp} onChangeText={setOtp} keyboardType="number-pad" leadingIcon="password" />
         </SectionCard>
-        <InlineError message={error} />
+        <PaymentErrorBanner error={error} />
         <PrimaryCTA label="Verify And Continue" onPress={handleVerifyPaymentOtp} loading={otpBusy} disabled={!otp || otpBusy} />
         <SecondaryCTA label="Back to Group" onPress={resetToGroup} />
       </ScreenScroll>
@@ -206,7 +207,7 @@ export function PaymentScreen({ route }: any) {
         <StatusBanner tone="warning" title="Testing mode" body="UniEqub opens *127# natively. The contribution is marked successful when you close the native dialup and return to the app." />
       </SectionCard>
 
-      <InlineError message={error} />
+      <PaymentErrorBanner error={error} />
       <PrimaryCTA label="Pay with Telebirr" icon="open-in-new" onPress={handleTelebirrPay} />
       <SecondaryCTA label="Back to Group" onPress={resetToGroup} />
     </ScreenScroll>

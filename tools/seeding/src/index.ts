@@ -134,11 +134,17 @@ async function wipe(env: Env) {
   return { wipedTables };
 }
 
-async function register(env: Env, fullName: string, phoneNumber: string, password: string) {
+function emailForName(fullName: string, phoneNumber: string) {
+  const slug = fullName.toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/(^\.|\.$)/g, '');
+  return `${slug || 'user'}-${phoneNumber.slice(-4)}@uniequb.test`;
+}
+
+async function register(env: Env, fullName: string, phoneNumber: string, password: string, email = emailForName(fullName, phoneNumber)) {
   const data = await invoke(env, 'register-login', {
     action: 'register',
     register: {
       fullName,
+      email,
       phoneNumber,
       password,
       studentIdImage: 'seed://pending-kyc',
@@ -157,12 +163,15 @@ async function bootstrapAdmin(env: Env) {
   const phone = process.env.UNIEQUB_BOOTSTRAP_ADMIN_PHONE ?? '0999000000';
   const password = process.env.UNIEQUB_BOOTSTRAP_ADMIN_PASSWORD ?? 'admin1234';
   const fullName = process.env.UNIEQUB_BOOTSTRAP_ADMIN_NAME ?? 'UniEqub Admin';
+  const email = process.env.UNIEQUB_BOOTSTRAP_ADMIN_EMAIL ?? 'admin@uniequb.test';
   const existing = await rest(env, 'User', 'GET', `?Phone_Number=eq.${encodeURIComponent(phone)}&limit=1`);
-  const user = Array.isArray(existing) && existing.length ? existing[0] : await register(env, fullName, phone, password);
+  const user = Array.isArray(existing) && existing.length ? existing[0] : await register(env, fullName, phone, password, email);
   const userId = user.User_ID ?? user.userId;
   await patchUser(env, userId, {
     Role: 'Admin',
     KYC_Status: 'Verified',
+    Email: email,
+    Email_Verified_At: new Date().toISOString(),
     Student_ID_Img: 'seed://admin-bootstrap',
   });
   await rest(env, 'user_profiles', 'POST', '', {

@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { loadSessionToken } from '../storage';
 import type { AuthService, LoginChallenge, LoginInput, RegisterInput, RegisterResult } from '../contracts';
 import type { AuthSession } from '../../types/domain';
 import { assertLiveEnvelope, readLiveFunctionError } from './liveFunctionError';
@@ -23,6 +24,7 @@ export const liveAuthService: AuthService = {
     return {
       user: response.user,
       requiresOtp: response.requiresOtp ?? true,
+      requiresEmailVerification: response.requiresEmailVerification ?? true,
       pendingKycToken: response.pendingKycToken,
     };
   },
@@ -33,6 +35,16 @@ export const liveAuthService: AuthService = {
 
   async verifyOtp(phoneNumber: string, otp: string) {
     return invoke<{ approved: boolean; pendingKycToken?: string }>({ action: 'verifyOtp', verifyOtp: { phoneNumber, otp } });
+  },
+
+  async requestEmailVerification(input) {
+    const token = await loadSessionToken();
+    return invoke({ action: 'requestEmailVerification', requestEmailVerification: { ...input, token: token ?? undefined } });
+  },
+
+  async verifyEmail(input) {
+    const token = await loadSessionToken();
+    return invoke({ action: 'verifyEmail', verifyEmail: { ...input, token: token ?? undefined } });
   },
 
   async beginLogin(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<LoginChallenge> {

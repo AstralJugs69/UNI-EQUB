@@ -1,6 +1,7 @@
 ﻿import { fail, failFromError, json } from '../_shared/contracts.ts';
 import type { RegisterLoginPayload } from '../_shared/contracts.ts';
 import { hashPassword, signPendingKycToken, signSession, verifyPassword, verifySession } from '../_shared/auth.ts';
+import { createAndSendEmailVerification, verifyEmailCode } from '../_shared/emailVerification.ts';
 import { normalizePhone } from '../_shared/phone.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import type { UserRecord } from '../_shared/types.ts';
@@ -19,6 +20,42 @@ async function findUserByPhone(phoneNumber: string) {
     throw error;
   }
   return data as UserRecord | null;
+}
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function validateEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email.trim());
+}
+
+function validateFullName(name: string) {
+  const compact = name.trim().replace(/\s+/g, ' ');
+  return /^[\p{L}][\p{L} .'-]{1,78}$/u.test(compact) && !/\d/.test(compact) && compact.split(' ').filter(Boolean).length >= 2;
+}
+
+async function findUserByEmail(email: string) {
+  const normalized = normalizeEmail(email);
+  const { data, error } = await supabaseAdmin
+    .from('User')
+    .select('*')
+    .ilike('Email', normalized)
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+  return data as UserRecord | null;
+}
+
+async function findLoginUser(input: { email?: string; phoneNumber?: string }) {
+  if (input.email?.trim()) {
+    return findUserByEmail(input.email);
+  }
+  if (input.phoneNumber?.trim()) {
+    return findUserByPhone(input.phoneNumber);
+  }
+  return null;
 }
 
 async function existingMemberCount() {
@@ -74,10 +111,24 @@ async function requireUserById(userId: string) {
   return data as UserRecord;
 }
 
-async function validateCredentials(phoneNumber: string, password: string, roleHint?: 'Member' | 'Admin') {
-  const user = await findUserByPhone(phoneNumber);
+async function resolveEmailVerificationUser(input?: { token?: string; userId?: string; email?: string }) {
+  if (input?.token) {
+    const payload = await verifySession(input.token);
+    if (!payload.sub) {
+      throw new Error('Invalid session token.');
+    }
+    return requireUserById(payload.sub);
+  }
+  if (input?.userId) {
+    return requireUserById(input.userId);
+  }
+  throw new Error('No account was provided for email verification.');
+}
+
+async function validateCredentials(input: { email?: string; phoneNumber?: string; password: string }, roleHint?: 'Member' | 'Admin') {
+  const user = await findLoginUser(input);
   if (!user) {
-    return { error: 'Invalid phone number or password.', user: null as UserRecord | null };
+    return { error: 'Invalid email or password.', user: null as UserRecord | null };
   }
   if (roleHint && user.Role !== roleHint) {
     return { error: `${roleHint} access is not available for this account.`, user: null as UserRecord | null };
@@ -85,9 +136,9 @@ async function validateCredentials(phoneNumber: string, password: string, roleHi
   if (user.KYC_Status === 'Banned') {
     return { error: 'This account has been banned and cannot log in.', user: null as UserRecord | null };
   }
-  const valid = await verifyPassword(password, user.Password_Hash);
+  const valid = await verifyPassword(input.password, user.Password_Hash);
   if (!valid) {
-    return { error: 'Invalid phone number or password.', user: null as UserRecord | null };
+    return { error: 'Invalid email or password.', user: null as UserRecord | null };
   }
   return { error: null, user };
 }
@@ -109,9 +160,20 @@ Deno.serve(async request => {
         if (!body.register) {
           return fail('Missing register payload.', 400);
         }
+        const email = normalizeEmail(body.register.email ?? '');
+        if (!validateEmail(email)) {
+          return fail('Enter a valid email address.', 400);
+        }
+        if (!validateFullName(body.register.fullName)) {
+          return fail('Full name can only contain letters and must include first and last name.', 400);
+        }
         const existing = await findUserByPhone(body.register.phoneNumber);
         if (existing) {
           return fail('Phone number is already registered.', 409);
+        }
+        const existingEmail = await findUserByEmail(email);
+        if (existingEmail) {
+          return fail('Email address is already registered.', 409);
         }
 
         const requiresOtp = await existingMemberCount() === 0;
@@ -121,6 +183,8 @@ Deno.serve(async request => {
           .from('User')
           .insert({
             Full_Name: body.register.fullName,
+            Email: email,
+            Email_Verified_At: null,
             Phone_Number: normalized,
             Password_Hash: passwordHash,
             Student_ID_Img: body.register.studentIdImage,
@@ -135,9 +199,11 @@ Deno.serve(async request => {
         }
 
         const user = data as UserRecord;
+        await createAndSendEmailVerification({ user, email, purpose: 'Signup' });
         return json({
           user: toSessionUser(user),
           requiresOtp,
+          requiresEmailVerification: true,
           pendingKycToken: requiresOtp ? undefined : await signPendingKycToken(user),
         }, 201);
       }
@@ -162,6 +228,36 @@ Deno.serve(async request => {
           approved: true,
           pendingKycToken: user && user.Role === 'Member' && user.KYC_Status === 'Unverified'
             ? await signPendingKycToken(user)
+            : undefined,
+        });
+      }
+
+      case 'requestEmailVerification': {
+        const user = await resolveEmailVerificationUser(body.requestEmailVerification);
+        const email = normalizeEmail(body.requestEmailVerification?.email ?? user.Email ?? '');
+        if (!email || user.Email?.toLowerCase() !== email) {
+          return fail('Email verification must match the email saved on this account.', 400);
+        }
+        return json(await createAndSendEmailVerification({
+          user,
+          email,
+          purpose: user.Email_Verified_At ? 'ProfileChange' : 'Signup',
+        }));
+      }
+
+      case 'verifyEmail': {
+        if (!body.verifyEmail?.code) {
+          return fail('Missing email verification code.', 400);
+        }
+        const user = await resolveEmailVerificationUser(body.verifyEmail);
+        const verification = await verifyEmailCode({ userId: user.User_ID, code: body.verifyEmail.code });
+        const refreshed = await requireUserById(user.User_ID);
+        return json({
+          ...verification,
+          user: toSessionUser(refreshed),
+          requiresOtp: await requiresTestingOtpGate(refreshed),
+          pendingKycToken: refreshed.Role === 'Member' && refreshed.KYC_Status === 'Unverified'
+            ? await signPendingKycToken(refreshed)
             : undefined,
         });
       }
@@ -204,7 +300,7 @@ Deno.serve(async request => {
         if (!body.beginLogin) {
           return fail('Missing beginLogin payload.', 400);
         }
-        const { user, error } = await validateCredentials(body.beginLogin.phoneNumber, body.beginLogin.password, body.beginLogin.roleHint);
+        const { user, error } = await validateCredentials(body.beginLogin, body.beginLogin.roleHint);
         if (error || !user) {
           return fail(error ?? 'Login could not be completed.', 401);
         }
@@ -220,7 +316,7 @@ Deno.serve(async request => {
         if (!body.login) {
           return fail('Missing login payload.', 400);
         }
-        const { user, error } = await validateCredentials(body.login.phoneNumber, body.login.password, body.login.roleHint);
+        const { user, error } = await validateCredentials(body.login, body.login.roleHint);
         if (error || !user) {
           return fail(error ?? 'Login could not be completed.', 401);
         }

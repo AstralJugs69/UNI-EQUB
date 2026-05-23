@@ -48,6 +48,8 @@ export interface UserRecord {
   User_ID: string;
   Full_Name: string;
   Phone_Number: string;
+  Email?: string | null;
+  Email_Verified_At?: string | null;
   Password_Hash: string;
   Student_ID_Img: string;
   KYC_Status: KycStatus;
@@ -121,6 +123,8 @@ export interface SessionUser {
   userId: string;
   fullName: string;
   phoneNumber: string;
+  email?: string | null;
+  emailVerifiedAt?: string | null;
   role: UserRole;
   kycStatus: KycStatus;
 }
@@ -143,6 +147,8 @@ export interface DashboardSnapshot {
   recentTransactions: TransactionRecord[];
   kycState: MemberKycState;
   reliabilityProfile?: UserReliabilityProfileRecord | null;
+  activeResolutionPoll?: GroupResolutionPollSummary | null;
+  latestResolutionPoll?: GroupResolutionPollSummary | null;
 }
 
 export interface MemberKycState {
@@ -166,12 +172,15 @@ export interface GroupStatusSnapshot {
   group: GroupRecord;
   currentRound: RoundRecord | null;
   contributionDeadlineAt?: string | null;
+  joinWindowEndsAt?: string | null;
+  roundReadyForDraw?: boolean;
   paidCount: number;
   totalMembers: number;
   winnerHistory: Array<{ roundNumber: number; winnerName: string }>;
   latestDraw?: GroupDrawSnapshot | null;
   contributors?: GroupStatusContributor[];
   activeResolutionPoll?: GroupResolutionPollSummary | null;
+  latestResolutionPoll?: GroupResolutionPollSummary | null;
   refundTickets?: RefundTicketRecord[];
   canCurrentUserPay: boolean;
   isFrozen: boolean;
@@ -359,6 +368,9 @@ export interface GroupRequestRecord {
   vesting_enabled: boolean;
   vesting_disabled_by_creator: boolean;
   grace_period_hours?: number;
+  join_window_hours?: number;
+  join_window_ends_at?: string | null;
+  activated_at?: string | null;
   risk_warning_accepted_at: string | null;
   expires_at: string | null;
   submitted_at: string | null;
@@ -653,6 +665,9 @@ export interface AvatarDescriptor {
 
 export interface UserProfile {
   userId: string;
+  email?: string | null;
+  emailVerifiedAt?: string | null;
+  phoneNumber?: string | null;
   university: string | null;
   academicYear: string | null;
   language: string;

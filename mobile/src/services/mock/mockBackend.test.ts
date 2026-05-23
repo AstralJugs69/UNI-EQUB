@@ -3,6 +3,7 @@ import { MockBackend } from './mockBackend';
 async function createVerifiedMember(backend: MockBackend, phone = '0911223344') {
   const registration = await backend.auth.register({
     fullName: 'Test Student',
+    email: `test-${phone.slice(-4)}@uniequb.test`,
     phoneNumber: phone,
     password: 'secret123',
     studentIdImage: 'storage://students/test.png',
@@ -15,7 +16,7 @@ async function createVerifiedMember(backend: MockBackend, phone = '0911223344') 
 describe('MockBackend seedless auth flow', () => {
   it('starts empty and restores empty state after reset', async () => {
     const backend = new MockBackend();
-    await expect(backend.auth.login({ phoneNumber: '0911000000', password: 'demo1234' }, 'Member')).rejects.toThrow('Invalid phone number or password.');
+    await expect(backend.auth.login({ phoneNumber: '0911000000', password: 'demo1234' }, 'Member')).rejects.toThrow('Invalid email or password.');
 
     await createVerifiedMember(backend);
     expect((await backend.reports.getAdminOverview()).pendingKycCount).toBe(0);
@@ -32,6 +33,7 @@ describe('MockBackend seedless auth flow', () => {
     const backend = new MockBackend();
     const pending = await backend.auth.register({
       fullName: 'Test Student',
+      email: 'test-student@uniequb.test',
       phoneNumber: '0911223344',
       password: 'secret123',
       studentIdImage: 'storage://students/test.png',
@@ -58,12 +60,14 @@ describe('MockBackend seedless auth flow', () => {
     const backend = new MockBackend();
     const first = await backend.auth.register({
       fullName: 'First Student',
+      email: 'first-student@uniequb.test',
       phoneNumber: '0911223301',
       password: 'secret123',
       studentIdImage: 'storage://students/first.png',
     });
     const second = await backend.auth.register({
       fullName: 'Second Student',
+      email: 'second-student@uniequb.test',
       phoneNumber: '0911223302',
       password: 'secret123',
       studentIdImage: 'storage://students/second.png',

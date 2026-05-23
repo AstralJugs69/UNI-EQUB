@@ -33,7 +33,7 @@ function ExploreHero({ onJoinCode, onCreate }: { onJoinCode: () => void; onCreat
       <Text style={memberStyles.exploreHeroBody}>Use an invite code, create a forming group, or browse approved groups.</Text>
       <View style={memberStyles.exploreHeroActions}>
         <Pressable accessibilityRole="button" onPress={onJoinCode} style={memberStyles.explorePrimaryAction}>
-          <Icon name="qr-code-2" size={iconSize.md} color={palette.white} />
+          <Icon name="key" size={iconSize.md} color={palette.white} />
           <Text style={memberStyles.explorePrimaryActionText}>Join With Code</Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={onCreate} style={memberStyles.exploreSecondaryAction}>
@@ -52,12 +52,13 @@ function ApprovedGroupCard({
   group: GroupRecord;
   onPress: () => void;
 }) {
+  const joinOpen = group.Status === 'Pending';
   const isOpen = group.Status !== 'Completed';
 
   return (
     <View style={memberStyles.approvedGroupCard}>
       <View style={memberStyles.rowWrap}>
-        <ExploreSmallPill label={isOpen ? 'Open' : 'Closed'} tone={isOpen ? 'success' : 'info'} />
+        <ExploreSmallPill label={joinOpen ? 'Join window' : group.Status === 'Active' ? 'Cycle started' : isOpen ? 'Open' : 'Closed'} tone={joinOpen ? 'success' : group.Status === 'Active' ? 'info' : isOpen ? 'success' : 'info'} />
         <ExploreSmallPill icon="calendar-month" label={group.Frequency} />
       </View>
       <Text style={memberStyles.approvedGroupTitle}>{group.Group_Name}</Text>
@@ -80,12 +81,12 @@ function ApprovedGroupCard({
           <View>
             <Text style={memberStyles.approvedStatLabel}>Slots</Text>
             <Text style={memberStyles.approvedStatValue}>{group.Max_Members}</Text>
-            <Text style={memberStyles.approvedStatHelper}>Maximum members</Text>
+            <Text style={memberStyles.approvedStatHelper}>{joinOpen ? 'Join before cycle starts' : 'Locked cycle size'}</Text>
           </View>
         </View>
       </View>
       <Pressable accessibilityRole="button" onPress={onPress} style={memberStyles.approvedGroupButton}>
-        <Text style={memberStyles.approvedGroupButtonText}>View Group</Text>
+        <Text style={memberStyles.approvedGroupButtonText}>{joinOpen ? 'Preview & Join' : 'View Cycle'}</Text>
         <Icon name="arrow-forward" size={iconSize.md} color={palette.white} />
       </Pressable>
     </View>

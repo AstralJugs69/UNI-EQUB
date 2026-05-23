@@ -7,12 +7,12 @@ import type { PaymentMethod } from '../../types/domain';
 const groupStudents = require('../../assets/students-group.jpg');
 
 export const memberTabs = [
-  { key: routes.dashboard, label: 'Home', icon: 'home-filled' },
-  { key: routes.explore, label: 'Explore', icon: 'travel-explore' },
-  { key: routes.history, label: 'History', icon: 'receipt-long' },
-  { key: routes.wallet, label: 'Wallet', icon: 'account-balance-wallet' },
-  { key: routes.notifications, label: 'Alerts', icon: 'notifications' },
-  { key: routes.profile, label: 'Profile', icon: 'person' },
+  { key: routes.dashboard, label: 'Home', labelKey: 'tab.home', icon: 'home-filled' },
+  { key: routes.explore, label: 'Explore', labelKey: 'tab.explore', icon: 'travel-explore' },
+  { key: routes.history, label: 'History', labelKey: 'tab.history', icon: 'receipt-long' },
+  { key: routes.wallet, label: 'Wallet', labelKey: 'tab.wallet', icon: 'account-balance-wallet' },
+  { key: routes.notifications, label: 'Alerts', labelKey: 'tab.alerts', icon: 'notifications' },
+  { key: routes.profile, label: 'Profile', labelKey: 'tab.profile', icon: 'person' },
 ];
 
 export function MemberNav({ active }: { active: string }) {

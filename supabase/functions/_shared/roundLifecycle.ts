@@ -2,7 +2,8 @@ import { supabaseAdmin } from './supabaseAdmin.ts';
 import { ensureContributionObligationsForRound, getRoundObligationReadiness, isContributionObligationSettled } from './obligations.ts';
 import { recordLedgerEntry } from './ledger.ts';
 import { calculatePayoutVestingFromConfig, buildPayoutReleaseScheduleAmounts } from './payoutVesting.ts';
-import { ensureReliabilityProfile, recordCompletedGroupReliability } from './reliability.ts';
+import { ensureReliabilityProfile } from './reliability.ts';
+import { openCycleCompletionVote } from './groupResolution.ts';
 import type {
   GroupRecord,
   MembershipRecord,
@@ -33,12 +34,18 @@ async function listActiveMemberships(groupId: string) {
   return (data ?? []) as MembershipRecord[];
 }
 
-async function listPriorWinnerIds(groupId: string) {
-  const { data, error } = await supabaseAdmin
+async function listPriorWinnerIds(groupId: string, minRoundNumber?: number) {
+  let query = supabaseAdmin
     .from('Round')
     .select('Winner_ID')
     .eq('Group_ID', groupId)
     .not('Winner_ID', 'is', null);
+
+  if (typeof minRoundNumber === 'number') {
+    query = query.gte('Round_Number', minRoundNumber);
+  }
+
+  const { data, error } = await query;
   if (error) {
     throw error;
   }
@@ -85,14 +92,6 @@ async function claimOpenRoundForFinalization(roundId: string) {
   return data as RoundRecord | null;
 }
 
-async function updateGroup(groupId: string, changes: Partial<GroupRecord>) {
-  const { data, error } = await supabaseAdmin.from('EqubGroup').update(changes).eq('Group_ID', groupId).select('*').single();
-  if (error) {
-    throw error;
-  }
-  return data as GroupRecord;
-}
-
 async function createPendingPayout(winnerId: string, round: RoundRecord, amount: number) {
   const { data, error } = await supabaseAdmin
     .from('Transaction')
@@ -118,6 +117,18 @@ function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+function roundDeadlineFromObligations(obligations: Array<{ due_at: string | null }>) {
+  const dueTimes = obligations
+    .map(obligation => obligation.due_at)
+    .filter((value): value is string => !!value)
+    .map(value => new Date(value).getTime())
+    .filter(value => Number.isFinite(value));
+  if (!dueTimes.length) {
+    return null;
+  }
+  return new Date(Math.min(...dueTimes));
+}
+
 async function loadGroupVestingEnabled(groupId: string) {
   const { data, error } = await supabaseAdmin
     .from('group_requests')
@@ -133,25 +144,6 @@ async function loadGroupVestingEnabled(groupId: string) {
 
   // Legacy MVP groups do not have a Phase 2 formation request, so preserve their full-payout behavior.
   return Boolean((data?.[0] as { vesting_enabled?: boolean } | undefined)?.vesting_enabled);
-}
-
-async function loadGroupTotalCycles(groupId: string, fallback: number) {
-  const { data, error } = await supabaseAdmin
-    .from('group_requests')
-    .select('*')
-    .eq('approved_group_id', groupId)
-    .eq('status', 'Approved')
-    .order('created_at', { ascending: false })
-    .limit(1);
-
-  if (error) {
-    return fallback;
-  }
-
-  const request = data?.[0] as { total_cycles?: number | null; terms_version?: string | null } | undefined;
-  const metadataCycles = request?.terms_version?.match(/(?:^|\|)cycles=(\d+)/)?.[1];
-  const totalCycles = Number(request?.total_cycles ?? metadataCycles ?? fallback);
-  return Number.isFinite(totalCycles) && totalCycles > 0 ? totalCycles : fallback;
 }
 
 async function sumWinnerContributionsSoFar(group: GroupRecord, round: RoundRecord, winnerId: string) {
@@ -354,6 +346,21 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
     };
   }
 
+  const roundDeadline = roundDeadlineFromObligations(readiness.obligations);
+  if (roundDeadline && roundDeadline.getTime() > Date.now()) {
+    return {
+      autoDrawTriggered: false,
+      payoutAmount: 0,
+      payoutRequest: null,
+      payoutTransaction: null,
+      payoutReleaseSchedules: [],
+      nextRound: null,
+      updatedRound: round,
+      completedGroup: null,
+      reliabilityProfileUpdates: [],
+    };
+  }
+
   const lockedRound = await claimOpenRoundForFinalization(round.Round_ID);
   if (!lockedRound) {
     return {
@@ -368,7 +375,10 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
       reliabilityProfileUpdates: [],
     };
   }
-  const priorWinnerIds = await listPriorWinnerIds(group.Group_ID);
+  const activeMemberCount = memberships.length;
+  const currentPassRoundNumber = ((Number(round.Round_Number) - 1) % activeMemberCount) + 1;
+  const currentPassStartRound = Number(round.Round_Number) - currentPassRoundNumber + 1;
+  const priorWinnerIds = await listPriorWinnerIds(group.Group_ID, currentPassStartRound);
   const firstPassEligibleUserIds = memberships
     .map(item => item.User_ID)
     .filter(userId => settledObligationUserIds.has(userId))
@@ -386,13 +396,19 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
 
   const payoutAmount = roundMoney(Number(group.Amount) * memberships.length);
   const vestingEnabled = await loadGroupVestingEnabled(group.Group_ID);
-  const totalCycles = await loadGroupTotalCycles(group.Group_ID, memberships.length);
+  const vestingRoundCount = memberships.length;
+  const vestingRoundNumber = firstPassEligibleUserIds.length
+    ? Math.min(vestingRoundCount, Math.max(1, vestingRoundCount - firstPassEligibleUserIds.length + 1))
+    : Math.min(vestingRoundCount, currentPassRoundNumber);
+  const remainingCurrentPassWinners = firstPassEligibleUserIds.length
+    ? firstPassEligibleUserIds.filter(userId => userId !== winnerId).length
+    : Math.max(vestingRoundCount - vestingRoundNumber, 0);
   const winnerProfile = await ensureReliabilityProfile(winnerId);
   const personalContributedSoFar = await sumWinnerContributionsSoFar(group, round, winnerId);
   const payoutVesting = await calculatePayoutVestingFromConfig({
     winnerStatus: winnerProfile.public_status,
-    roundNumber: Number(round.Round_Number),
-    totalRounds: totalCycles,
+    roundNumber: vestingRoundNumber,
+    totalRounds: vestingRoundCount,
     totalPayoutAmount: payoutAmount,
     personalContributedSoFar,
     vestingEnabled,
@@ -404,7 +420,7 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
     Status: 'Completed',
   });
 
-  const cycleComplete = Number(completedRound.Round_Number) >= totalCycles;
+  const cycleComplete = firstPassEligibleUserIds.length <= 1 && firstPassEligibleUserIds.includes(winnerId);
   const payoutRequest = await createPayoutRequest({
     group,
     round: completedRound,
@@ -421,7 +437,7 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
     group,
     round: completedRound,
     winnerId,
-    remainingContributionCount: Math.max(totalCycles - Number(completedRound.Round_Number), 0),
+    remainingContributionCount: remainingCurrentPassWinners,
   });
   await recordPayoutRequestLedger({
     payoutRequest,
@@ -434,8 +450,11 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
   });
 
   if (cycleComplete) {
-    const completedGroup = await updateGroup(group.Group_ID, { Status: 'Completed' });
-    const reliabilityProfileUpdates = await recordCompletedGroupReliability(group.Group_ID, [...activeMemberIds]);
+    await openCycleCompletionVote({
+      group,
+      roundId: completedRound.Round_ID,
+      activeMemberIds: [...activeMemberIds],
+    });
     return {
       autoDrawTriggered: true,
       payoutAmount,
@@ -444,8 +463,8 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
       payoutReleaseSchedules,
       nextRound: null,
       updatedRound: completedRound,
-      completedGroup,
-      reliabilityProfileUpdates,
+      completedGroup: null,
+      reliabilityProfileUpdates: [],
     };
   }
 

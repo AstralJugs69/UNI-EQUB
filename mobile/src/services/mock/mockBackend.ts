@@ -142,11 +142,16 @@ export class MockBackend implements AppServices {
       if (this.db.users.some(user => this.normalizePhone(user.Phone_Number) === this.normalizePhone(input.phoneNumber))) {
         throw new Error('A user with this phone number already exists.');
       }
+      if (this.db.users.some(user => user.Email?.toLowerCase() === input.email.toLowerCase())) {
+        throw new Error('A user with this email address already exists.');
+      }
       const requiresOtp = this.db.users.filter(user => user.Role === 'Member').length === 0;
       const user: UserRecord = {
         User_ID: makeId('user'),
         Full_Name: input.fullName.trim(),
         Phone_Number: this.normalizePhone(input.phoneNumber),
+        Email: input.email.trim().toLowerCase(),
+        Email_Verified_At: null,
         Password_Hash: hashPassword(input.password),
         Student_ID_Img: input.studentIdImage,
         KYC_Status: 'Unverified',
@@ -162,6 +167,7 @@ export class MockBackend implements AppServices {
       return {
         user: this.toSessionUser(user),
         requiresOtp,
+        requiresEmailVerification: true,
         pendingKycToken: requiresOtp ? undefined : `mock-pending-kyc-${user.Phone_Number}`,
       };
     },
@@ -185,6 +191,31 @@ export class MockBackend implements AppServices {
       return { pendingKycToken: `mock-pending-kyc-${phoneNumber}` };
     },
 
+    requestEmailVerification: async (input: { userId?: string; email?: string }) => {
+      const user = input.userId
+        ? this.requireUser(input.userId)
+        : this.db.users.find(item => item.Email?.toLowerCase() === input.email?.toLowerCase());
+      if (!user?.Email) {
+        throw new Error('No email address is attached to this account.');
+      }
+      return { email: user.Email, expiresAt: plusMinutes(30) };
+    },
+
+    verifyEmail: async (input: { userId?: string; code: string }) => {
+      const user = this.requireUser(input.userId ?? '');
+      if (input.code !== '123456') {
+        throw new Error('The email verification code is incorrect or has already been used.');
+      }
+      user.Email_Verified_At = nowIso();
+      return {
+        email: user.Email ?? '',
+        verifiedAt: user.Email_Verified_At,
+        user: this.toSessionUser(user),
+        requiresOtp: (await this.auth.getOtpGate({ phoneNumber: user.Phone_Number })).requiresOtp,
+        pendingKycToken: user.Role === 'Member' && user.KYC_Status === 'Unverified' ? `mock-pending-kyc-${user.Phone_Number}` : undefined,
+      };
+    },
+
     beginLogin: async (input: LoginInput, roleHint?: 'Member' | 'Admin') => {
       const session = await this.auth.login(input, roleHint);
       return { challengeToken: session.token, phoneNumber: session.user.phoneNumber };
@@ -199,9 +230,11 @@ export class MockBackend implements AppServices {
     },
 
     login: async (input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<AuthSession> => {
-      const user = this.db.users.find(item => this.normalizePhone(item.Phone_Number) === this.normalizePhone(input.phoneNumber));
+      const user = input.email
+        ? this.db.users.find(item => item.Email?.toLowerCase() === input.email?.toLowerCase())
+        : this.db.users.find(item => this.normalizePhone(item.Phone_Number) === this.normalizePhone(input.phoneNumber ?? ''));
       if (!user || user.Password_Hash !== hashPassword(input.password)) {
-        throw new Error('Invalid phone number or password.');
+        throw new Error('Invalid email or password.');
       }
       if (user.KYC_Status === 'Banned') {
         throw new Error('This account has been banned and cannot log in.');
@@ -291,7 +324,10 @@ export class MockBackend implements AppServices {
   };
 
   groups = {
-    listBrowseable: async (_userId: string): Promise<GroupRecord[]> => this.db.groups.filter(group => group.Status === 'Active').map(clone),
+    listBrowseable: async (_userId: string): Promise<GroupRecord[]> => this.db.groups
+      .filter(group => group.Status === 'Pending')
+      .filter(group => this.db.groupRequests.some(request => request.approved_group_id === group.Group_ID && request.status === 'Approved' && !request.activated_at))
+      .map(clone),
 
     getGroup: async (groupId: string): Promise<GroupRecord | null> => {
       const group = this.db.groups.find(item => item.Group_ID === groupId);
@@ -443,7 +479,7 @@ export class MockBackend implements AppServices {
         frequency: input.frequency,
         min_members: input.minMembers ?? Math.min(5, input.maxMembers),
         max_members: input.maxMembers,
-        total_cycles: input.totalCycles ?? input.maxMembers,
+        total_cycles: input.maxMembers,
         visibility: input.visibility,
         invite_mode: input.inviteMode ?? (input.visibility === 'Private' ? 'InviteCodeAndDirect' : 'PublicRequest'),
         status: 'Forming',
@@ -647,8 +683,19 @@ export class MockBackend implements AppServices {
     getProfile: async (userId: string): Promise<UserProfile> => this.ensureProfile(userId),
     updateProfile: async (userId: string, input: Partial<UserProfile>): Promise<UserProfile> => {
       const current = this.ensureProfile(userId);
+      const user = this.requireUser(userId);
+      if (input.email !== undefined) {
+        user.Email = input.email;
+        user.Email_Verified_At = null;
+      }
+      if (typeof input.phoneNumber === 'string') {
+        user.Phone_Number = this.normalizePhone(input.phoneNumber);
+      }
       const updated: UserProfile = {
         ...current,
+        email: input.email ?? user.Email ?? current.email,
+        emailVerifiedAt: user.Email_Verified_At ?? null,
+        phoneNumber: user.Phone_Number,
         university: input.university ?? current.university,
         academicYear: input.academicYear ?? current.academicYear,
         language: input.language ?? current.language,
@@ -778,13 +825,21 @@ export class MockBackend implements AppServices {
   }
 
   private ensureProfile(userId: string): UserProfile {
-    this.requireUser(userId);
+    const user = this.requireUser(userId);
     const existing = this.db.profiles[userId];
     if (existing) {
-      return clone(existing);
+      return clone({
+        ...existing,
+        email: user.Email ?? existing.email ?? null,
+        emailVerifiedAt: user.Email_Verified_At ?? existing.emailVerifiedAt ?? null,
+        phoneNumber: user.Phone_Number,
+      });
     }
     const created: UserProfile = {
       userId,
+      email: user.Email ?? null,
+      emailVerifiedAt: user.Email_Verified_At ?? null,
+      phoneNumber: user.Phone_Number,
       university: null,
       academicYear: null,
       language: 'English',
@@ -825,6 +880,8 @@ export class MockBackend implements AppServices {
       userId: user.User_ID,
       fullName: user.Full_Name,
       phoneNumber: user.Phone_Number,
+      email: user.Email ?? null,
+      emailVerifiedAt: user.Email_Verified_At ?? null,
       role: user.Role,
       kycStatus: user.KYC_Status,
     };

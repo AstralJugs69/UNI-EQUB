@@ -129,6 +129,9 @@ export function DashboardScreen({ route }: any) {
   const roundNumber = data.currentRound?.Round_Number ?? '-';
   const progressPercent = data.totalMembers > 0 ? Math.round((data.paidCount / data.totalMembers) * 100) : 0;
   const timeLeft = formatTimeLeft(data.contributionDeadlineAt);
+  const voteActive = !!data.activeResolutionPoll;
+  const votesCast = data.activeResolutionPoll ? Object.values(data.activeResolutionPoll.voteCounts).reduce((sum, count) => sum + count, 0) : 0;
+  const votePercent = data.activeResolutionPoll?.eligibleVoterCount ? Math.round((votesCast / data.activeResolutionPoll.eligibleVoterCount) * 100) : 0;
   const cycleActive = group.Status === 'Active' && !!data.currentRound;
 
   return (
@@ -159,12 +162,33 @@ export function DashboardScreen({ route }: any) {
         </View>
         <Text style={memberStyles.dashboardHeroAmount}>{formatCurrency(group.Amount)}</Text>
         <Text style={memberStyles.dashboardHeroBody}>
-          {cycleActive
+          {voteActive
+            ? <>This round is now in voting. All eligible members must vote to resolve the round and move forward.</>
+            : cycleActive
             ? <>{group.Group_Name} is at <Text style={memberStyles.dashboardHeroBodyStrong}>{data.paidCount}/{data.totalMembers}</Text> paid. Your contribution is the fastest way to push the round forward.</>
             : <>{group.Group_Name} has no open round. Review your history or open another active group.</>}
         </Text>
         <View style={memberStyles.dashboardHeroActions}>
-          {cycleActive ? (
+          {voteActive ? (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => navigation.navigate(routes.resolutionVote, { groupId: group.Group_ID })}
+                style={memberStyles.heroPayButton}
+              >
+                <Icon name="how-to-vote" size={iconSize.md} color={palette.primary} />
+                <Text style={memberStyles.heroPayButtonText}>Vote</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => navigation.navigate(routes.groupStatus, { groupId: group.Group_ID })}
+                style={memberStyles.heroDetailsButton}
+              >
+                <Icon name="description" size={iconSize.md} color={palette.white} />
+                <Text style={memberStyles.heroDetailsButtonText}>Details</Text>
+              </Pressable>
+            </>
+          ) : cycleActive ? (
             <>
               <Pressable
                 accessibilityRole="button"
@@ -210,8 +234,8 @@ export function DashboardScreen({ route }: any) {
             <Icon name="calendar-month" size={iconSize.md} color={palette.primaryDark} />
           </View>
           <View style={memberStyles.dashboardHeroDetailText}>
-            <Text style={memberStyles.dashboardHeroDetailTitle}>Time left</Text>
-            <Text style={memberStyles.dashboardHeroDetailBody}>{timeLeft}</Text>
+            <Text style={memberStyles.dashboardHeroDetailTitle}>Cycle</Text>
+            <Text style={memberStyles.dashboardHeroDetailBody}>{voteActive ? 'Weekly voting cycle' : timeLeft}</Text>
           </View>
           <Icon name="chevron-right" size={iconSize.md} color="rgba(255,255,255,0.86)" />
         </View>
@@ -221,10 +245,14 @@ export function DashboardScreen({ route }: any) {
           </View>
           <View style={memberStyles.dashboardHeroDetailText}>
             <Text style={memberStyles.dashboardHeroDetailTitle}>Progress</Text>
-            <Text style={memberStyles.dashboardHeroDetailBody}>{data.paidCount} of {data.totalMembers} members verified this round</Text>
+            <Text style={memberStyles.dashboardHeroDetailBody}>
+              {voteActive
+                ? `${votesCast} of ${data.activeResolutionPoll?.eligibleVoterCount ?? data.totalMembers} members have voted`
+                : `${data.paidCount} of ${data.totalMembers} members verified this round`}
+            </Text>
           </View>
           <View style={memberStyles.dashboardProgressPill}>
-            <Text style={memberStyles.dashboardProgressText}>{progressPercent}%</Text>
+            <Text style={memberStyles.dashboardProgressText}>{voteActive ? votePercent : progressPercent}%</Text>
           </View>
         </View>
       </View>

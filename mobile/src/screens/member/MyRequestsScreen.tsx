@@ -23,7 +23,17 @@ export function MyRequestsScreen() {
             <FormingRequestCard
               key={request.id}
               request={request}
-              onPress={() => navigation.navigate(routes.formationCreator, { requestId: request.id })}
+              onPress={() => {
+                if (request.status === 'Approved' && request.approved_group_id && request.activated_at) {
+                  navigation.navigate(routes.groupStatus, { groupId: request.approved_group_id });
+                  return;
+                }
+                if (request.status === 'Approved' && request.approved_group_id) {
+                  navigation.navigate(routes.groupDetail, { groupId: request.approved_group_id });
+                  return;
+                }
+                navigation.navigate(routes.formationCreator, { requestId: request.id });
+              }}
             />
           ))}
         </View>

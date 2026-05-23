@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon } from './Icon';
 import { AnimatedULoader, MiniULoader } from './ULoader';
 import { iconSize, palette, radii, shadows, spacing, typography } from '../theme/tokens';
+import { useAppPreferences } from '../providers/PreferencesProvider';
 
 type Tone = 'neutral' | 'active' | 'good' | 'warn' | 'bad';
 type BannerTone = 'info' | 'success' | 'warning' | 'danger';
@@ -32,6 +33,8 @@ export function AppScreen({
   scroll?: boolean;
   backgroundColor?: string;
 }>) {
+  const { colors, isDark } = useAppPreferences();
+  const themedBackground = backgroundColor === palette.background ? colors.background : backgroundColor;
   const body = scroll ? (
     <ScrollView
       contentContainerStyle={[styles.screenContent, contentStyle]}
@@ -45,8 +48,8 @@ export function AppScreen({
   );
 
   return (
-    <SafeAreaView style={[styles.screenRoot, { backgroundColor }]} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="dark-content" backgroundColor={backgroundColor} />
+    <SafeAreaView style={[styles.screenRoot, { backgroundColor: themedBackground }]} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={themedBackground} />
       {body}
       {footer ? <View style={[styles.footerWrap, footerFlush && styles.footerWrapFlush]}>{footer}</View> : null}
     </SafeAreaView>
@@ -172,26 +175,30 @@ export function StatusBanner({
   body?: string;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { colors } = useAppPreferences();
+  const toneColor = tone === 'success' ? colors.success : tone === 'warning' ? colors.warning : tone === 'danger' ? colors.danger : colors.info;
+  const toneSurface = tone === 'success' ? colors.successSurface : tone === 'warning' ? colors.warningSurface : tone === 'danger' ? colors.dangerSurface : colors.infoSurface;
   return (
-    <View style={[styles.banner, styles[`banner_${tone}`], style]}>
+    <View style={[styles.banner, styles[`banner_${tone}`], { backgroundColor: toneSurface, borderColor: toneColor }, style]}>
       <Icon
         name={tone === 'success' ? 'check-circle' : tone === 'warning' ? 'warning' : tone === 'danger' ? 'error' : 'info'}
-        color={tone === 'success' ? palette.success : tone === 'warning' ? palette.warning : tone === 'danger' ? palette.danger : palette.info}
+        color={toneColor}
         size={iconSize.md}
       />
       <View style={styles.bannerTextWrap}>
-        <Text style={styles.bannerTitle}>{title}</Text>
-        {body ? <Text style={styles.bannerBody}>{body}</Text> : null}
+        <Text style={[styles.bannerTitle, { color: colors.text }]}>{title}</Text>
+        {body ? <Text style={[styles.bannerBody, { color: colors.textMuted }]}>{body}</Text> : null}
       </View>
     </View>
   );
 }
 
 export function InlineError({ message }: { message?: string }) {
+  const { colors } = useAppPreferences();
   if (!message) {
     return null;
   }
-  return <Text style={styles.inlineError}>{message}</Text>;
+  return <Text style={[styles.inlineError, { color: colors.danger }]}>{message}</Text>;
 }
 
 export function LoadingState({
@@ -472,13 +479,14 @@ export function BottomNav({
   activeKey,
   onPress,
 }: {
-  items: Array<{ key: string; label: string; icon?: string }>;
+  items: Array<{ key: string; label: string; labelKey?: string; icon?: string; badgeCount?: number }>;
   activeKey: string;
   onPress: (key: string) => void;
 }) {
+  const { colors, t } = useAppPreferences();
   return (
-    <SafeAreaView edges={['bottom']} style={styles.bottomNavWrap}>
-      <View style={styles.bottomNav}>
+    <SafeAreaView edges={['bottom']} style={[styles.bottomNavWrap, { backgroundColor: colors.bottomNav, borderTopColor: colors.border }]}>
+      <View style={[styles.bottomNav, { backgroundColor: colors.bottomNav }]}>
         {items.map(item => {
           const selected = item.key === activeKey;
           return (
@@ -491,9 +499,14 @@ export function BottomNav({
               <Icon
                 name={item.icon ?? 'circle'}
                 size={iconSize.md}
-                color={selected ? palette.primaryDark : palette.textSoft}
+                color={selected ? colors.primaryDark : colors.textSoft}
               />
-              <Text style={[styles.bottomNavLabel, selected && styles.bottomNavLabelActive]}>{item.label}</Text>
+              {item.badgeCount ? (
+                <View style={styles.bottomNavBadge}>
+                  <Text style={styles.bottomNavBadgeText}>{item.badgeCount > 99 ? '99+' : item.badgeCount}</Text>
+                </View>
+              ) : null}
+              <Text style={[styles.bottomNavLabel, { color: colors.textSoft }, selected && styles.bottomNavLabelActive, selected && { color: colors.primaryDark }]}>{item.labelKey ? t(item.labelKey) : item.label}</Text>
             </Pressable>
           );
         })}
@@ -966,6 +979,25 @@ const styles = StyleSheet.create({
     gap: spacing.xxs,
     minHeight: 48,
     borderRadius: radii.md,
+  },
+  bottomNavBadge: {
+    position: 'absolute',
+    top: 2,
+    right: '24%',
+    minWidth: 18,
+    height: 18,
+    borderRadius: radii.pill,
+    backgroundColor: palette.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: palette.bottomNav,
+  },
+  bottomNavBadgeText: {
+    color: palette.white,
+    fontSize: 10,
+    fontWeight: '800',
   },
   bottomNavLabel: {
     color: palette.textSoft,
