@@ -735,11 +735,13 @@ export const memberStyles = StyleSheet.create({
   },
   exploreHeroActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
     marginTop: spacing.xs,
   },
   explorePrimaryAction: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: 132,
     minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
@@ -755,7 +757,8 @@ export const memberStyles = StyleSheet.create({
     fontSize: 15,
   },
   exploreSecondaryAction: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: 132,
     minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
@@ -914,6 +917,10 @@ export const memberStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.border,
     padding: spacing.md,
+  },
+  requestSummaryCard: {
+    borderRadius: radii.xl,
+    gap: spacing.md,
   },
   approvedGroupCard: {
     gap: spacing.sm,
@@ -1838,6 +1845,9 @@ export const memberStyles = StyleSheet.create({
   groupCyclePayButtonDisabled: {
     opacity: 0.52,
   },
+  groupCyclePayButtonPaid: {
+    backgroundColor: palette.success,
+  },
   groupCyclePayButtonText: {
     flex: 1,
     color: palette.white,
@@ -1971,6 +1981,155 @@ export const memberStyles = StyleSheet.create({
     color: palette.textMuted,
     fontSize: 14,
     lineHeight: 21,
+  },
+  walletStateCard: {
+    gap: spacing.md,
+  },
+  walletReleaseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.backgroundSoft,
+    padding: spacing.md,
+  },
+  walletReleaseIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.warningSurface,
+  },
+  walletReleaseIconReady: {
+    backgroundColor: palette.successSurface,
+  },
+  walletReleaseText: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.xxs,
+  },
+  walletReleaseTitle: {
+    color: palette.text,
+    fontWeight: '900',
+    fontSize: 16,
+  },
+  walletReleaseBody: {
+    color: palette.textMuted,
+    lineHeight: 20,
+    fontSize: 13,
+  },
+  paymentSuccessHero: {
+    alignItems: 'center',
+    borderRadius: radii.xl,
+    paddingVertical: spacing.xl,
+    gap: spacing.sm,
+  },
+  paymentSuccessReference: {
+    color: palette.primary,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  paymentSuccessTimeline: {
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  notificationsGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  notificationCategoryScroller: {
+    maxHeight: 66,
+    flexGrow: 0,
+  },
+  notificationCategoryRail: {
+    gap: spacing.sm,
+    paddingRight: spacing.lg,
+  },
+  notificationCategoryChip: {
+    width: 118,
+    height: 56,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    justifyContent: 'center',
+    ...shadows.subtle,
+  },
+  notificationCategoryChipActive: {
+    borderColor: palette.primary,
+    backgroundColor: palette.primarySoft,
+  },
+  notificationCategoryTitle: {
+    color: palette.text,
+    fontWeight: '900',
+    fontSize: 13,
+  },
+  notificationCategoryTitleActive: {
+    color: palette.primary,
+  },
+  notificationCategoryMeta: {
+    color: palette.textMuted,
+    fontWeight: '800',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  notificationCategoryMetaActive: {
+    color: palette.primaryDark,
+  },
+  notificationsPanel: {
+    gap: spacing.sm,
+  },
+  notificationTileList: {
+    gap: spacing.sm,
+  },
+  notificationTile: {
+    minHeight: 76,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.surfaceSoft,
+    padding: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  notificationTileUnread: {
+    borderColor: palette.primarySoft,
+    backgroundColor: '#F5F8FE',
+  },
+  notificationTileIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surface,
+  },
+  notificationTileIconUnread: {
+    backgroundColor: palette.primarySoft,
+  },
+  notificationTileText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  notificationTileTitle: {
+    color: palette.text,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  notificationTileBody: {
+    color: palette.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
   },
   ledgerSummaryCard: {
     minHeight: 92,

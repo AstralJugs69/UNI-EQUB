@@ -4,6 +4,41 @@ import { EmptyState, ListRow, LoadingState, Pill, ScreenScroll, SectionCard, Top
 import { useDashboardQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { formatCurrency } from './shared';
+import type { GroupRecord } from '../../types/domain';
+import { groupMembershipBuckets } from './uxState';
+
+function GroupSection({
+  title,
+  subtitle,
+  groups,
+  emptyTitle,
+  onOpen,
+}: {
+  title: string;
+  subtitle: string;
+  groups: GroupRecord[];
+  emptyTitle?: string;
+  onOpen: (group: GroupRecord) => void;
+}) {
+  if (!groups.length) {
+    return emptyTitle ? <EmptyState icon="groups-2" title={emptyTitle} subtitle={subtitle} /> : null;
+  }
+  return (
+    <SectionCard>
+      <TitleBlock title={title} subtitle={subtitle} />
+      {groups.map(group => (
+        <ListRow
+          key={group.Group_ID}
+          title={group.Group_Name}
+          subtitle={`${group.Frequency} - ${formatCurrency(group.Amount)} - ${group.Max_Members} members`}
+          right={<Pill label={group.Status === 'Pending' ? 'Join window' : group.Status} tone={group.Status === 'Pending' ? 'warn' : group.Status === 'Completed' ? 'good' : group.Status === 'Frozen' ? 'bad' : 'active'} />}
+          leadingIcon={group.Status === 'Completed' ? 'history' : group.Status === 'Pending' ? 'hourglass-empty' : 'groups'}
+          onPress={() => onOpen(group)}
+        />
+      ))}
+    </SectionCard>
+  );
+}
 
 export function ActiveGroupsScreen() {
   const navigation = useNavigation<any>();
@@ -15,38 +50,21 @@ export function ActiveGroupsScreen() {
 
   const activeGroups = data.activeGroups ?? (data.currentGroup ? [data.currentGroup] : []);
   const completedGroups = data.completedGroups ?? [];
+  const buckets = groupMembershipBuckets(activeGroups, completedGroups);
+  const openGroup = (group: GroupRecord) => navigation.navigate(group.Status === 'Pending' ? routes.groupDetail : routes.groupStatus, { groupId: group.Group_ID });
 
   return (
     <ScreenScroll>
       <TopAppBar title="My Equb Groups" subtitle="Group Switcher" onBack={() => navigation.goBack()} rightLabel={`${activeGroups.length}`} />
-      <TitleBlock title="Open a group" subtitle="Join-window groups show preview details. Active groups keep payment and draw controls here." />
-      {!activeGroups.length ? (
-        <EmptyState icon="groups-2" title="No active groups" subtitle="Approved groups you join or create will appear here." />
-      ) : activeGroups.map(group => (
-        <SectionCard key={group.Group_ID}>
-          <ListRow
-            title={group.Group_Name}
-            subtitle={`${group.Frequency} - ${formatCurrency(group.Amount)}`}
-            right={<Pill label={group.Status === 'Pending' ? 'Join window' : group.Group_ID === data.currentGroup?.Group_ID ? 'Current' : group.Status} tone={group.Status === 'Pending' ? 'warn' : group.Group_ID === data.currentGroup?.Group_ID ? 'active' : 'good'} />}
-            leadingIcon="groups"
-            onPress={() => navigation.navigate(group.Status === 'Pending' ? routes.groupDetail : routes.groupStatus, { groupId: group.Group_ID })}
-          />
-        </SectionCard>
-      ))}
-      {completedGroups.length ? (
-        <SectionCard>
-          <TitleBlock title="Past Equbs" subtitle="Groups you participated in before completion." />
-          {completedGroups.map(group => (
-            <ListRow
-              key={group.Group_ID}
-              title={group.Group_Name}
-              subtitle={`${group.Frequency} - ${formatCurrency(group.Amount)}`}
-              right={<Pill label="Completed" tone="good" />}
-              leadingIcon="history"
-            />
-          ))}
-        </SectionCard>
+      <TitleBlock title="Choose a group" subtitle="Join windows open previews. Active, voting, and frozen groups open the full cycle state." />
+      {!activeGroups.length && !completedGroups.length ? (
+        <EmptyState icon="groups-2" title="No Equb groups yet" subtitle="Approved groups you join or create will appear here." />
       ) : null}
+      <GroupSection title="Active cycles" subtitle="Groups currently accepting contributions, draws, or votes." groups={buckets.cycleGroups} onOpen={openGroup} />
+      <GroupSection title="Join windows" subtitle="Approved groups that have not started contributions yet." groups={buckets.joinWindowGroups} onOpen={openGroup} />
+      <GroupSection title="Needs recovery" subtitle="Paused groups waiting for voting or admin resolution." groups={buckets.frozenGroups} onOpen={openGroup} />
+      <GroupSection title="Other memberships" subtitle="Groups that are not currently in a standard active state." groups={buckets.otherGroups} onOpen={openGroup} />
+      <GroupSection title="Past Equbs" subtitle="Groups you participated in before completion." groups={buckets.completedGroups} onOpen={openGroup} />
     </ScreenScroll>
   );
 }

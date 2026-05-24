@@ -128,7 +128,7 @@ async function resolveEmailVerificationUser(input?: { token?: string; userId?: s
 async function validateCredentials(input: { email?: string; phoneNumber?: string; password: string }, roleHint?: 'Member' | 'Admin') {
   const user = await findLoginUser(input);
   if (!user) {
-    return { error: 'Invalid email or password.', user: null as UserRecord | null };
+    return { error: 'Invalid email, phone number, or password.', user: null as UserRecord | null };
   }
   if (roleHint && user.Role !== roleHint) {
     return { error: `${roleHint} access is not available for this account.`, user: null as UserRecord | null };
@@ -138,7 +138,7 @@ async function validateCredentials(input: { email?: string; phoneNumber?: string
   }
   const valid = await verifyPassword(input.password, user.Password_Hash);
   if (!valid) {
-    return { error: 'Invalid email or password.', user: null as UserRecord | null };
+    return { error: 'Invalid email, phone number, or password.', user: null as UserRecord | null };
   }
   return { error: null, user };
 }

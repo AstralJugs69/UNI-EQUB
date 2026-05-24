@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
 import { AppScreen, EmptyState, InlineError, ListRow, LoadingState, MetricTile, Pill, PrimaryCTA, SecondaryCTA, SectionCard, StatusBanner, TopAppBar } from '../../components/ui';
@@ -194,7 +194,14 @@ export function ResolutionVoteScreen({ route }: any) {
           });
         }}
       />
-      <SecondaryCTA label="View voting rules" icon="description" onPress={() => undefined} />
+      <SecondaryCTA
+        label="View voting rules"
+        icon="description"
+        onPress={() => Alert.alert(
+          'Voting rules',
+          'Each eligible member can vote once. A simple majority decides whether the group continues, refunds the round, or stays frozen for admin review.',
+        )}
+      />
     </AppScreen>
   );
 }

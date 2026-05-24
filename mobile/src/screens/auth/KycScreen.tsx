@@ -1,5 +1,5 @@
 ﻿import React, { useMemo, useState } from 'react';
-import { PermissionsAndroid, Platform, Text, View } from 'react-native';
+import { Image, PermissionsAndroid, Platform, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { launchCamera, launchImageLibrary, type Asset } from 'react-native-image-picker';
@@ -144,6 +144,11 @@ export function KycScreen({ route }: any) {
               <Pill label={asset ? 'Ready' : 'Missing'} tone={asset ? 'good' : 'warn'} />
             </View>
             <Text style={authStyles.mutedText}>{asset ? `${asset.fileName ?? card.label} is ready for upload.` : 'No file selected yet.'}</Text>
+            {asset?.uri ? (
+              <View style={authStyles.kycPreviewFrame}>
+                <Image source={{ uri: asset.uri }} style={authStyles.kycPreviewImage} resizeMode="cover" />
+              </View>
+            ) : null}
             <View style={authStyles.kycActions}>
               <SecondaryCTA label="Use Camera" onPress={() => pickDocument(card.kind, 'camera')} disabled={submitting} />
               <SecondaryCTA label="Choose Photo" onPress={() => pickDocument(card.kind, 'gallery')} disabled={submitting} />

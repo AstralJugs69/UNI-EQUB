@@ -9,6 +9,8 @@ export function AdminReportsScreen({ route }: any) {
   const { data: reports = [] } = useReportsQuery();
   const { sendReminders, exportReport } = useAdminActions();
   const [success, setSuccess] = useState('');
+  const [selectedReportTitle, setSelectedReportTitle] = useState('');
+  const selectedReport = reports.find(report => report.title === selectedReportTitle) ?? reports[0];
 
   return (
     <AppScreen>
@@ -38,9 +40,16 @@ export function AdminReportsScreen({ route }: any) {
         </SectionCard>
       ) : null}
       <SectionCard>
-        <TitleBlock title="Report packages" subtitle="Export the current backend summaries in PDF or CSV." />
+        <TitleBlock title="Report packages" subtitle="Choose the exact export before generating evidence for review." />
         {reports.length ? reports.map(report => (
-          <ListRow key={report.title} title={report.title} subtitle={report.description} right={<Text>{report.format}</Text>} leadingIcon="summarize" />
+          <ListRow
+            key={report.title}
+            title={report.title}
+            subtitle={report.description}
+            right={<Pill label={selectedReport?.title === report.title ? 'Selected' : report.format} tone={selectedReport?.title === report.title ? 'active' : 'neutral'} />}
+            leadingIcon="summarize"
+            onPress={() => setSelectedReportTitle(report.title)}
+          />
         )) : <EmptyState icon="summarize" title="No reports configured" subtitle="This surface will populate when report definitions are available." />}
       </SectionCard>
       <SectionCard variant="soft">
@@ -90,20 +99,26 @@ export function AdminReportsScreen({ route }: any) {
         disabled={sendReminders.isPending}
       />
       <SecondaryCTA
-        label="Export First Report"
+        label={selectedReport ? `Export ${selectedReport.format}` : 'Export Report'}
         onPress={() => {
           setSuccess('');
-          exportReport.mutate({ title: reports[0]?.title ?? 'report', format: reports[0]?.format ?? 'PDF' }, { onSuccess: () => setSuccess('Report export ready.') });
+          if (!selectedReport) {
+            return;
+          }
+          exportReport.mutate({ title: selectedReport.title, format: selectedReport.format }, { onSuccess: () => setSuccess('Report export ready.') });
         }}
         loading={exportReport.isPending}
-        disabled={exportReport.isPending || !reports.length}
+        disabled={exportReport.isPending || !selectedReport}
       />
       {exportReport.data ? (
         <SectionCard>
           <TitleBlock title="Latest export" subtitle={exportReport.data.fileName} />
-          <Text style={adminStyles.mutedText}>{exportReport.data.mimeType ?? 'text/plain'}</Text>
-          <Text>{exportReport.data.content}</Text>
-          {exportReport.data.contentBase64 ? <Text style={adminStyles.sectionTitle}>Binary PDF payload is ready.</Text> : null}
+          <Text style={adminStyles.mutedText}>{exportReport.data.mimeType ?? 'text/plain'} - generated for audit sharing.</Text>
+          {exportReport.data.format === 'CSV' && !exportReport.data.contentBase64 ? (
+            <Text style={adminStyles.reportPreviewText} numberOfLines={6}>{exportReport.data.content}</Text>
+          ) : (
+            <StatusBanner tone="success" title="Export file is ready" body="The binary report payload is prepared. Use the platform share/download action when wired for this build." />
+          )}
         </SectionCard>
       ) : null}
     </AppScreen>

@@ -1,29 +1,74 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { AppScreen, EmptyState, ListRow, Pill, SectionCard, StatusBanner, TopAppBar, TitleBlock } from '../../components/ui';
+import { AppScreen, EmptyState, ListRow, MetricTile, Pill, SectionCard, SegmentedTabs, StatusBanner, TopAppBar, TitleBlock } from '../../components/ui';
 import { usePendingFormationGroupsQuery, usePendingGroupsQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { formatCurrency } from '../member/shared';
+import { adminStyles } from './styles';
 
 export function AdminGroupsScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const { data: legacyData = [] } = usePendingGroupsQuery();
   const { data: formationQueue = [] } = usePendingFormationGroupsQuery();
-  const frozenItems = legacyData.filter(item => item.group.Status === 'Frozen');
-  const legacyItems = legacyData.filter(item => item.group.Status !== 'Frozen');
-  const total = formationQueue.length + frozenItems.length + legacyItems.length;
+  const [queue, setQueue] = useState<'All' | 'Formation' | 'Frozen' | 'Legacy'>('All');
+  const [query, setQuery] = useState('');
+  const normalizedQuery = query.trim().toLowerCase();
+  const matches = (value: string) => !normalizedQuery || value.toLowerCase().includes(normalizedQuery);
+  const filteredFormationQueue = useMemo(() => formationQueue.filter(request => (
+    (queue === 'All' || queue === 'Formation')
+    && matches(`${request.proposed_group_name} ${request.creator_id} ${request.frequency} ${request.status}`)
+  )), [formationQueue, normalizedQuery, queue]);
+  const frozenItems = useMemo(() => legacyData.filter(item => (
+    item.group.Status === 'Frozen'
+    && (queue === 'All' || queue === 'Frozen')
+    && matches(`${item.group.Group_Name} ${item.creator.Full_Name} ${item.group.Frequency}`)
+  )), [legacyData, normalizedQuery, queue]);
+  const legacyItems = useMemo(() => legacyData.filter(item => (
+    item.group.Status !== 'Frozen'
+    && (queue === 'All' || queue === 'Legacy')
+    && matches(`${item.group.Group_Name} ${item.creator.Full_Name} ${item.group.Frequency} ${item.group.Status}`)
+  )), [legacyData, normalizedQuery, queue]);
+  const rawFrozenCount = legacyData.filter(item => item.group.Status === 'Frozen').length;
+  const rawLegacyCount = legacyData.filter(item => item.group.Status !== 'Frozen').length;
+  const total = formationQueue.length + rawFrozenCount + rawLegacyCount;
+  const visibleTotal = filteredFormationQueue.length + frozenItems.length + legacyItems.length;
 
   return (
     <AppScreen>
       <TopAppBar title="Group Queues" subtitle="Admin Hub" rightLabel={`${total} pending`} />
       {route?.params?.flash ? <StatusBanner tone="success" title={route.params.flash} /> : null}
-      <TitleBlock title="Select a queue item" subtitle="Formation, frozen recovery, and legacy MVP requests each open into a full review page." />
+      <SectionCard>
+        <TitleBlock title="Triage group work" subtitle="Frozen and no-consensus cases should be handled before routine formation approvals." />
+        <View style={adminStyles.metricsGrid}>
+          <MetricTile label="Formation" value={String(formationQueue.length)} tone={formationQueue.length > 0 ? 'warn' : 'good'} />
+          <MetricTile label="Frozen" value={String(rawFrozenCount)} tone={rawFrozenCount > 0 ? 'warn' : 'good'} />
+          <MetricTile label="Legacy" value={String(rawLegacyCount)} />
+        </View>
+      </SectionCard>
+      <TextInput
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Search by group, creator, or status..."
+        placeholderTextColor="#8793A3"
+        style={adminStyles.adminSearchInput}
+      />
+      <SegmentedTabs
+        options={[
+          { key: 'All', label: 'All' },
+          { key: 'Frozen', label: 'Frozen' },
+          { key: 'Formation', label: 'Formation' },
+          { key: 'Legacy', label: 'Legacy' },
+        ]}
+        selectedKey={queue}
+        onSelect={key => setQueue(key as 'All' | 'Formation' | 'Frozen' | 'Legacy')}
+      />
 
-      {formationQueue.length ? (
+      {filteredFormationQueue.length ? (
         <SectionCard>
           <TitleBlock title="Formation requests" subtitle="Creator-led groups ready for admin approval." />
           <ViewList>
-            {formationQueue.map(request => (
+            {filteredFormationQueue.map(request => (
               <ListRow
                 key={request.id}
                 title={request.proposed_group_name}
@@ -73,7 +118,7 @@ export function AdminGroupsScreen({ route }: any) {
         </SectionCard>
       ) : null}
 
-      {!total ? (
+      {!visibleTotal ? (
         <EmptyState icon="playlist-add-check" title="No pending group requests" subtitle="Submitted formations, frozen recoveries, and legacy MVP requests will appear here for review." />
       ) : null}
     </AppScreen>

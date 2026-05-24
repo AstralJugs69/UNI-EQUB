@@ -20,16 +20,16 @@ export function WithdrawScreen() {
     try {
       setError('');
       await withdrawPayout.mutateAsync();
-      navigation.navigate(routes.memberTabs, { screen: routes.wallet, params: { flash: 'Withdrawal cleared.' } });
+      navigation.navigate(routes.memberTabs, { screen: routes.wallet, params: { flash: 'Payout clearance recorded.' } });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to clear the wallet payout.');
+      setError(err instanceof Error ? err.message : 'Unable to record this payout clearance.');
     }
   }
 
   function confirmWithdraw() {
-    Alert.alert('Clear wallet balance', 'Clear the released payout from the internal ledger?', [
+    Alert.alert('Confirm payout clearance', 'Record this released payout as cleared from your UniEqub wallet?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Clear Balance', style: 'destructive', onPress: () => { handleWithdraw().catch(() => undefined); } },
+      { text: 'Confirm Clearance', style: 'destructive', onPress: () => { handleWithdraw().catch(() => undefined); } },
     ]);
   }
 
@@ -37,15 +37,15 @@ export function WithdrawScreen() {
     <ScreenScroll>
       <TopAppBar title="Withdraw Payout" onBack={() => navigation.goBack()} rightLabel="Winner" />
       <TitleBlock title={formatCurrency(data.readyPayout)} subtitle={`Destination - ${data.defaultDestination}`} />
-      <StatusBanner tone="warning" title="Internal clearance only" body="This capstone build does not send money through an external payout gateway. The action clears only the released payout amount from the internal ledger." />
+      <StatusBanner tone="info" title="Released payout only" body="This action records the released payout as cleared. Reserved funds remain locked until their scheduled release." />
       {data.reservedPayout > 0 ? (
         <StatusBanner tone="info" title="Reserve remains scheduled." body={`${formatCurrency(data.reservedPayout)} is still reserved across ${data.pendingReserveReleases} future release${data.pendingReserveReleases === 1 ? '' : 's'}. It is not part of this clearance.`} />
       ) : null}
       <SectionCard>
-        <TitleBlock title="Before you continue" subtitle="Clear only amounts that are visible as ready payout. Reserved payout releases later after successful contribution obligations." />
+        <TitleBlock title="Before you continue" subtitle="Confirm only after the released payout has been handled. This does not touch reserved payout balances." />
       </SectionCard>
       <InlineError message={error} />
-      <PrimaryCTA label="Clear Wallet Balance" onPress={confirmWithdraw} loading={withdrawPayout.isPending} disabled={withdrawPayout.isPending || data.readyPayout <= 0} />
+      <PrimaryCTA label="Confirm Payout Clearance" onPress={confirmWithdraw} loading={withdrawPayout.isPending} disabled={withdrawPayout.isPending || data.readyPayout <= 0} />
       <SecondaryCTA label="Back To Wallet" onPress={() => navigation.goBack()} />
     </ScreenScroll>
   );

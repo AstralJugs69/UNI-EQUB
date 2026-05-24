@@ -121,6 +121,7 @@ function MemberStack() {
       <Stack.Screen name={routes.transactionDetail} component={TransactionDetailScreen} />
       <Stack.Screen name={routes.withdraw} component={WithdrawScreen} />
       <Stack.Screen name={routes.profileEmail} component={ProfileEmailScreen} />
+      <Stack.Screen name={routes.emailVerify} component={EmailVerificationScreen} />
       <Stack.Screen name={routes.kyc} component={KycScreen} />
       <Stack.Screen name={routes.reset} component={ResetPasswordScreen} />
     </Stack.Navigator>
@@ -151,6 +152,7 @@ function AdminStack() {
 
 export function AppNavigator() {
   const { authReady, session } = useAuth();
+  const navigationKey = session ? `${session.user.role}:${session.user.userId}` : 'signed-out';
 
   React.useEffect(() => {
     if (session?.user.role === 'Member') {
@@ -162,5 +164,9 @@ export function AppNavigator() {
     return <LoadingScreen />;
   }
 
-  return <NavigationContainer ref={navigationRef} linking={linking}>{!session ? <AuthStack /> : session.user.role === 'Admin' ? <AdminStack /> : <MemberStack />}</NavigationContainer>;
+  return (
+    <NavigationContainer key={navigationKey} ref={navigationRef} linking={linking}>
+      {!session ? <AuthStack /> : session.user.role === 'Admin' ? <AdminStack /> : <MemberStack />}
+    </NavigationContainer>
+  );
 }

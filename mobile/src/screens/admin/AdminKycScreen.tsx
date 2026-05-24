@@ -65,7 +65,7 @@ function QueueCard({
       </View>
       <View style={adminStyles.kycQueueCardText}>
         <Text style={adminStyles.kycQueueName}>{item.user.Full_Name}</Text>
-        <Text style={adminStyles.kycQueueMeta}>{item.user.Phone_Number} · {docKind}</Text>
+        <Text style={adminStyles.kycQueueMeta}>{item.user.Phone_Number} - {docKind}</Text>
         <View style={adminStyles.kycQueueNoteRow}>
           <View style={adminStyles.kycQueueNoteDot} />
           <Text style={adminStyles.kycQueueNote} numberOfLines={1}>{item.note}</Text>
@@ -105,7 +105,7 @@ export function AdminKycScreen({ route }: any) {
           <Text style={adminStyles.kycQueueSubtitle}>Review student KYC submissions before approving, requesting resubmission, or banning an account.</Text>
         </View>
         <View style={adminStyles.kycQueuePendingPill}>
-          <Text style={adminStyles.kycQueuePendingText}>{data.length} pending</Text>
+          <Text style={adminStyles.kycQueuePendingText}>{filterCount(data, 'PendingReview')} pending</Text>
         </View>
       </View>
 

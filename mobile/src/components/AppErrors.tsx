@@ -42,8 +42,11 @@ export function friendlyErrorMessage(kind: ErrorKind, error: unknown) {
   if (lower.includes('otp')) {
     return 'The OTP could not be confirmed. Check the code and try again.';
   }
+  if (lower.includes('invalid email') && lower.includes('phone')) {
+    return 'Check your email or phone number and password, then try again.';
+  }
   if (lower.includes('password')) {
-    return kind === 'auth' ? 'Check the phone number and password, then try again.' : 'The password update could not be completed.';
+    return kind === 'auth' ? 'Check your email or phone number and password, then try again.' : 'The password update could not be completed.';
   }
   if (lower.includes('network') || lower.includes('fetch')) {
     return 'Connection failed. Check your internet connection and try again.';

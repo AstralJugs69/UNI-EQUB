@@ -241,6 +241,22 @@ select {
   gap: 14px;
 }
 
+.formGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 14px;
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.buttonRow button {
+  min-width: 220px;
+}
+
 .controlCard {
   display: grid;
   align-content: start;

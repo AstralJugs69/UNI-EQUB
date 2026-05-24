@@ -1,9 +1,11 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Icon } from '../../components/Icon';
 import { AppScreen, HeroCard, LoadingState, MetricTile, PrimaryCTA, SectionCard, StatusBanner, TopAppBar } from '../../components/ui';
 import { useDashboardQuery, useWalletQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
+import { iconSize, palette } from '../../theme/tokens';
 import { formatCurrency } from './shared';
 import { memberStyles } from './styles';
 
@@ -38,6 +40,24 @@ export function WalletScreen({ route }: any) {
           <MetricTile label="Clearance Path" value={data.defaultDestination} />
         </View>
       </SectionCard>
+      <SectionCard style={memberStyles.walletStateCard}>
+        <Text style={memberStyles.sectionTitle}>Payout release state</Text>
+        <View style={memberStyles.walletReleaseRow}>
+          <View style={[memberStyles.walletReleaseIcon, data.readyPayout > 0 && memberStyles.walletReleaseIconReady]}>
+            <Icon name={data.readyPayout > 0 ? 'payments' : 'lock-clock'} size={iconSize.md} color={data.readyPayout > 0 ? palette.success : palette.warning} />
+          </View>
+          <View style={memberStyles.walletReleaseText}>
+            <Text style={memberStyles.walletReleaseTitle}>{data.readyPayout > 0 ? 'Ready to withdraw' : data.reservedPayout > 0 ? 'Reserve still locked' : 'No payout scheduled'}</Text>
+            <Text style={memberStyles.walletReleaseBody}>
+              {data.readyPayout > 0
+                ? `${formatCurrency(data.readyPayout)} can be cleared now.`
+                : data.reservedPayout > 0
+                  ? `${data.pendingReserveReleases} scheduled release${data.pendingReserveReleases === 1 ? '' : 's'} remain before the reserve is fully available.`
+                  : 'Win a round to create a payout and release schedule.'}
+            </Text>
+          </View>
+        </View>
+      </SectionCard>
       {dashboard?.reliabilityProfile ? (
         <StatusBanner
           tone={dashboard.reliabilityProfile.public_status === 'Trusted' ? 'success' : dashboard.reliabilityProfile.public_status === 'Restricted' || dashboard.reliabilityProfile.public_status === 'Banned' ? 'danger' : 'info'}
@@ -45,13 +65,6 @@ export function WalletScreen({ route }: any) {
           body={`Completed groups: ${dashboard.reliabilityProfile.completed_groups_count}. Late payments: ${dashboard.reliabilityProfile.late_payment_count}. Defaults: ${dashboard.reliabilityProfile.default_count}.`}
         />
       ) : null}
-      {data.readyPayout > 0 ? (
-        <StatusBanner tone="success" title="Payout is ready." body="Only the released amount can be cleared now. Any reserved balance stays locked until future contribution obligations release it." />
-      ) : data.reservedPayout > 0 ? (
-        <StatusBanner tone="warning" title="Payout reserve is locked." body="Reserved payout is not withdrawable yet. It releases in scheduled parts after later successful contributions." />
-      ) : (
-        <StatusBanner tone="info" title="No payout available right now." body="This area becomes active only after a round draw selects you as winner." />
-      )}
       <PrimaryCTA label={data.readyPayout > 0 ? 'Withdraw Payout' : 'Nothing To Withdraw'} onPress={() => navigation.navigate(routes.withdraw)} disabled={data.readyPayout <= 0} />
     </AppScreen>
   );

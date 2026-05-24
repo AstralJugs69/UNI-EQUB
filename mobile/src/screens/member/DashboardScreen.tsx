@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
 import { AppScreen, EmptyState, HeroCard, ListRow, LoadingState, MetricTile, Pill, SecondaryCTA, SectionCard, StatusBanner } from '../../components/ui';
-import { useDashboardQuery } from '../../hooks/useAppQueries';
+import { useDashboardQuery, useGroupStatusQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
 import { iconSize, palette } from '../../theme/tokens';
@@ -61,6 +61,7 @@ export function DashboardScreen({ route }: any) {
   const { session } = useAuth();
   const { data } = useDashboardQuery();
   const group = data?.currentGroup;
+  const { data: groupStatus } = useGroupStatusQuery(group?.Group_ID ?? '');
   const recent = data?.recentTransactions?.[0];
 
   if (!session || !data) {
@@ -114,25 +115,77 @@ export function DashboardScreen({ route }: any) {
             </View>
           </SectionCard>
         ) : null}
-        <SectionCard>
-          <Text style={memberStyles.sectionTitle}>What happens next</Text>
-          <View style={memberStyles.listGroup}>
-            <ListRow title="Join an active Equb" subtitle="Browse currently approved groups and take an open slot." leadingIcon="group-add" />
-            <ListRow title="Create your own request" subtitle="Submit a verified group for admin approval and publication." leadingIcon="playlist-add-circle" />
-            <ListRow title="Track every contribution" subtitle="Your history, reminders, and payout state will appear here once you start participating." leadingIcon="insights" />
-          </View>
-        </SectionCard>
       </AppScreen>
     );
   }
 
-  const roundNumber = data.currentRound?.Round_Number ?? '-';
-  const progressPercent = data.totalMembers > 0 ? Math.round((data.paidCount / data.totalMembers) * 100) : 0;
-  const timeLeft = formatTimeLeft(data.contributionDeadlineAt);
+  const currentRound = groupStatus?.currentRound ?? data.currentRound;
+  const paidCount = groupStatus?.paidCount ?? data.paidCount;
+  const totalMembers = groupStatus?.totalMembers ?? data.totalMembers;
+  const contributionDeadlineAt = groupStatus?.contributionDeadlineAt ?? data.contributionDeadlineAt;
+  const roundNumber = currentRound?.Round_Number ?? '-';
+  const progressPercent = totalMembers > 0 ? Math.round((paidCount / totalMembers) * 100) : 0;
+  const timeLeft = formatTimeLeft(contributionDeadlineAt);
   const voteActive = !!data.activeResolutionPoll;
   const votesCast = data.activeResolutionPoll ? Object.values(data.activeResolutionPoll.voteCounts).reduce((sum, count) => sum + count, 0) : 0;
   const votePercent = data.activeResolutionPoll?.eligibleVoterCount ? Math.round((votesCast / data.activeResolutionPoll.eligibleVoterCount) * 100) : 0;
-  const cycleActive = group.Status === 'Active' && !!data.currentRound;
+  const cycleActive = group.Status === 'Active' && !!currentRound;
+  const frozen = groupStatus?.isFrozen || group.Status === 'Frozen';
+  const allPaidWaiting = cycleActive && paidCount === totalMembers && totalMembers > 0 && !groupStatus?.roundReadyForDraw && !groupStatus?.latestDraw;
+  const drawFinalizing = cycleActive && !!groupStatus?.roundReadyForDraw && !groupStatus?.latestDraw;
+  const alreadyPaid = cycleActive && groupStatus ? !groupStatus.canCurrentUserPay : false;
+  const completed = group.Status === 'Completed' || (!currentRound && group.Status !== 'Active' && group.Status !== 'Pending');
+  const heroPrimaryLabel = voteActive
+    ? 'Vote'
+    : frozen
+      ? 'View Status'
+      : completed
+        ? 'History'
+        : cycleActive
+          ? alreadyPaid
+            ? 'Already Paid'
+            : 'Pay'
+          : 'History';
+  const heroPrimaryIcon = voteActive
+    ? 'how-to-vote'
+    : frozen || alreadyPaid
+      ? 'task-alt'
+      : completed
+        ? 'receipt-long'
+        : cycleActive
+          ? 'account-balance-wallet'
+          : 'receipt-long';
+  const heroPrimaryTarget = () => {
+    if (voteActive) {
+      navigation.navigate(routes.resolutionVote, { groupId: group.Group_ID });
+      return;
+    }
+    if (cycleActive && !alreadyPaid && !frozen) {
+      navigation.navigate(routes.payment, { groupId: group.Group_ID });
+      return;
+    }
+    if (frozen || alreadyPaid) {
+      navigation.navigate(routes.groupStatus, { groupId: group.Group_ID });
+      return;
+    }
+    navigation.navigate(routes.memberTabs, { screen: routes.history });
+  };
+  const heroBody = voteActive
+    ? 'This round is now in voting. All eligible members must vote to resolve the round and move forward.'
+    : frozen
+      ? 'This Equb is paused for recovery review. Payments and draws stay locked until the case is resolved.'
+      : completed
+        ? 'This Equb cycle is complete. You can review past rounds, payouts, and contribution history.'
+        : drawFinalizing
+          ? 'All contributions are in. The winner draw is finalizing from the group cycle page.'
+          : allPaidWaiting
+            ? 'Everyone has paid. The draw waits for the contribution window to close.'
+            : cycleActive
+              ? alreadyPaid
+                ? 'Your contribution is recorded. Track the remaining time and group progress until the draw opens.'
+                : `${group.Group_Name} is at ${paidCount}/${totalMembers} paid. Your contribution keeps the round moving.`
+              : `${group.Group_Name} has no open round. Review your history or open another active group.`;
+  const detailLabel = voteActive ? 'Details' : frozen ? 'Review' : completed ? 'Groups' : 'Details';
 
   return (
     <AppScreen>
@@ -162,22 +215,20 @@ export function DashboardScreen({ route }: any) {
         </View>
         <Text style={memberStyles.dashboardHeroAmount}>{formatCurrency(group.Amount)}</Text>
         <Text style={memberStyles.dashboardHeroBody}>
-          {voteActive
-            ? <>This round is now in voting. All eligible members must vote to resolve the round and move forward.</>
-            : cycleActive
-            ? <>{group.Group_Name} is at <Text style={memberStyles.dashboardHeroBodyStrong}>{data.paidCount}/{data.totalMembers}</Text> paid. Your contribution is the fastest way to push the round forward.</>
-            : <>{group.Group_Name} has no open round. Review your history or open another active group.</>}
+          {cycleActive && !voteActive && !frozen && !completed && !drawFinalizing && !allPaidWaiting && !alreadyPaid
+            ? <>{group.Group_Name} is at <Text style={memberStyles.dashboardHeroBodyStrong}>{paidCount}/{totalMembers}</Text> paid. Your contribution keeps the round moving.</>
+            : heroBody}
         </Text>
         <View style={memberStyles.dashboardHeroActions}>
           {voteActive ? (
             <>
               <Pressable
                 accessibilityRole="button"
-                onPress={() => navigation.navigate(routes.resolutionVote, { groupId: group.Group_ID })}
+                onPress={heroPrimaryTarget}
                 style={memberStyles.heroPayButton}
               >
-                <Icon name="how-to-vote" size={iconSize.md} color={palette.primary} />
-                <Text style={memberStyles.heroPayButtonText}>Vote</Text>
+                <Icon name={heroPrimaryIcon} size={iconSize.md} color={palette.primary} />
+                <Text style={memberStyles.heroPayButtonText}>{heroPrimaryLabel}</Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -188,15 +239,15 @@ export function DashboardScreen({ route }: any) {
                 <Text style={memberStyles.heroDetailsButtonText}>Details</Text>
               </Pressable>
             </>
-          ) : cycleActive ? (
+          ) : cycleActive || frozen ? (
             <>
               <Pressable
                 accessibilityRole="button"
-                onPress={() => navigation.navigate(routes.payment, { groupId: group.Group_ID })}
+                onPress={heroPrimaryTarget}
                 style={memberStyles.heroPayButton}
               >
-                <Icon name="account-balance-wallet" size={iconSize.md} color={palette.primary} />
-                <Text style={memberStyles.heroPayButtonText}>Pay</Text>
+                <Icon name={heroPrimaryIcon} size={iconSize.md} color={palette.primary} />
+                <Text style={memberStyles.heroPayButtonText}>{heroPrimaryLabel}</Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -204,7 +255,7 @@ export function DashboardScreen({ route }: any) {
                 style={memberStyles.heroDetailsButton}
               >
                 <Icon name="description" size={iconSize.md} color={palette.white} />
-                <Text style={memberStyles.heroDetailsButtonText}>Details</Text>
+                <Text style={memberStyles.heroDetailsButtonText}>{detailLabel}</Text>
               </Pressable>
             </>
           ) : (
@@ -231,13 +282,20 @@ export function DashboardScreen({ route }: any) {
         <View style={memberStyles.dashboardHeroDivider} />
         <View style={memberStyles.dashboardHeroDetailRow}>
           <View style={memberStyles.dashboardHeroIcon}>
-            <Icon name="calendar-month" size={iconSize.md} color={palette.primaryDark} />
+            <Icon name="schedule" size={iconSize.md} color={palette.primaryDark} />
           </View>
           <View style={memberStyles.dashboardHeroDetailText}>
-            <Text style={memberStyles.dashboardHeroDetailTitle}>Cycle</Text>
-            <Text style={memberStyles.dashboardHeroDetailBody}>{voteActive ? 'Weekly voting cycle' : timeLeft}</Text>
+            <Text style={memberStyles.dashboardHeroDetailTitle}>Time left</Text>
+            <Text style={memberStyles.dashboardHeroDetailBody}>
+              {voteActive
+                ? formatTimeLeft(data.activeResolutionPoll?.poll.closes_at)
+                : frozen
+                  ? 'Paused for review'
+                  : completed
+                    ? 'Cycle complete'
+                    : timeLeft}
+            </Text>
           </View>
-          <Icon name="chevron-right" size={iconSize.md} color="rgba(255,255,255,0.86)" />
         </View>
         <View style={memberStyles.dashboardHeroDetailRow}>
           <View style={memberStyles.dashboardHeroIcon}>
@@ -247,8 +305,10 @@ export function DashboardScreen({ route }: any) {
             <Text style={memberStyles.dashboardHeroDetailTitle}>Progress</Text>
             <Text style={memberStyles.dashboardHeroDetailBody}>
               {voteActive
-                ? `${votesCast} of ${data.activeResolutionPoll?.eligibleVoterCount ?? data.totalMembers} members have voted`
-                : `${data.paidCount} of ${data.totalMembers} members verified this round`}
+                ? `${votesCast} of ${data.activeResolutionPoll?.eligibleVoterCount ?? totalMembers} members have voted`
+                : completed
+                  ? 'All cycle rounds are complete'
+                  : `${paidCount} of ${totalMembers} members verified this round`}
             </Text>
           </View>
           <View style={memberStyles.dashboardProgressPill}>

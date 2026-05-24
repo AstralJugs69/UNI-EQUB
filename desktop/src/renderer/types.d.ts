@@ -62,6 +62,7 @@ export interface UserRecord {
   Full_Name: string;
   Phone_Number: string;
   KYC_Status: string;
+  Role?: string;
 }
 
 export interface ContributionObligationRecord {
@@ -83,6 +84,10 @@ export interface SimulationSnapshot {
   users: UserRecord[];
   obligations: ContributionObligationRecord[];
   transactions: Array<Record<string, unknown>>;
+  groupRequests: Array<Record<string, unknown>>;
+  joinRequests: Array<Record<string, unknown>>;
+  freezeEvents: Array<Record<string, unknown>>;
+  resolutionPolls: Array<Record<string, unknown>>;
   events: Array<{ id: string; commandType: string; createdAt: string; metadata: Record<string, unknown> }>;
 }
 

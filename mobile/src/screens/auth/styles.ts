@@ -60,6 +60,18 @@ export const authStyles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  kycPreviewFrame: {
+    height: 142,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.surfaceSoft,
+  },
+  kycPreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
   kycActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -215,12 +227,10 @@ export const authStyles = StyleSheet.create({
     color: palette.primary,
   },
   loginFormCard: {
-    minHeight: 232,
     borderRadius: radii.xl,
     backgroundColor: palette.surface,
     padding: spacing.lg,
-    paddingBottom: spacing.xl,
-    gap: spacing.lg,
+    gap: spacing.md,
     borderWidth: 1,
     borderColor: palette.border,
     shadowColor: palette.shadow,
@@ -263,7 +273,7 @@ export const authStyles = StyleSheet.create({
     fontWeight: '900',
   },
   loginInputWrap: {
-    flex: 1,
+    width: '100%',
     minHeight: 52,
     borderRadius: radii.md,
     borderWidth: 1,

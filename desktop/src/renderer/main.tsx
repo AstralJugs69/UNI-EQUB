@@ -13,6 +13,10 @@ const emptySnapshot: SimulationSnapshot = {
   users: [],
   obligations: [],
   transactions: [],
+  groupRequests: [],
+  joinRequests: [],
+  freezeEvents: [],
+  resolutionPolls: [],
   events: [],
 };
 
@@ -32,6 +36,10 @@ function unwrapSnapshotResponse(value: unknown): SimulationSnapshot {
     users: Array.isArray(candidate.users) ? candidate.users as UserRecord[] : [],
     obligations: Array.isArray(candidate.obligations) ? candidate.obligations as ContributionObligationRecord[] : [],
     transactions: Array.isArray(candidate.transactions) ? candidate.transactions as Array<Record<string, unknown>> : [],
+    groupRequests: Array.isArray(candidate.groupRequests) ? candidate.groupRequests as Array<Record<string, unknown>> : [],
+    joinRequests: Array.isArray(candidate.joinRequests) ? candidate.joinRequests as Array<Record<string, unknown>> : [],
+    freezeEvents: Array.isArray(candidate.freezeEvents) ? candidate.freezeEvents as Array<Record<string, unknown>> : [],
+    resolutionPolls: Array.isArray(candidate.resolutionPolls) ? candidate.resolutionPolls as Array<Record<string, unknown>> : [],
     events: Array.isArray(candidate.events) ? candidate.events as SimulationSnapshot['events'] : [],
   };
 }
@@ -154,6 +162,10 @@ function App() {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [drawSeed, setDrawSeed] = useState('');
   const [skipDays, setSkipDays] = useState(1);
+  const [formName, setFormName] = useState('Controller Demo Equb');
+  const [formAmount, setFormAmount] = useState(650);
+  const [formMaxMembers, setFormMaxMembers] = useState(5);
+  const [formFrequency, setFormFrequency] = useState('Weekly');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [adminToken, setAdminToken] = useState('');
@@ -167,6 +179,8 @@ function App() {
   const members = useMemo(() => selectedGroup ? groupMembers(snapshot, selectedGroup.Group_ID) : [], [selectedGroup, snapshot]);
   const obligations = useMemo(() => roundObligations(snapshot, round), [round, snapshot]);
   const selectedUser = selectedUserId || members[0]?.User_ID || '';
+  const selectableMembers = useMemo(() => snapshot?.users.filter(user => user.Role === 'Member' && user.KYC_Status === 'Verified') ?? [], [snapshot?.users]);
+  const selectedGroupIsActive = selectedGroup?.Status === 'Active';
   const paidCount = obligations.filter(obligation => ['Paid', 'Waived', 'RefundPending'].includes(obligation.status)).length;
   const deadline = firstDeadline(obligations);
 
@@ -250,26 +264,31 @@ function App() {
   }
 
   async function runAction(action: string, extra: Record<string, unknown> = {}) {
-    if (!adminToken || !selectedGroup) {
-      appendLog('Select an active group and sign in as admin first.');
+    const needsGroup = !['formActiveGroup', 'formJoinWindowGroup'].includes(action);
+    if (!adminToken || (needsGroup && !selectedGroup)) {
+      appendLog(needsGroup ? 'Select a group and sign in as admin first.' : 'Sign in as admin first.');
       return;
     }
     setBusy(true);
     try {
       const command = makeCommand('BackendLifecycle', {
         action,
-        groupId: selectedGroup.Group_ID,
+        ...(selectedGroup ? { groupId: selectedGroup.Group_ID } : {}),
         entityType: 'EqubGroup',
-        entityId: selectedGroup.Group_ID,
+        ...(selectedGroup ? { entityId: selectedGroup.Group_ID } : {}),
         ...extra,
       });
       const response = unwrapResultResponse(await window.uniequbController.runBackendCommand(adminToken, command));
       setSnapshot(response.snapshot ?? snapshot);
       appendLog(response.message);
-      await refreshApp(selectedGroup.Group_ID);
+      if (selectedGroup) {
+        await refreshApp(selectedGroup.Group_ID);
+      }
     } catch (error) {
       appendLog(`Action failed: ${error instanceof Error ? error.message : String(error)}`);
-      await refreshApp(selectedGroup.Group_ID);
+      if (selectedGroup) {
+        await refreshApp(selectedGroup.Group_ID);
+      }
     } finally {
       setBusy(false);
     }
@@ -279,9 +298,9 @@ function App() {
     <main className="shell">
       <section className="hero">
         <div>
-          <p className="eyebrow">Active-group lifecycle controller</p>
+          <p className="eyebrow">High-authority lifecycle controller</p>
           <h1>UniEqub Simulation Control</h1>
-          <p>Operate active Equb groups, record simulated contributions, advance due dates, and refresh connected Android devices through ADB.</p>
+          <p>Form, activate, freeze, poll, disband, and manipulate Equb groups while connected Android devices reload from database truth through ADB.</p>
         </div>
         <button onClick={() => refreshSnapshot()} disabled={!adminToken || busy}>Refresh Groups</button>
       </section>
@@ -322,8 +341,8 @@ function App() {
 
         <div className="panel wide">
           <div className="panelHeader">
-            <h2>Active groups</h2>
-            <span>{snapshot?.groups.length ?? 0} active</span>
+            <h2>Groups</h2>
+            <span>{snapshot?.groups.length ?? 0} total</span>
           </div>
           <div className="groupGrid">
             {snapshot?.groups.length ? snapshot.groups.map((group: GroupRecord) => {
@@ -334,10 +353,44 @@ function App() {
                 <button key={group.Group_ID} className={`groupCard ${selectedGroup?.Group_ID === group.Group_ID ? 'selected' : ''}`} onClick={() => setSelectedGroupId(group.Group_ID)}>
                   <strong>{group.Group_Name}</strong>
                   <span>{formatMoney(group.Amount)} - {group.Frequency}</span>
-                  <em>{groupPaidCount}/{groupObligations.length || group.Max_Members} paid - {timeLeft(firstDeadline(groupObligations))}</em>
+                  <em>{group.Status} - {groupPaidCount}/{groupObligations.length || group.Max_Members} paid - {timeLeft(firstDeadline(groupObligations))}</em>
                 </button>
               );
-            }) : <p className="empty">No active groups found. The simulator intentionally ignores forming, frozen, rejected, and completed groups.</p>}
+            }) : <p className="empty">No groups found. Use the controller formation panel or the seeding engine to create one.</p>}
+          </div>
+        </div>
+
+        <div className="panel wide controlDeck">
+          <div className="panelHeader">
+            <h2>Formation authority</h2>
+            <span>{selectableMembers.length} verified member(s)</span>
+          </div>
+          <div className="formGrid">
+            <label>
+              Group name
+              <input value={formName} onChange={event => setFormName(event.target.value)} />
+            </label>
+            <label>
+              Contribution
+              <input type="number" min={1} value={formAmount} onChange={event => setFormAmount(Number(event.target.value))} />
+            </label>
+            <label>
+              Max members
+              <input type="number" min={2} max={20} value={formMaxMembers} onChange={event => setFormMaxMembers(Number(event.target.value))} />
+            </label>
+            <label>
+              Frequency
+              <select value={formFrequency} onChange={event => setFormFrequency(event.target.value)}>
+                <option>Daily</option>
+                <option>Weekly</option>
+                <option>Bi-weekly</option>
+                <option>Monthly</option>
+              </select>
+            </label>
+          </div>
+          <div className="buttonRow">
+            <button onClick={() => runAction('formActiveGroup', { groupName: formName, amount: formAmount, maxMembers: formMaxMembers, frequency: formFrequency })} disabled={busy || selectableMembers.length < 2}>Form Active Group</button>
+            <button className="secondary" onClick={() => runAction('formJoinWindowGroup', { groupName: formName, amount: formAmount, maxMembers: formMaxMembers, frequency: formFrequency })} disabled={busy || selectableMembers.length < 2}>Form Join-Window Group</button>
           </div>
         </div>
 
@@ -370,9 +423,9 @@ function App() {
               ))}
             </select>
           </label>
-          <button onClick={() => runAction('createTestPayment', { userId: selectedUser, method: 'Simulation' })} disabled={!selectedUser || busy}>Pay For Member</button>
-          <button className="secondary" onClick={() => runAction('payAllMembers', { method: 'SimulationBatch' })} disabled={!members.length || busy}>Pay Everyone</button>
-          <button className="secondary" onClick={() => runAction('payAllMembersAndContinue', { method: 'SimulationBatch' })} disabled={!members.length || busy}>Pay Everyone + Draw</button>
+          <button onClick={() => runAction('createTestPayment', { userId: selectedUser, method: 'Simulation' })} disabled={!selectedGroupIsActive || !selectedUser || busy}>Pay For Member</button>
+          <button className="secondary" onClick={() => runAction('payAllMembers', { method: 'SimulationBatch' })} disabled={!selectedGroupIsActive || !members.length || busy}>Pay Everyone</button>
+          <button className="secondary" onClick={() => runAction('payAllMembersAndContinue', { method: 'SimulationBatch' })} disabled={!selectedGroupIsActive || !members.length || busy}>Pay Everyone + Draw</button>
           <button className="dangerGhost" onClick={() => runAction('removeMember', { userId: selectedUser })} disabled={!selectedUser || busy}>Remove Member</button>
         </div>
 
@@ -388,38 +441,53 @@ function App() {
               <option value={2}>2 days</option>
             </select>
           </label>
-          <button onClick={() => runAction('skipTime', { days: skipDays })} disabled={busy}>Skip Time</button>
+          <button onClick={() => runAction('skipTime', { days: skipDays })} disabled={!selectedGroupIsActive || busy}>Skip Time</button>
           <label>
             Draw winning seed
             <input value={drawSeed} onChange={event => setDrawSeed(event.target.value)} placeholder="Seed / witness note" />
           </label>
-          <button className="secondary" onClick={() => runAction('recordDrawSeed', { drawSeed })} disabled={busy || !drawSeed}>Record Draw Seed</button>
-          <button className="secondary" onClick={() => runAction('finalizeRound', { drawSeed, winnerUserId: selectedUser || undefined })} disabled={busy || !selectedUser}>Finalize With Winner</button>
+          <button className="secondary" onClick={() => runAction('recordDrawSeed', { drawSeed })} disabled={!selectedGroupIsActive || busy || !drawSeed}>Record Draw Seed</button>
+          <button className="secondary" onClick={() => runAction('finalizeRound', { drawSeed, winnerUserId: selectedUser || undefined })} disabled={!selectedGroupIsActive || busy || !selectedUser}>Finalize With Winner</button>
         </div>
 
         <div className="panel wide controlDeck">
           <div className="panelHeader">
-            <h2>High-authority active group controls</h2>
+            <h2>High-authority group controls</h2>
             <span>database-backed</span>
           </div>
           <div className="controlGrid">
             <div className="controlCard">
+              <h3>State override</h3>
+              <p>Force the selected group through major lifecycle states without going through member/admin screens.</p>
+              <button onClick={() => runAction('activateGroupNow')} disabled={!selectedGroup || busy}>Activate Now</button>
+              <button className="secondary" onClick={() => runAction('freezeGroup')} disabled={!selectedGroup || busy}>Freeze Group</button>
+              <button className="dangerGhost" onClick={() => runAction('disbandGroup')} disabled={!selectedGroup || busy}>Disband + Refund Tickets</button>
+            </div>
+            <div className="controlCard">
               <h3>Batch contribution paths</h3>
               <p>Use these to put a whole active group into realistic payment states without tapping through every phone.</p>
-              <button onClick={() => runAction('payAllMembers', { method: 'SimulationBatch' })} disabled={!members.length || busy}>Pay Everyone</button>
-              <button onClick={() => runAction('payAllMembersAndContinue', { method: 'SimulationBatch' })} disabled={!members.length || busy}>Pay Everyone And Continue Draw</button>
+              <button onClick={() => runAction('payAllMembers', { method: 'SimulationBatch' })} disabled={!selectedGroupIsActive || !members.length || busy}>Pay Everyone</button>
+              <button onClick={() => runAction('payAllMembersAndContinue', { method: 'SimulationBatch' })} disabled={!selectedGroupIsActive || !members.length || busy}>Pay Everyone And Continue Draw</button>
             </div>
             <div className="controlCard">
               <h3>Hold one member back</h3>
               <p>Pay everyone except the selected member, then optionally open their grace period so late/default handling can be tested.</p>
-              <button onClick={() => runAction('payAllExceptMember', { userId: selectedUser, method: 'SimulationBatch' })} disabled={!selectedUser || busy}>Pay All Except Selected</button>
-              <button onClick={() => runAction('payAllExceptMemberAndContinue', { userId: selectedUser, method: 'SimulationBatch' })} disabled={!selectedUser || busy}>Pay All Except Selected + Start Grace</button>
+              <button onClick={() => runAction('payAllExceptMember', { userId: selectedUser, method: 'SimulationBatch' })} disabled={!selectedGroupIsActive || !selectedUser || busy}>Pay All Except Selected</button>
+              <button onClick={() => runAction('payAllExceptMemberAndContinue', { userId: selectedUser, method: 'SimulationBatch' })} disabled={!selectedGroupIsActive || !selectedUser || busy}>Pay All Except Selected + Start Grace</button>
+            </div>
+            <div className="controlCard">
+              <h3>Polling and recovery</h3>
+              <p>Jump straight into a frozen-group vote, close it, or resolve a frozen case from the controller.</p>
+              <button onClick={() => runAction('forceResolutionPoll')} disabled={!selectedGroup || busy}>Freeze + Open Poll</button>
+              <button className="secondary" onClick={() => runAction('closeResolutionPoll')} disabled={!selectedGroup || busy}>Close Open Poll</button>
+              <button className="secondary" onClick={() => runAction('resumeFrozenGroup')} disabled={!selectedGroup || busy}>Resume Frozen Group</button>
+              <button className="dangerGhost" onClick={() => runAction('resolveFreezeRefund')} disabled={!selectedGroup || busy}>Resolve With Refund</button>
             </div>
             <div className="controlCard">
               <h3>Deadline and recovery</h3>
               <p>Push unpaid members into late/default states and let the app reload from the refreshed source-of-truth snapshot.</p>
-              <button onClick={() => runAction('markRoundUnpaidLate')} disabled={!round || busy}>Mark Unpaid Late</button>
-              <button onClick={() => runAction('defaultSelectedMember', { userId: selectedUser })} disabled={!selectedUser || busy}>Default Selected Now</button>
+              <button onClick={() => runAction('markRoundUnpaidLate')} disabled={!selectedGroupIsActive || !round || busy}>Mark Unpaid Late</button>
+              <button onClick={() => runAction('defaultSelectedMember', { userId: selectedUser })} disabled={!selectedGroupIsActive || !selectedUser || busy}>Default Selected Now</button>
               <button className="secondary" onClick={() => runAction('processContributionDeadlines')} disabled={busy}>Run Deadline Sweep</button>
             </div>
           </div>

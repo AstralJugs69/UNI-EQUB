@@ -126,7 +126,7 @@ export function CreateGroupRulesScreen({ route }: any) {
 
   return (
     <ScreenScroll>
-      <TopAppBar title="Create New Equb" subtitle="Step 2 of 2" onBack={() => navigation.goBack()} />
+      <TopAppBar title="Finalize Request" subtitle="Step 2 of 2" onBack={() => navigation.goBack()} />
       <CreationProgress />
       <View style={memberStyles.previewHeroCard}>
         <View style={memberStyles.previewHeroTitleRow}>
@@ -135,7 +135,7 @@ export function CreateGroupRulesScreen({ route }: any) {
             <Icon name="rule" size={iconSize.md} color={palette.primary} />
           </View>
         </View>
-        <Text style={memberStyles.previewHeroBody}>Set the rules members see before they request to join. The group enters admin review first, then opens a join window before contributions begin.</Text>
+        <Text style={memberStyles.previewHeroBody}>Confirm the rules members see before joining. After you create the request, you will manage participant acceptance from My Forming Group.</Text>
         <View style={memberStyles.metricsGrid}>
           <MetricTile label="Contribution" value={formatCurrency(amount)} />
           <MetricTile label="First Pot" value={formatCurrency(firstCyclePot)} helper={`${maxMembers} members`} tone="active" />

@@ -519,16 +519,17 @@ function PayRoundButton({
   onPress: () => void;
 }) {
   const label = alreadyPaid ? 'Already Paid This Round' : disabled ? 'Payment Not Available' : 'Pay This Round';
+  const blocked = disabled && !alreadyPaid;
   return (
     <Pressable
       accessibilityRole="button"
-      disabled={disabled}
+      disabled={blocked || alreadyPaid}
       onPress={onPress}
-      style={[memberStyles.groupCyclePayButton, disabled && memberStyles.groupCyclePayButtonDisabled]}
+      style={[memberStyles.groupCyclePayButton, blocked && memberStyles.groupCyclePayButtonDisabled, alreadyPaid && memberStyles.groupCyclePayButtonPaid]}
     >
       <Icon name={alreadyPaid ? 'check-circle' : 'account-balance-wallet'} size={iconSize.md} color={palette.white} />
       <Text style={memberStyles.groupCyclePayButtonText}>{label}</Text>
-      <Icon name={alreadyPaid ? 'lock' : 'chevron-right'} size={iconSize.md} color={palette.white} />
+      <Icon name={alreadyPaid ? 'task-alt' : 'chevron-right'} size={iconSize.md} color={palette.white} />
     </Pressable>
   );
 }
@@ -750,7 +751,6 @@ export function GroupStatusScreen({ route }: any) {
                   <Text style={memberStyles.winnerHistoryRound}>Round {item.roundNumber}</Text>
                   <Text style={memberStyles.winnerHistoryName}>{item.winnerName}</Text>
                 </View>
-                <Icon name="chevron-right" size={iconSize.md} color={palette.textSoft} />
               </View>
             ))}
           </View>

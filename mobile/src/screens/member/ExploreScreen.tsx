@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
-import { AppScreen, InlineError, SectionCard } from '../../components/ui';
+import { AppScreen, InlineError, SectionCard, StatusBanner } from '../../components/ui';
 import { useFormationGroupsQuery, useGroupsQuery, useMyFormationGroupsQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { iconSize, palette } from '../../theme/tokens';
@@ -10,8 +10,9 @@ import type { GroupRecord } from '../../types/domain';
 import { ExploreSmallPill, FormingRequestCard } from './FormingRequestCard';
 import { formatCurrency } from './shared';
 import { memberStyles } from './styles';
+import { browseableJoinWindowGroups } from './uxState';
 
-function ExploreHero({ onJoinCode, onCreate }: { onJoinCode: () => void; onCreate: () => void }) {
+function ExploreHero({ onJoinCode, onCreate, onBrowse }: { onJoinCode: () => void; onCreate: () => void; onBrowse: () => void }) {
   return (
     <View style={memberStyles.exploreHeroCard}>
       <View pointerEvents="none" style={memberStyles.exploreHeroArt}>
@@ -30,7 +31,7 @@ function ExploreHero({ onJoinCode, onCreate }: { onJoinCode: () => void; onCreat
         <Icon name="group-add" size={iconSize.md} color={palette.primary} />
       </View>
       <Text style={memberStyles.exploreHeroTitle}>Form or join an Equb</Text>
-      <Text style={memberStyles.exploreHeroBody}>Use an invite code, create a forming group, or browse approved groups.</Text>
+      <Text style={memberStyles.exploreHeroBody}>Create a request, use a private invite, or join an approved group before its first cycle starts.</Text>
       <View style={memberStyles.exploreHeroActions}>
         <Pressable accessibilityRole="button" onPress={onJoinCode} style={memberStyles.explorePrimaryAction}>
           <Icon name="key" size={iconSize.md} color={palette.white} />
@@ -39,6 +40,10 @@ function ExploreHero({ onJoinCode, onCreate }: { onJoinCode: () => void; onCreat
         <Pressable accessibilityRole="button" onPress={onCreate} style={memberStyles.exploreSecondaryAction}>
           <Icon name="add-circle" size={iconSize.md} color={palette.primary} />
           <Text style={memberStyles.exploreSecondaryActionText}>Create Equb</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={onBrowse} style={memberStyles.exploreSecondaryAction}>
+          <Icon name="travel-explore" size={iconSize.md} color={palette.primary} />
+          <Text style={memberStyles.exploreSecondaryActionText}>Browse Join Windows</Text>
         </Pressable>
       </View>
     </View>
@@ -98,6 +103,8 @@ export function ExploreScreen() {
   const { data = [] } = useGroupsQuery();
   const { data: formingGroups = [], error: formingError } = useFormationGroupsQuery();
   const { data: myRequests = [], error: myRequestsError } = useMyFormationGroupsQuery();
+  const [browseHintVisible, setBrowseHintVisible] = React.useState(false);
+  const joinWindowGroups = browseableJoinWindowGroups(data);
 
   return (
     <AppScreen>
@@ -105,7 +112,11 @@ export function ExploreScreen() {
       <ExploreHero
         onJoinCode={() => navigation.navigate(routes.formationJoinCode)}
         onCreate={() => navigation.navigate(routes.createBasics)}
+        onBrowse={() => setBrowseHintVisible(true)}
       />
+      {browseHintVisible ? (
+        <StatusBanner tone="info" title="Browse join windows below" body="Only groups that have not started contributions appear in this section." />
+      ) : null}
       <SectionCard style={memberStyles.exploreFormingPanel}>
         <Text style={memberStyles.exploreSectionTitle}>My requests</Text>
         <InlineError message={myRequestsError instanceof Error ? myRequestsError.message : ''} />
@@ -143,18 +154,18 @@ export function ExploreScreen() {
           </View>
         )}
       </SectionCard>
-      <Text style={memberStyles.exploreSectionHeading}>Approved groups</Text>
-      {!data.length ? (
+      <Text style={memberStyles.exploreSectionHeading}>Join windows</Text>
+      {!joinWindowGroups.length ? (
         <View style={memberStyles.exploreEmptyCard}>
           <View style={memberStyles.exploreEmptyIcon}>
             <Icon name="travel-explore" size={32} color={palette.primary} />
           </View>
-          <Text style={memberStyles.exploreEmptyTitle}>No open groups right now</Text>
-          <Text style={memberStyles.exploreEmptyBody}>When admins approve new Equbs, they will appear here for members to review and join.</Text>
+          <Text style={memberStyles.exploreEmptyTitle}>No join windows open</Text>
+          <Text style={memberStyles.exploreEmptyBody}>Approved groups appear here only before their contribution cycle starts. Active cycles stay locked to their current members.</Text>
         </View>
       ) : (
         <View style={memberStyles.exploreCardList}>
-          {data.map(group => (
+          {joinWindowGroups.map(group => (
             <ApprovedGroupCard
               key={group.Group_ID}
               group={group}

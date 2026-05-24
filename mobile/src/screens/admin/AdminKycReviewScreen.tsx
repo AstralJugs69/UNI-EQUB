@@ -23,7 +23,7 @@ function formatDateTime(value?: string | null) {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} · ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  return `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} - ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 function documentImageUri(document?: KycDocumentRecord | null) {
@@ -216,7 +216,7 @@ export function AdminKycReviewScreen({ route }: any) {
             <Text style={adminStyles.kycReviewSectionTitle}>Documents</Text>
             <Text style={adminStyles.kycReviewSectionBody}>Review the submitted KYC references before making a decision.</Text>
           </View>
-          <Text style={adminStyles.kycReviewDocumentCount}>{documents.length || (legacyDocument ? 1 : 0)} document</Text>
+          <Text style={adminStyles.kycReviewDocumentCount}>{documents.length || (legacyDocument ? 1 : 0)} document{(documents.length || (legacyDocument ? 1 : 0)) === 1 ? '' : 's'}</Text>
         </View>
         <View style={adminStyles.kycImageGrid}>
           {documentSlots.map(slot => {

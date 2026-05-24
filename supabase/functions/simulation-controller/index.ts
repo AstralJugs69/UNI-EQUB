@@ -9,10 +9,13 @@ import {
   markContributionObligationPaid,
   processDueContributionObligations,
 } from '../_shared/obligations.ts';
+import { activateApprovedGroup } from '../_shared/groupActivation.ts';
+import { freezeGroupForAdminReview, resolveOpenGroupFreeze } from '../_shared/groupFreeze.ts';
+import { closeResolutionPollIfReady, createFrozenGroupResolutionPoll } from '../_shared/groupResolution.ts';
 import { finalizeRoundIfReady } from '../_shared/roundLifecycle.ts';
 import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import type { ContributionObligationRecord, GroupRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
+import type { ContributionObligationRecord, GroupRecord, MembershipRecord, RefundTicketRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -68,32 +71,37 @@ async function snapshot() {
     { data: memberships, error: membershipsError },
     { data: transactions, error: transactionsError },
     { data: events, error: eventsError },
+    { data: groupRequests, error: groupRequestsError },
+    { data: joinRequests, error: joinRequestsError },
+    { data: freezeEvents, error: freezeEventsError },
+    { data: resolutionPolls, error: resolutionPollsError },
   ] = await Promise.all([
-    supabaseAdmin.from('EqubGroup').select('*').eq('Status', 'Active').order('Start_Date', { ascending: false }),
+    supabaseAdmin.from('EqubGroup').select('*').order('Start_Date', { ascending: false, nullsFirst: false }),
     supabaseAdmin.from('Round').select('*').order('Round_Number', { ascending: true }),
     supabaseAdmin.from('GroupMembers').select('*').order('Joined_At', { ascending: false }),
     supabaseAdmin.from('Transaction').select('*').order('Date', { ascending: false }).limit(100),
     supabaseAdmin.from('simulation_events').select('*').order('created_at', { ascending: false }).limit(50),
+    supabaseAdmin.from('group_requests').select('*').order('created_at', { ascending: false }).limit(100),
+    supabaseAdmin.from('group_join_requests').select('*').order('requested_at', { ascending: false }).limit(200),
+    supabaseAdmin.from('group_freeze_events').select('*').order('created_at', { ascending: false }).limit(100),
+    supabaseAdmin.from('group_resolution_polls').select('*').order('created_at', { ascending: false }).limit(100),
   ]);
-  for (const error of [groupsError, roundsError, membershipsError, transactionsError, eventsError]) {
+  for (const error of [groupsError, roundsError, membershipsError, transactionsError, eventsError, groupRequestsError, joinRequestsError, freezeEventsError, resolutionPollsError]) {
     if (error) {
       throw error;
     }
   }
 
-  const activeGroups = (groups ?? []) as GroupRecord[];
-  const activeGroupIds = activeGroups.map(group => group.Group_ID);
-  const activeRounds = ((rounds ?? []) as RoundRecord[]).filter(round => activeGroupIds.includes(round.Group_ID));
-  const activeRoundIds = activeRounds.map(round => round.Round_ID);
-  const activeMemberships = ((memberships ?? []) as MembershipRecord[]).filter(membership => activeGroupIds.includes(membership.Group_ID) && membership.Status === 'Active');
-  const userIds = Array.from(new Set(activeMemberships.map(item => item.User_ID)));
+  const allGroups = (groups ?? []) as GroupRecord[];
+  const groupIds = allGroups.map(group => group.Group_ID);
+  const visibleRounds = ((rounds ?? []) as RoundRecord[]).filter(round => groupIds.includes(round.Group_ID));
+  const visibleRoundIds = visibleRounds.map(round => round.Round_ID);
+  const visibleMemberships = ((memberships ?? []) as MembershipRecord[]).filter(membership => groupIds.includes(membership.Group_ID));
 
   const [{ data: users, error: usersError }, { data: obligations, error: obligationsError }] = await Promise.all([
-    userIds.length
-      ? supabaseAdmin.from('User').select('User_ID, Full_Name, Phone_Number, KYC_Status, Role, Created_At').in('User_ID', userIds)
-      : Promise.resolve({ data: [], error: null }),
-    activeGroupIds.length
-      ? supabaseAdmin.from('contribution_obligations').select('*').in('group_id', activeGroupIds).order('created_at', { ascending: false })
+    supabaseAdmin.from('User').select('User_ID, Full_Name, Phone_Number, KYC_Status, Role, Created_At').order('Created_At', { ascending: false }).limit(200),
+    groupIds.length
+      ? supabaseAdmin.from('contribution_obligations').select('*').in('group_id', groupIds).order('created_at', { ascending: false })
       : Promise.resolve({ data: [], error: null }),
   ]);
   for (const error of [usersError, obligationsError]) {
@@ -104,12 +112,16 @@ async function snapshot() {
 
   return {
     generatedAt: new Date().toISOString(),
-    groups: activeGroups,
-    rounds: activeRounds,
-    memberships: activeMemberships,
+    groups: allGroups,
+    rounds: visibleRounds,
+    memberships: visibleMemberships,
     users: users ?? [],
     obligations: (obligations ?? []) as ContributionObligationRecord[],
-    transactions: ((transactions ?? []) as TransactionRecord[]).filter(transaction => activeRoundIds.includes(transaction.Round_ID)),
+    transactions: ((transactions ?? []) as TransactionRecord[]).filter(transaction => visibleRoundIds.includes(transaction.Round_ID)),
+    groupRequests: groupRequests ?? [],
+    joinRequests: joinRequests ?? [],
+    freezeEvents: freezeEvents ?? [],
+    resolutionPolls: resolutionPolls ?? [],
     events: (events ?? []).map(event => ({
       id: event.id,
       commandType: event.command_type,
@@ -133,16 +145,12 @@ async function logCommand(actor: UserRecord, command: SimulationCommand) {
   });
 }
 
-async function requireActiveGroup(groupId: string) {
+async function requireGroup(groupId: string) {
   const { data, error } = await supabaseAdmin.from('EqubGroup').select('*').eq('Group_ID', groupId).single();
   if (error) {
     throw error;
   }
-  const group = data as GroupRecord;
-  if (group.Status !== 'Active') {
-    throw new Error('Simulation commands can only mutate active groups.');
-  }
-  return group;
+  return data as GroupRecord;
 }
 
 async function listActiveMemberships(groupId: string) {
@@ -354,13 +362,292 @@ async function skipActiveGroupTime(group: GroupRecord, round: RoundRecord, days:
   return `Skipped ${boundedDays} day${boundedDays === 1 ? '' : 's'} for this active group.`;
 }
 
+async function listVerifiedMembers() {
+  const { data, error } = await supabaseAdmin
+    .from('User')
+    .select('*')
+    .eq('Role', 'Member')
+    .eq('KYC_Status', 'Verified')
+    .order('Created_At', { ascending: true })
+    .limit(100);
+  if (error) {
+    throw error;
+  }
+  return (data ?? []) as UserRecord[];
+}
+
+function readStringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && !!item.trim()) : [];
+}
+
+async function formControllerGroup(actor: UserRecord, payload: Record<string, unknown>) {
+  const verifiedMembers = await listVerifiedMembers();
+  if (!verifiedMembers.length) {
+    throw new Error('No verified member accounts are available for controller group formation.');
+  }
+  const requestedMemberIds = readStringArray(payload.memberUserIds);
+  const maxMemberInput = payload.maxMembers ?? (requestedMemberIds.length || 5);
+  const parsedMaxMembers = Number(maxMemberInput);
+  const maxMembers = Math.max(2, Math.min(20, Number.isFinite(parsedMaxMembers) ? parsedMaxMembers : 5));
+  const creatorId = typeof payload.creatorUserId === 'string' && payload.creatorUserId
+    ? payload.creatorUserId
+    : requestedMemberIds[0] ?? verifiedMembers[0].User_ID;
+  const memberIds = Array.from(new Set([
+    creatorId,
+    ...requestedMemberIds,
+    ...verifiedMembers.map(user => user.User_ID),
+  ])).slice(0, maxMembers);
+  if (memberIds.length < 2) {
+    throw new Error('At least two verified members are required to form a simulation group.');
+  }
+
+  const status = payload.status === 'Pending' ? 'Pending' : 'Active';
+  const { data: groupData, error: groupError } = await supabaseAdmin
+    .from('EqubGroup')
+    .insert({
+      Creator_ID: creatorId,
+      Group_Name: String(payload.groupName ?? `Controller Equb ${new Date().toLocaleTimeString('en-US', { hour12: false })}`).slice(0, 50),
+      Amount: Math.max(1, Number(payload.amount ?? 650)),
+      Max_Members: maxMembers,
+      Frequency: ['Daily', 'Weekly', 'Bi-weekly', 'Monthly'].includes(String(payload.frequency)) ? String(payload.frequency) : 'Weekly',
+      Virtual_Acc_Ref: `SIM-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+      Status: status,
+      Start_Date: status === 'Active' ? new Date().toISOString().slice(0, 10) : null,
+    })
+    .select('*')
+    .single();
+  if (groupError) {
+    throw groupError;
+  }
+  const group = groupData as GroupRecord;
+
+  const { error: memberError } = await supabaseAdmin
+    .from('GroupMembers')
+    .insert(memberIds.map(userId => ({
+      Group_ID: group.Group_ID,
+      User_ID: userId,
+      Status: 'Active',
+    })));
+  if (memberError) {
+    throw memberError;
+  }
+
+  if (group.Status === 'Active') {
+    const round = await ensureOpenRoundForGroup(group);
+    await ensureContributionObligationsForRound(group, round);
+  }
+
+  await Promise.all(memberIds.map(userId => createNotification({
+    userId,
+    type: 'simulation_group_formed',
+    severity: 'Success',
+    title: 'Controller group formed',
+    message: `${group.Group_Name} was formed by the simulation controller.`,
+    actionRoute: group.Status === 'Active' ? 'member/group-cycle' : 'member/group',
+    relatedEntityType: 'EqubGroup',
+    relatedEntityId: group.Group_ID,
+  })));
+
+  return `Formed ${group.Status.toLowerCase()} controller group with ${memberIds.length} member(s).`;
+}
+
+async function activateGroupNow(group: GroupRecord, actor: UserRecord) {
+  const result = await activateApprovedGroup({ group, actor, reason: 'Manual' });
+  return result.activated ? 'Group activated and contribution obligations opened.' : `Group activation skipped: ${result.reason}.`;
+}
+
+async function forceGroupToPoll(group: GroupRecord, actor: UserRecord) {
+  if (group.Status !== 'Frozen') {
+    await freezeGroupForAdminReview({
+      groupId: group.Group_ID,
+      reason: 'ManualAdminFreeze',
+      actor,
+      metadata: { source: 'simulation-controller.forcePoll' },
+    });
+  }
+  const state = await createFrozenGroupResolutionPoll({ groupId: group.Group_ID, admin: actor });
+  return `Resolution poll opened (${state.activeResolutionPoll?.poll.id ?? state.latestResolutionPoll?.poll.id ?? 'existing'}).`;
+}
+
+async function findOpenPollId(groupId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('group_resolution_polls')
+    .select('id')
+    .eq('group_id', groupId)
+    .eq('status', 'Open')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+  return (data as { id: string } | null)?.id ?? null;
+}
+
+async function closeOpenPoll(group: GroupRecord, actor: UserRecord) {
+  const pollId = await findOpenPollId(group.Group_ID);
+  if (!pollId) {
+    throw new Error('No open resolution poll exists for this group.');
+  }
+  await closeResolutionPollIfReady({ pollId, actor, forceExpired: true });
+  return 'Open resolution poll closed.';
+}
+
+async function disbandGroup(group: GroupRecord, actor: UserRecord) {
+  const activeMemberships = await listActiveMemberships(group.Group_ID);
+  const rounds = await supabaseAdmin
+    .from('Round')
+    .select('*')
+    .eq('Group_ID', group.Group_ID)
+    .order('Round_Number', { ascending: false });
+  if (rounds.error) {
+    throw rounds.error;
+  }
+  const roundIds = ((rounds.data ?? []) as RoundRecord[]).map(round => round.Round_ID);
+  const latestRound = ((rounds.data ?? []) as RoundRecord[])[0] ?? null;
+  const transactions = roundIds.length
+    ? await supabaseAdmin
+      .from('Transaction')
+      .select('*')
+      .in('Round_ID', roundIds)
+      .eq('Type', 'Contribution')
+      .eq('Status', 'Successful')
+    : { data: [], error: null };
+  if (transactions.error) {
+    throw transactions.error;
+  }
+
+  const amountsByUser = new Map<string, number>();
+  for (const transaction of (transactions.data ?? []) as TransactionRecord[]) {
+    amountsByUser.set(transaction.User_ID, (amountsByUser.get(transaction.User_ID) ?? 0) + Number(transaction.Amount ?? 0));
+  }
+
+  let ticketCount = 0;
+  if (amountsByUser.size) {
+    const rows = [...amountsByUser.entries()].map(([userId, amount]) => ({
+      group_id: group.Group_ID,
+      round_id: latestRound?.Round_ID ?? null,
+      user_id: userId,
+      amount,
+      currency: 'ETB',
+      reason: 'Simulation controller disbanded this group and created a refund ticket.',
+      status: 'Created',
+      offset_applied_amount: 0,
+      created_by_event_id: null,
+      calculation_snapshot: {
+        source: 'simulation_controller_disband',
+        group_id: group.Group_ID,
+        round_ids: roundIds,
+      },
+    }));
+    const { data, error } = await supabaseAdmin.from('refund_tickets').insert(rows).select('*');
+    if (error) {
+      throw error;
+    }
+    ticketCount = ((data ?? []) as RefundTicketRecord[]).length;
+  }
+
+  const [groupUpdate, memberUpdate, roundUpdate] = await Promise.all([
+    supabaseAdmin.from('EqubGroup').update({ Status: 'Completed' }).eq('Group_ID', group.Group_ID),
+    supabaseAdmin.from('GroupMembers').update({ Status: 'Removed' }).eq('Group_ID', group.Group_ID).eq('Status', 'Active'),
+    roundIds.length ? supabaseAdmin.from('Round').update({ Status: 'Completed' }).in('Round_ID', roundIds).neq('Status', 'Completed') : Promise.resolve({ error: null }),
+  ]);
+  for (const error of [groupUpdate.error, memberUpdate.error, roundUpdate.error]) {
+    if (error) {
+      throw error;
+    }
+  }
+
+  await Promise.all(activeMemberships.map(membership => createNotification({
+    userId: membership.User_ID,
+    type: 'simulation_group_disbanded',
+    severity: 'Warning',
+    title: 'Group disbanded',
+    message: `${group.Group_Name} was disbanded by the simulation controller.`,
+    actionRoute: 'member/groups',
+    relatedEntityType: 'EqubGroup',
+    relatedEntityId: group.Group_ID,
+  })));
+
+  return `Group disbanded. Created ${ticketCount} refund ticket(s).`;
+}
+
 async function runBackendCommand(command: SimulationCommand) {
   const payload = command.payload;
   const groupId = typeof payload.groupId === 'string' ? payload.groupId : null;
-  const group = groupId ? await requireActiveGroup(groupId) : null;
-  const round = group ? await ensureOpenRoundForGroup(group) : null;
+  const group = groupId ? await requireGroup(groupId) : null;
+  const activeGroup = group?.Status === 'Active' ? group : null;
+  const round = activeGroup ? await ensureOpenRoundForGroup(activeGroup) : null;
 
   switch (payload.action) {
+    case 'formActiveGroup': {
+      return formControllerGroup(actor, { ...payload, status: 'Active' });
+    }
+    case 'formJoinWindowGroup': {
+      return formControllerGroup(actor, { ...payload, status: 'Pending' });
+    }
+    case 'activateGroupNow': {
+      if (!group) {
+        throw new Error('groupId is required for activation.');
+      }
+      return activateGroupNow(group, actor);
+    }
+    case 'freezeGroup': {
+      if (!group) {
+        throw new Error('groupId is required for freezing.');
+      }
+      await freezeGroupForAdminReview({
+        groupId: group.Group_ID,
+        reason: 'ManualAdminFreeze',
+        actor,
+        metadata: { source: 'simulation-controller.freezeGroup' },
+      });
+      return 'Group frozen for controller recovery testing.';
+    }
+    case 'resumeFrozenGroup':
+    case 'resolveFreezeContinue': {
+      if (!group) {
+        throw new Error('groupId is required for freeze resolution.');
+      }
+      await resolveOpenGroupFreeze({
+        groupId: group.Group_ID,
+        admin: actor,
+        resolutionAction: 'ContinueWithReserveFrozen',
+        resolutionNote: 'Simulation controller resumed the group.',
+      });
+      return 'Frozen group resumed.';
+    }
+    case 'resolveFreezeRefund': {
+      if (!group) {
+        throw new Error('groupId is required for freeze resolution.');
+      }
+      await resolveOpenGroupFreeze({
+        groupId: group.Group_ID,
+        admin: actor,
+        resolutionAction: 'CreateRefundTickets',
+        resolutionNote: 'Simulation controller requested refund tickets.',
+      });
+      return 'Frozen group resolved with refund tickets.';
+    }
+    case 'openResolutionPoll':
+    case 'forceResolutionPoll': {
+      if (!group) {
+        throw new Error('groupId is required for polling.');
+      }
+      return forceGroupToPoll(group, actor);
+    }
+    case 'closeResolutionPoll': {
+      if (!group) {
+        throw new Error('groupId is required for polling.');
+      }
+      return closeOpenPoll(group, actor);
+    }
+    case 'disbandGroup': {
+      if (!group) {
+        throw new Error('groupId is required for disbanding.');
+      }
+      return disbandGroup(group, actor);
+    }
     case 'startSimulation':
     case 'pauseSimulation':
     case 'resumeSimulation':
@@ -382,18 +669,18 @@ async function runBackendCommand(command: SimulationCommand) {
     }
     case 'createTestPayment':
     case 'markObligationPaid': {
-      if (!group || !round) {
-        throw new Error('groupId is required for simulated payments.');
+      if (!activeGroup || !round) {
+        throw new Error('An active group is required for simulated payments.');
       }
-      return createSimulatedContribution(group, round, requireString(payload.userId, 'userId'), String(payload.method ?? 'Simulation'));
+      return createSimulatedContribution(activeGroup, round, requireString(payload.userId, 'userId'), String(payload.method ?? 'Simulation'));
     }
     case 'payAllMembers':
     case 'payAllMembersAndContinue': {
-      if (!group || !round) {
-        throw new Error('groupId is required for batch payments.');
+      if (!activeGroup || !round) {
+        throw new Error('An active group is required for batch payments.');
       }
       return payMembersInRound({
-        group,
+        group: activeGroup,
         round,
         forceContinue: payload.action === 'payAllMembersAndContinue',
         method: String(payload.method ?? 'SimulationBatch'),
@@ -401,11 +688,11 @@ async function runBackendCommand(command: SimulationCommand) {
     }
     case 'payAllExceptMember':
     case 'payAllExceptMemberAndContinue': {
-      if (!group || !round) {
-        throw new Error('groupId is required for batch payments.');
+      if (!activeGroup || !round) {
+        throw new Error('An active group is required for batch payments.');
       }
       return payMembersInRound({
-        group,
+        group: activeGroup,
         round,
         exceptUserId: requireString(payload.userId, 'userId'),
         forceContinue: payload.action === 'payAllExceptMemberAndContinue',
@@ -417,26 +704,26 @@ async function runBackendCommand(command: SimulationCommand) {
       return 'Obligation marked Late.';
     }
     case 'markRoundUnpaidLate': {
-      if (!group || !round) {
-        throw new Error('groupId is required for late controls.');
+      if (!activeGroup || !round) {
+        throw new Error('An active group is required for late controls.');
       }
-      return markRoundUnpaidMembersLate(group, round);
+      return markRoundUnpaidMembersLate(activeGroup, round);
     }
     case 'defaultSelectedMember': {
-      if (!group || !round) {
-        throw new Error('groupId is required for default controls.');
+      if (!activeGroup || !round) {
+        throw new Error('An active group is required for default controls.');
       }
-      return defaultSelectedMemberNow(group, round, requireString(payload.userId, 'userId'));
+      return defaultSelectedMemberNow(activeGroup, round, requireString(payload.userId, 'userId'));
     }
     case 'processContributionDeadlines': {
       const result = await processDueContributionObligations({ now: new Date(), limit: 500 });
       return `Processed contribution deadlines. ${result.late.length} late and ${result.defaulted.length} defaulted.`;
     }
     case 'skipTime': {
-      if (!group || !round) {
-        throw new Error('groupId is required for time skip.');
+      if (!activeGroup || !round) {
+        throw new Error('An active group is required for time skip.');
       }
-      return skipActiveGroupTime(group, round, Number(payload.days ?? 1));
+      return skipActiveGroupTime(activeGroup, round, Number(payload.days ?? 1));
     }
     case 'removeMember': {
       if (!group) {
@@ -465,11 +752,11 @@ async function runBackendCommand(command: SimulationCommand) {
     }
     case 'recordDrawSeed':
     case 'finalizeRound': {
-      if (!group || !round) {
-        throw new Error('groupId is required for draw controls.');
+      if (!activeGroup || !round) {
+        throw new Error('An active group is required for draw controls.');
       }
       const metadata = {
-        groupId: group.Group_ID,
+        groupId: activeGroup.Group_ID,
         roundId: round.Round_ID,
         drawSeed: payload.drawSeed ?? null,
         requestedWinnerUserId: payload.winnerUserId ?? null,

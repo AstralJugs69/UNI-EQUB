@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AppScreen, ListRow, LoadingState, MetricTile, Pill, PrimaryCTA, SectionCard, StatusBanner, TitleBlock, TopAppBar } from '../../components/ui';
 import { useAdminOverviewQuery } from '../../hooks/useAppQueries';
@@ -13,10 +13,28 @@ export function AdminDashboardScreen() {
   if (!data) {
     return <LoadingState title="Loading admin workspace" subtitle="Pulling pending reviews, groups, and export state." />;
   }
+  const needsAttention = data.pendingKycCount + data.pendingGroupCount + (data.reminderQueue?.length ?? 0);
+  const primaryQueue = data.pendingKycCount > 0
+    ? { title: 'KYC reviews need attention', body: `${data.pendingKycCount} student submission${data.pendingKycCount === 1 ? '' : 's'} waiting for review.`, label: 'Review KYC', route: routes.adminKyc, icon: 'badge' }
+    : data.pendingGroupCount > 0
+      ? { title: 'Group queue needs attention', body: `${data.pendingGroupCount} formation, frozen, or legacy item${data.pendingGroupCount === 1 ? '' : 's'} waiting.`, label: 'Open Groups', route: routes.adminGroups, icon: 'groups' }
+      : data.reminderQueue?.length
+        ? { title: 'Reminder queue is ready', body: `${data.reminderQueue.length} reminder candidate${data.reminderQueue.length === 1 ? '' : 's'} can be reviewed in reports.`, label: 'Open Reports', route: routes.adminReports, icon: 'notifications-active' }
+        : { title: 'No urgent admin work', body: 'KYC, group review, and reminder queues are currently clear.', label: 'Open Reports', route: routes.adminReports, icon: 'task-alt' };
 
   return (
     <AppScreen>
-      <TopAppBar title="Command Center" subtitle="Admin Workspace" rightLabel="Healthy" />
+      <TopAppBar title="Command Center" subtitle="Admin Workspace" rightLabel={needsAttention ? `${needsAttention} open` : 'Clear'} />
+      <SectionCard style={adminStyles.adminAttentionCard}>
+        <View style={adminStyles.adminAttentionIcon}>
+          <Text style={adminStyles.adminAttentionIconText}>{needsAttention || 'OK'}</Text>
+        </View>
+        <View style={adminStyles.adminAttentionText}>
+          <Text style={adminStyles.adminAttentionTitle}>{primaryQueue.title}</Text>
+          <Text style={adminStyles.adminAttentionBody}>{primaryQueue.body}</Text>
+        </View>
+        <PrimaryCTA label={primaryQueue.label} onPress={() => navigation.navigate(primaryQueue.route)} icon={primaryQueue.icon} />
+      </SectionCard>
       <SectionCard>
         <View style={adminStyles.metricsGrid}>
           <MetricTile label="Pending KYC" value={String(data.pendingKycCount)} tone={data.pendingKycCount > 0 ? 'warn' : 'good'} />
