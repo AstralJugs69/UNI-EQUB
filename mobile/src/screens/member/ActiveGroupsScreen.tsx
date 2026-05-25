@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { EmptyState, ListRow, LoadingState, Pill, ScreenScroll, SectionCard, TopAppBar, TitleBlock } from '../../components/ui';
-import { useDashboardQuery } from '../../hooks/useAppQueries';
+import { useDashboardQuery, useRefreshMemberData } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { formatCurrency } from './shared';
 import type { GroupRecord } from '../../types/domain';
@@ -43,6 +43,7 @@ function GroupSection({
 export function ActiveGroupsScreen() {
   const navigation = useNavigation<any>();
   const { data } = useDashboardQuery();
+  const { refreshing, refreshMemberData } = useRefreshMemberData();
 
   if (!data) {
     return <LoadingState title="Loading active groups" subtitle="Pulling your current Equb memberships." />;
@@ -54,7 +55,7 @@ export function ActiveGroupsScreen() {
   const openGroup = (group: GroupRecord) => navigation.navigate(group.Status === 'Pending' ? routes.groupDetail : routes.groupStatus, { groupId: group.Group_ID });
 
   return (
-    <ScreenScroll>
+    <ScreenScroll refreshing={refreshing} onRefresh={refreshMemberData}>
       <TopAppBar title="My Equb Groups" subtitle="Group Switcher" onBack={() => navigation.goBack()} rightLabel={`${activeGroups.length}`} />
       <TitleBlock title="Choose a group" subtitle="Join windows open previews. Active, voting, and frozen groups open the full cycle state." />
       {!activeGroups.length && !completedGroups.length ? (

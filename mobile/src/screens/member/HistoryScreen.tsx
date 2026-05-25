@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
 import { AppScreen, EmptyState, ListRow, Pill, SegmentedTabs, SectionCard, TopAppBar } from '../../components/ui';
-import { useDashboardQuery, useTransactionsQuery } from '../../hooks/useAppQueries';
+import { useDashboardQuery, useRefreshMemberData, useTransactionsQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { iconSize, palette } from '../../theme/tokens';
 import type { TransactionRecord, TransactionType } from '../../types/domain';
@@ -85,6 +85,7 @@ export function HistoryScreen() {
   const navigation = useNavigation<any>();
   const { data: rows = [] } = useTransactionsQuery();
   const { data: dashboard } = useDashboardQuery();
+  const { refreshing, refreshMemberData } = useRefreshMemberData();
   const [filter, setFilter] = useState<LedgerFilter>('All');
   const completedGroups = dashboard?.completedGroups ?? [];
 
@@ -98,7 +99,7 @@ export function HistoryScreen() {
   ), [filter, rows]);
 
   return (
-    <AppScreen>
+    <AppScreen refreshing={refreshing} onRefresh={refreshMemberData}>
       <TopAppBar title="Transaction Ledger" subtitle="History" />
       <SegmentedTabs
         options={[

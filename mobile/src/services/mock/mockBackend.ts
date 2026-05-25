@@ -359,6 +359,8 @@ export class MockBackend implements AppServices {
           };
         }),
         activeResolutionPoll: null,
+        latestResolutionPoll: null,
+        winnerExitWindow: null,
         refundTickets: [],
         canCurrentUserPay: !!round && group.Status === 'Active' && activeMembers.some(item => item.User_ID === userId) && !paid.some(item => item.User_ID === userId),
         isFrozen: group.Status === 'Frozen',
@@ -416,6 +418,7 @@ export class MockBackend implements AppServices {
     createResolutionPoll: async (): Promise<GroupStatusSnapshot['activeResolutionPoll']> => null,
     voteResolutionPoll: async (): Promise<void> => undefined,
     closeResolutionPoll: async (): Promise<void> => undefined,
+    decideWinnerExit: async (): Promise<void> => undefined,
 
     joinGroup: async (userId: string, groupId: string): Promise<void> => {
       this.assertVerifiedMember(userId);

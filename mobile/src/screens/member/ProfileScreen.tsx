@@ -6,7 +6,7 @@ import { ProfileErrorBanner } from '../../components/AppErrors';
 import { GeneratedAvatar } from '../../components/GeneratedAvatar';
 import { Icon } from '../../components/Icon';
 import { AppScreen, LoadingState, MetricTile, Pill, PrimaryCTA, SectionCard, StatusBanner } from '../../components/ui';
-import { useAccountSlotsQuery, useDashboardQuery, useProfileActions, useProfileQuery } from '../../hooks/useAppQueries';
+import { useAccountSlotsQuery, useDashboardQuery, useProfileActions, useProfileQuery, useRefreshMemberData } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
 import { useAppPreferences } from '../../providers/PreferencesProvider';
@@ -178,6 +178,7 @@ export function ProfileScreen({ route }: any) {
   const { data: profile } = useProfileQuery();
   const { data: accountSlots } = useAccountSlotsQuery();
   const { updateProfile, uploadProfileImage, removeProfileImage } = useProfileActions();
+  const { refreshing, refreshMemberData } = useRefreshMemberData();
   const [activePanel, setActivePanel] = useState<ProfilePanel>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -324,7 +325,7 @@ export function ProfileScreen({ route }: any) {
   }
 
   return (
-    <AppScreen contentStyle={memberStyles.profileScreenContent}>
+    <AppScreen contentStyle={memberStyles.profileScreenContent} refreshing={refreshing} onRefresh={refreshMemberData}>
       <View style={memberStyles.profileHero}>
         <View style={memberStyles.profileAvatarLarge}>{avatarNode}</View>
         <Text style={memberStyles.profileHeroName}>{session.user.fullName}</Text>

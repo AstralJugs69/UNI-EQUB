@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AppScreen, EmptyState, Pill, PrimaryCTA, SectionCard, TopAppBar } from '../../components/ui';
 import { Icon } from '../../components/Icon';
-import { useMemberActions, useNotificationsQuery } from '../../hooks/useAppQueries';
+import { useMemberActions, useNotificationsQuery, useRefreshMemberData } from '../../hooks/useAppQueries';
 import { resolveNotificationRoute } from '../../navigation/notificationRoutes';
 import { useAuth } from '../../providers/AuthProvider';
 import { requestNotificationPermission } from '../../services/native/notificationPermission';
@@ -17,6 +17,7 @@ export function NotificationsScreen() {
   const { session } = useAuth();
   const { data = [] } = useNotificationsQuery();
   const { markNotificationsRead } = useMemberActions();
+  const { refreshing, refreshMemberData } = useRefreshMemberData();
   const unreadCount = data.filter(item => item.unread).length;
   const groupedNotifications = useMemo(() => data.reduce<Record<string, AppNotification[]>>((groups, item) => {
     const group = notificationCategory(item);
@@ -40,7 +41,7 @@ export function NotificationsScreen() {
   }, []);
 
   return (
-    <AppScreen>
+    <AppScreen refreshing={refreshing} onRefresh={refreshMemberData}>
       <TopAppBar title="Notifications" subtitle="Inbox" onBack={() => navigation.goBack()} rightLabel={`${unreadCount} unread`} />
       {!data.length ? (
         <EmptyState icon="notifications-none" title="No notifications yet" subtitle="Round reminders, winner announcements, and approvals will show up here once activity starts." />

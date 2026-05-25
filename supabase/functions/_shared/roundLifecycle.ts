@@ -2,8 +2,10 @@ import { supabaseAdmin } from './supabaseAdmin.ts';
 import { ensureContributionObligationsForRound, getRoundObligationReadiness, isContributionObligationSettled } from './obligations.ts';
 import { recordLedgerEntry } from './ledger.ts';
 import { calculatePayoutVestingFromConfig, buildPayoutReleaseScheduleAmounts } from './payoutVesting.ts';
+import { releaseNextReservedPayoutForGroupRound } from './payoutReserves.ts';
 import { ensureReliabilityProfile } from './reliability.ts';
 import { openCycleCompletionVote } from './groupResolution.ts';
+import { openWinnerExitWindow } from './winnerExit.ts';
 import type {
   GroupRecord,
   MembershipRecord,
@@ -50,6 +52,33 @@ async function listPriorWinnerIds(groupId: string, minRoundNumber?: number) {
     throw error;
   }
   return new Set((data ?? []).map(item => item.Winner_ID as string));
+}
+
+async function getCurrentPassStartRoundNumber(groupId: string) {
+  const { data: events, error: eventError } = await supabaseAdmin
+    .from('group_freeze_events')
+    .select('trigger_round_id, resolved_at')
+    .eq('group_id', groupId)
+    .eq('reason', 'CycleCompletionVote')
+    .eq('status', 'ResolvedContinue')
+    .order('resolved_at', { ascending: false, nullsFirst: false })
+    .limit(1);
+  if (eventError) {
+    throw eventError;
+  }
+  const triggerRoundId = (events?.[0] as { trigger_round_id?: string | null } | undefined)?.trigger_round_id;
+  if (!triggerRoundId) {
+    return 1;
+  }
+  const { data: round, error: roundError } = await supabaseAdmin
+    .from('Round')
+    .select('Round_Number')
+    .eq('Round_ID', triggerRoundId)
+    .maybeSingle();
+  if (roundError) {
+    throw roundError;
+  }
+  return Number((round as { Round_Number?: number } | null)?.Round_Number ?? 0) + 1;
 }
 
 function chooseWinner(userIds: string[]) {
@@ -301,22 +330,37 @@ async function recordPayoutRequestLedger(input: {
   }
 }
 
-async function createNextRound(group: GroupRecord, roundNumber: number) {
+async function releaseExitedWinnerReserves(group: GroupRecord, triggerRound: RoundRecord) {
   const { data, error } = await supabaseAdmin
-    .from('Round')
-    .insert({
-      Group_ID: group.Group_ID,
-      Round_Number: roundNumber,
-      Status: 'Open',
-    })
-    .select('*')
-    .single();
+    .from('payout_release_schedules')
+    .select('user_id')
+    .eq('group_id', group.Group_ID)
+    .eq('status', 'Pending');
   if (error) {
     throw error;
   }
-  const round = data as RoundRecord;
-  await ensureContributionObligationsForRound(group, round);
-  return round;
+  const candidateUserIds = [...new Set((data ?? []).map(item => (item as { user_id: string }).user_id))];
+  if (!candidateUserIds.length) {
+    return [];
+  }
+  const { data: activeMemberships, error: membershipError } = await supabaseAdmin
+    .from('GroupMembers')
+    .select('User_ID')
+    .eq('Group_ID', group.Group_ID)
+    .eq('Status', 'Active')
+    .in('User_ID', candidateUserIds);
+  if (membershipError) {
+    throw membershipError;
+  }
+  const activeUserIds = new Set((activeMemberships ?? []).map(item => (item as { User_ID: string }).User_ID));
+  const exitedUserIds = candidateUserIds.filter(userId => !activeUserIds.has(userId));
+  const releases = await Promise.all(exitedUserIds.map(userId => releaseNextReservedPayoutForGroupRound({
+    userId,
+    groupId: group.Group_ID,
+    triggerRound,
+    reason: 'Reserved payout released on a later completed round after winner exit.',
+  })));
+  return releases.filter(Boolean);
 }
 
 export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecord): Promise<RoundCompletionResult> {
@@ -375,9 +419,7 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
       reliabilityProfileUpdates: [],
     };
   }
-  const activeMemberCount = memberships.length;
-  const currentPassRoundNumber = ((Number(round.Round_Number) - 1) % activeMemberCount) + 1;
-  const currentPassStartRound = Number(round.Round_Number) - currentPassRoundNumber + 1;
+  const currentPassStartRound = await getCurrentPassStartRoundNumber(group.Group_ID);
   const priorWinnerIds = await listPriorWinnerIds(group.Group_ID, currentPassStartRound);
   const firstPassEligibleUserIds = memberships
     .map(item => item.User_ID)
@@ -397,9 +439,10 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
   const payoutAmount = roundMoney(Number(group.Amount) * memberships.length);
   const vestingEnabled = await loadGroupVestingEnabled(group.Group_ID);
   const vestingRoundCount = memberships.length;
+  const currentPassWinnerCount = memberships.filter(membership => priorWinnerIds.has(membership.User_ID)).length;
   const vestingRoundNumber = firstPassEligibleUserIds.length
-    ? Math.min(vestingRoundCount, Math.max(1, vestingRoundCount - firstPassEligibleUserIds.length + 1))
-    : Math.min(vestingRoundCount, currentPassRoundNumber);
+    ? Math.min(vestingRoundCount, currentPassWinnerCount + 1)
+    : vestingRoundCount;
   const remainingCurrentPassWinners = firstPassEligibleUserIds.length
     ? firstPassEligibleUserIds.filter(userId => userId !== winnerId).length
     : Math.max(vestingRoundCount - vestingRoundNumber, 0);
@@ -448,6 +491,7 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
     scheduleCount: payoutReleaseSchedules.length,
     vestingReason: payoutVesting.reason,
   });
+  await releaseExitedWinnerReserves(group, completedRound);
 
   if (cycleComplete) {
     await openCycleCompletionVote({
@@ -468,14 +512,19 @@ export async function finalizeRoundIfReady(group: GroupRecord, round: RoundRecor
     };
   }
 
-  const nextRound = await createNextRound(group, completedRound.Round_Number + 1);
+  await openWinnerExitWindow({
+    group,
+    round: completedRound,
+    winnerId,
+    payoutRequest,
+  });
   return {
     autoDrawTriggered: true,
     payoutAmount,
     payoutRequest,
     payoutTransaction,
     payoutReleaseSchedules,
-    nextRound,
+    nextRound: null,
     updatedRound: completedRound,
     completedGroup: null,
     reliabilityProfileUpdates: [],

@@ -202,3 +202,108 @@ export async function releaseNextReservedPayoutForContribution(input: {
     payoutTransaction,
   } satisfies ReservedPayoutReleaseResult;
 }
+
+export async function releaseNextReservedPayoutForGroupRound(input: {
+  userId: string;
+  groupId: string;
+  triggerRound: RoundRecord;
+  reason: string;
+}) {
+  const { data: schedules, error: scheduleError } = await supabaseAdmin
+    .from('payout_release_schedules')
+    .select('*')
+    .eq('user_id', input.userId)
+    .eq('group_id', input.groupId)
+    .eq('status', 'Pending')
+    .order('created_at', { ascending: true })
+    .limit(1);
+
+  if (scheduleError) {
+    throw scheduleError;
+  }
+
+  const pendingSchedule = (schedules?.[0] ?? null) as PayoutReleaseScheduleRecord | null;
+  if (!pendingSchedule) {
+    return null;
+  }
+
+  const releasedAt = new Date().toISOString();
+  const { data: claimedSchedule, error: claimError } = await supabaseAdmin
+    .from('payout_release_schedules')
+    .update({
+      status: 'Released',
+      released_at: releasedAt,
+    })
+    .eq('id', pendingSchedule.id)
+    .eq('status', 'Pending')
+    .select('*')
+    .maybeSingle();
+
+  if (claimError) {
+    throw claimError;
+  }
+  if (!claimedSchedule) {
+    return null;
+  }
+
+  const releaseSchedule = claimedSchedule as PayoutReleaseScheduleRecord;
+  const payoutRequest = await getPayoutRequest(releaseSchedule.payout_request_id);
+  const releaseAmount = roundMoney(Number(releaseSchedule.release_amount));
+  const payoutTransaction = await createReserveReleaseTransaction({
+    userId: input.userId,
+    triggerRoundId: input.triggerRound.Round_ID,
+    amount: releaseAmount,
+  });
+  const pendingScheduleCount = await countPendingReleaseSchedules(payoutRequest.id);
+  const updatedPayoutRequest = await updatePayoutRequestAfterReserveRelease({
+    payoutRequest,
+    releaseAmount,
+    pendingScheduleCount,
+  });
+
+  await recordLedgerEntry({
+    userId: input.userId,
+    groupId: input.groupId,
+    roundId: input.triggerRound.Round_ID,
+    transactionId: payoutTransaction.Trans_ID,
+    payoutRequestId: payoutRequest.id,
+    entryType: 'ReserveReleased',
+    direction: 'Memo',
+    amount: releaseAmount,
+    currency: releaseSchedule.currency,
+    description: input.reason,
+    referenceType: 'payout_release_schedules',
+    referenceId: releaseSchedule.id,
+    metadata: {
+      original_payout_round_id: releaseSchedule.round_id,
+      payout_request_status: updatedPayoutRequest.status,
+      release_source: 'group_round_after_winner_exit',
+    },
+  });
+
+  await recordLedgerEntry({
+    userId: input.userId,
+    groupId: input.groupId,
+    roundId: input.triggerRound.Round_ID,
+    transactionId: payoutTransaction.Trans_ID,
+    payoutRequestId: payoutRequest.id,
+    entryType: 'PayoutReleased',
+    direction: 'Credit',
+    amount: releaseAmount,
+    currency: releaseSchedule.currency,
+    description: 'Reserve release is now available in the simulated payout wallet.',
+    referenceType: 'payout_release_schedules',
+    referenceId: releaseSchedule.id,
+    metadata: {
+      original_payout_round_id: releaseSchedule.round_id,
+      gateway_reference: payoutTransaction.Gateway_Ref,
+      release_source: 'group_round_after_winner_exit',
+    },
+  });
+
+  return {
+    payoutRequest: updatedPayoutRequest,
+    releaseSchedule,
+    payoutTransaction,
+  } satisfies ReservedPayoutReleaseResult;
+}

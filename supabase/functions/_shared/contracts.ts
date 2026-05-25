@@ -14,7 +14,7 @@
 }
 
 export type RegisterLoginAction = 'register' | 'requestOtp' | 'verifyOtp' | 'requestEmailVerification' | 'verifyEmail' | 'beginLogin' | 'completeLogin' | 'login' | 'restore' | 'otpGate' | 'resetPassword';
-export type GroupLifecycleAction = 'listBrowseable' | 'getGroup' | 'getGroupStatus' | 'createRequest' | 'listPending' | 'approve' | 'reject' | 'freeze' | 'resolveFreeze' | 'createResolutionPoll' | 'voteResolutionPoll' | 'closeResolutionPoll' | 'join' | 'getDashboard';
+export type GroupLifecycleAction = 'listBrowseable' | 'getGroup' | 'getGroupStatus' | 'createRequest' | 'listPending' | 'approve' | 'reject' | 'freeze' | 'resolveFreeze' | 'createResolutionPoll' | 'voteResolutionPoll' | 'closeResolutionPoll' | 'decideWinnerExit' | 'join' | 'getDashboard';
 export type GroupFormationAction = 'listPublic' | 'listMine' | 'listPendingApproval' | 'getRequest' | 'lookupInviteCode' | 'createRequest' | 'requestJoin' | 'acceptJoin' | 'removeParticipant' | 'invite' | 'acceptInvite' | 'submitForApproval' | 'adminApprove' | 'adminReject';
 export type ContributionAction = 'payContribution' | 'startContributionUssd' | 'submitContributionUssd' | 'listTransactions' | 'getWallet' | 'reconcileProviderCallback';
 export type PaymentAttemptAction = 'initiateContributionAttempt' | 'recordProviderCallback' | 'markAttemptTimeout' | 'markAttemptCancelled';
@@ -117,6 +117,8 @@ export interface GroupLifecyclePayload {
   resolutionNote?: string;
   pollId?: string;
   optionId?: string;
+  winnerExitWindowId?: string;
+  winnerExitDecision?: 'Continue' | 'Exit';
 }
 
 export interface CreateGroupFormationRequest {

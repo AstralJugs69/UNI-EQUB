@@ -1,6 +1,7 @@
 import React, { PropsWithChildren } from 'react';
 import {
   Pressable,
+  RefreshControl,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -26,12 +27,16 @@ export function AppScreen({
   footerFlush = false,
   scroll = true,
   backgroundColor = palette.background,
+  refreshing = false,
+  onRefresh,
 }: PropsWithChildren<{
   contentStyle?: StyleProp<ViewStyle>;
   footer?: React.ReactNode;
   footerFlush?: boolean;
   scroll?: boolean;
   backgroundColor?: string;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }>) {
   const { colors, isDark } = useAppPreferences();
   const themedBackground = backgroundColor === palette.background ? colors.background : backgroundColor;
@@ -40,6 +45,7 @@ export function AppScreen({
       contentContainerStyle={[styles.screenContent, contentStyle]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.primary} colors={[palette.primary]} /> : undefined}
     >
       {children}
     </ScrollView>
@@ -59,8 +65,10 @@ export function AppScreen({
 export function ScreenScroll({
   children,
   contentStyle,
-}: PropsWithChildren<{ contentStyle?: StyleProp<ViewStyle> }>) {
-  return <AppScreen contentStyle={contentStyle}>{children}</AppScreen>;
+  refreshing,
+  onRefresh,
+}: PropsWithChildren<{ contentStyle?: StyleProp<ViewStyle>; refreshing?: boolean; onRefresh?: () => void }>) {
+  return <AppScreen contentStyle={contentStyle} refreshing={refreshing} onRefresh={onRefresh}>{children}</AppScreen>;
 }
 
 export function SectionCard({

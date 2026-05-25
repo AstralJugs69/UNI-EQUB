@@ -1,15 +1,15 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, Text, View } from 'react-native';
+import { Alert, Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
-import { EmptyState, ListRow, LoadingState, Pill, PrimaryCTA, ScreenScroll, SecondaryCTA, SectionCard, StatusBanner } from '../../components/ui';
+import { EmptyState, ListRow, LoadingState, MetricTile, Pill, PrimaryCTA, ScreenScroll, SecondaryCTA, SectionCard, StatusBanner } from '../../components/ui';
 import { useDashboardQuery, useGroupAnnouncementsQuery, useGroupStatusQuery, useMemberActions } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
 import { loadSeenDrawIds, saveSeenDrawId } from '../../services/storage';
 import { iconSize, palette } from '../../theme/tokens';
 import type { GroupStatusSnapshot } from '../../types/domain';
-import { formatTimeLeft } from './shared';
+import { formatCurrency, formatTimeLeft } from './shared';
 import { memberStyles } from './styles';
 
 const MAX_RING_MEMBERS = 10;
@@ -330,6 +330,7 @@ function ContributionRing({
   const paidCount = contributors.filter(contributor => contributor.hasPaid).length;
   const allPaid = paidCount === contributors.length && contributors.length > 0;
   const waitingForDeadline = allPaid && !status.roundReadyForDraw && !latestDraw;
+  const waitingForWinnerExit = !!status.winnerExitWindow;
   const isFinalizingPending = isFocused && seenDrawIdsReady && allPaid && !!status.roundReadyForDraw && !latestDraw;
   const shouldPresentDraw = isFocused && seenDrawIdsReady && !!latestDraw;
   const spinRotation = spinProgress.interpolate({
@@ -419,6 +420,8 @@ function ContributionRing({
       ? 'Winner drawn'
       : isFinalizingPending
         ? 'Finalizing'
+        : waitingForWinnerExit
+          ? 'Winner decision'
         : waitingForDeadline
           ? 'Waiting for deadline'
         : status.isFrozen
@@ -437,6 +440,8 @@ function ContributionRing({
     ? 'Wheel is spinning'
       : shouldPresentDraw && latestDraw
         ? `Winner of Round ${latestDraw.roundNumber}`
+        : waitingForWinnerExit
+          ? 'Next round pending'
         : waitingForDeadline
           ? 'Draw opens when the contribution window closes.'
       : 'Verified contributions only.';
@@ -480,7 +485,9 @@ function ContributionRing({
         <Icon name="shield" size={iconSize.sm} color={palette.primaryDark} />
         <Text style={memberStyles.ringNoteText}>
           {shouldPresentDraw && latestDraw
-            ? `Round ${latestDraw.roundNumber} has been drawn. The next contribution round is now open.`
+            ? status.winnerExitWindow
+              ? `Round ${latestDraw.roundNumber} has been drawn. The next round opens after the winner chooses to continue or exit.`
+              : `Round ${latestDraw.roundNumber} has been drawn. The next contribution round is now open.`
             : waitingForDeadline
               ? `Time left: ${formatTimeLeft(status.contributionDeadlineAt)}. Everyone has paid, so the draw will run when the ${status.group.Frequency.toLowerCase()} window closes.`
               : `Time left: ${formatTimeLeft(status.contributionDeadlineAt)}. The round closes after the deadline and every active member is paid.`}
@@ -613,6 +620,61 @@ function RefundTicketSection({ status }: { status: GroupStatusSnapshot }) {
   );
 }
 
+function WinnerExitSection({
+  status,
+  busy,
+  onContinue,
+  onExit,
+}: {
+  status: GroupStatusSnapshot;
+  busy: boolean;
+  onContinue: () => void;
+  onExit: () => void;
+}) {
+  const summary = status.winnerExitWindow;
+  if (!summary) {
+    return null;
+  }
+
+  const winnerName = status.latestDraw?.winnerName ?? 'Round winner';
+  const deadline = formatTimeLeft(summary.window.closes_at);
+  const title = summary.isCurrentWinner ? 'You won this round' : 'Waiting for winner decision';
+  const body = summary.isCurrentWinner
+    ? 'Choose whether to continue with the group or exit before the next round opens.'
+    : `${winnerName} can continue or exit before the next round opens. Payments stay locked until then.`;
+
+  return (
+    <SectionCard style={winnerExitStyles.card} variant="raised">
+      <View style={winnerExitStyles.heroRow}>
+        <View style={winnerExitStyles.iconWrap}>
+          <Icon name={summary.isCurrentWinner ? 'emoji-events' : 'hourglass-empty'} size={iconSize.lg} color={palette.primary} />
+        </View>
+        <View style={winnerExitStyles.heroText}>
+          <View style={memberStyles.rowBetween}>
+            <Text style={winnerExitStyles.eyebrow}>{summary.isCurrentWinner ? 'Winner choice' : 'Next round pending'}</Text>
+            <Pill label={deadline} tone="warn" />
+          </View>
+          <Text style={winnerExitStyles.title}>{title}</Text>
+          <Text style={winnerExitStyles.body}>{body}</Text>
+        </View>
+      </View>
+      <View style={winnerExitStyles.metrics}>
+        <MetricTile label="Payout" value={formatCurrency(summary.payout.totalPayoutAmount)} helper="Draw total" tone="good" />
+        <MetricTile label="Released" value={formatCurrency(summary.payout.immediateReleaseAmount)} helper="Wallet ready" />
+        <MetricTile label="Reserved" value={formatCurrency(summary.payout.reservedAmount)} helper="Keeps schedule" tone={summary.payout.reservedAmount > 0 ? 'warn' : 'neutral'} />
+      </View>
+      {summary.isCurrentWinner ? (
+        <View style={winnerExitStyles.actions}>
+          <PrimaryCTA label="Continue Next Round" icon="play-arrow" onPress={onContinue} loading={busy} disabled={busy} />
+          <SecondaryCTA label="Exit Equb" icon="logout" onPress={onExit} disabled={busy} />
+        </View>
+      ) : (
+        <StatusBanner tone="info" title="Payments are paused" body="The next contribution round opens after the winner chooses or the decision window expires." />
+      )}
+    </SectionCard>
+  );
+}
+
 export function GroupStatusScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
@@ -621,7 +683,7 @@ export function GroupStatusScreen({ route }: any) {
   const groupId = route.params?.groupId ?? dashboard?.currentGroup?.Group_ID ?? '';
   const { data: status, refetch: refetchGroupStatus } = useGroupStatusQuery(groupId);
   const { data: announcements } = useGroupAnnouncementsQuery({ groupId });
-  const { voteResolutionPoll } = useMemberActions();
+  const { voteResolutionPoll, decideWinnerExit } = useMemberActions();
   const [seenDrawIds, setSeenDrawIds] = useState<Set<string>>(new Set());
   const [seenDrawIdsReady, setSeenDrawIdsReady] = useState(false);
 
@@ -687,6 +749,35 @@ export function GroupStatusScreen({ route }: any) {
   const alreadyPaidCurrentRound = status.contributors?.some(contributor => (
     contributor.userId === session?.user.userId && contributor.hasPaidCurrentRound
   )) ?? false;
+  const winnerExitWindow = status.winnerExitWindow ?? null;
+
+  const decideWinner = (decision: 'Continue' | 'Exit') => {
+    if (!winnerExitWindow) {
+      return;
+    }
+    decideWinnerExit.mutate(
+      { groupId: status.group.Group_ID, windowId: winnerExitWindow.window.id, decision },
+      {
+        onSuccess: () => navigation.navigate(routes.groupStatus, {
+          groupId: status.group.Group_ID,
+          flash: decision === 'Exit'
+            ? 'You exited this Equb after your winning round.'
+            : 'The next round is opening.',
+        }),
+      },
+    );
+  };
+
+  const confirmWinnerExit = () => {
+    Alert.alert(
+      'Exit this Equb?',
+      'You will leave before the next round opens. Your released payout stays available and reserved payout releases keep their schedule.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Exit Equb', style: 'destructive', onPress: () => decideWinner('Exit') },
+      ],
+    );
+  };
 
   return (
     <ScreenScroll>
@@ -704,6 +795,13 @@ export function GroupStatusScreen({ route }: any) {
           label={status.activeResolutionPoll.currentUserVote ? 'View Vote Progress' : 'Vote On Resolution'}
           icon="how-to-vote"
           onPress={() => navigation.navigate(routes.resolutionVote, { groupId: status.group.Group_ID })}
+        />
+      ) : winnerExitWindow ? (
+        <WinnerExitSection
+          status={status}
+          busy={decideWinnerExit.isPending}
+          onContinue={() => decideWinner('Continue')}
+          onExit={confirmWinnerExit}
         />
       ) : (
         <PayRoundButton
@@ -761,3 +859,52 @@ export function GroupStatusScreen({ route }: any) {
     </ScreenScroll>
   );
 }
+
+const winnerExitStyles = StyleSheet.create({
+  card: {
+    overflow: 'hidden',
+  },
+  heroRow: {
+    flexDirection: 'row',
+    gap: 14,
+    alignItems: 'flex-start',
+  },
+  iconWrap: {
+    width: 58,
+    height: 58,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.primarySoft,
+  },
+  heroText: {
+    flex: 1,
+  },
+  eyebrow: {
+    color: palette.primary,
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  title: {
+    marginTop: 6,
+    color: palette.text,
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  body: {
+    marginTop: 6,
+    color: palette.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  metrics: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  actions: {
+    gap: 10,
+    marginTop: 16,
+  },
+});

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { ContributionObligationRecord, GroupRecord, MembershipRecord, RoundRecord, SimulationCommand, SimulationDevice, SimulationSnapshot, UserRecord } from './types';
+import type { ContributionObligationRecord, GroupRecord, MembershipRecord, RoundRecord, SimulationCommand, SimulationDevice, SimulationSnapshot, UserRecord, WinnerExitWindowRecord } from './types';
 import './styles.css';
 
 type UnknownRecord = Record<string, unknown>;
@@ -17,6 +17,7 @@ const emptySnapshot: SimulationSnapshot = {
   joinRequests: [],
   freezeEvents: [],
   resolutionPolls: [],
+  winnerExitWindows: [],
   events: [],
 };
 
@@ -40,6 +41,7 @@ function unwrapSnapshotResponse(value: unknown): SimulationSnapshot {
     joinRequests: Array.isArray(candidate.joinRequests) ? candidate.joinRequests as Array<Record<string, unknown>> : [],
     freezeEvents: Array.isArray(candidate.freezeEvents) ? candidate.freezeEvents as Array<Record<string, unknown>> : [],
     resolutionPolls: Array.isArray(candidate.resolutionPolls) ? candidate.resolutionPolls as Array<Record<string, unknown>> : [],
+    winnerExitWindows: Array.isArray(candidate.winnerExitWindows) ? candidate.winnerExitWindows as WinnerExitWindowRecord[] : [],
     events: Array.isArray(candidate.events) ? candidate.events as SimulationSnapshot['events'] : [],
   };
 }
@@ -183,6 +185,9 @@ function App() {
   const selectedGroupIsActive = selectedGroup?.Status === 'Active';
   const paidCount = obligations.filter(obligation => ['Paid', 'Waived', 'RefundPending'].includes(obligation.status)).length;
   const deadline = firstDeadline(obligations);
+  const winnerExitWindow = selectedGroup
+    ? snapshot?.winnerExitWindows.find(window => window.group_id === selectedGroup.Group_ID && window.status === 'Open') ?? null
+    : null;
 
   function appendLog(line: string) {
     setLog(current => [`${new Date().toLocaleTimeString()} - ${line}`, ...current].slice(0, 12));
@@ -283,11 +288,15 @@ function App() {
       appendLog(response.message);
       if (selectedGroup) {
         await refreshApp(selectedGroup.Group_ID);
+      } else if (selectedDevice) {
+        await window.uniequbController.sendCommand(selectedDevice.id, makeCommand('Refresh', {}));
       }
     } catch (error) {
       appendLog(`Action failed: ${error instanceof Error ? error.message : String(error)}`);
       if (selectedGroup) {
         await refreshApp(selectedGroup.Group_ID);
+      } else if (selectedDevice) {
+        await window.uniequbController.sendCommand(selectedDevice.id, makeCommand('Refresh', {}));
       }
     } finally {
       setBusy(false);
@@ -349,11 +358,12 @@ function App() {
               const groupRound = currentRound(snapshot, group.Group_ID);
               const groupObligations = roundObligations(snapshot, groupRound);
               const groupPaidCount = groupObligations.filter(obligation => ['Paid', 'Waived', 'RefundPending'].includes(obligation.status)).length;
+              const groupWinnerExitWindow = snapshot?.winnerExitWindows.find(window => window.group_id === group.Group_ID && window.status === 'Open');
               return (
                 <button key={group.Group_ID} className={`groupCard ${selectedGroup?.Group_ID === group.Group_ID ? 'selected' : ''}`} onClick={() => setSelectedGroupId(group.Group_ID)}>
                   <strong>{group.Group_Name}</strong>
                   <span>{formatMoney(group.Amount)} - {group.Frequency}</span>
-                  <em>{group.Status} - {groupPaidCount}/{groupObligations.length || group.Max_Members} paid - {timeLeft(firstDeadline(groupObligations))}</em>
+                  <em>{groupWinnerExitWindow ? 'Winner decision' : group.Status} - {groupPaidCount}/{groupObligations.length || group.Max_Members} paid - {groupWinnerExitWindow ? timeLeft(groupWinnerExitWindow.closes_at) : timeLeft(firstDeadline(groupObligations))}</em>
                 </button>
               );
             }) : <p className="empty">No groups found. Use the controller formation panel or the seeding engine to create one.</p>}
@@ -403,7 +413,7 @@ function App() {
             <div className="facts">
               <p><strong>{selectedGroup.Group_Name}</strong></p>
               <p>Round {round?.Round_Number ?? '-'} - {paidCount}/{obligations.length || members.length} paid</p>
-              <p>Deadline: {timeLeft(deadline)}</p>
+              <p>{winnerExitWindow ? 'Winner exit window' : 'Deadline'}: {timeLeft(winnerExitWindow?.closes_at ?? deadline)}</p>
               <p>Draw seed: {drawSeed || 'not recorded'}</p>
             </div>
           ) : <p className="empty">Pick an active group.</p>}
@@ -482,6 +492,13 @@ function App() {
               <button className="secondary" onClick={() => runAction('closeResolutionPoll')} disabled={!selectedGroup || busy}>Close Open Poll</button>
               <button className="secondary" onClick={() => runAction('resumeFrozenGroup')} disabled={!selectedGroup || busy}>Resume Frozen Group</button>
               <button className="dangerGhost" onClick={() => runAction('resolveFreezeRefund')} disabled={!selectedGroup || busy}>Resolve With Refund</button>
+            </div>
+            <div className="controlCard">
+              <h3>Winner exit window</h3>
+              <p>Control the post-draw winner choice. These actions only apply when an active group is waiting for the winner decision.</p>
+              <button onClick={() => runAction('winnerExitContinue', { windowId: winnerExitWindow?.id })} disabled={!selectedGroupIsActive || !winnerExitWindow || busy}>Continue Next Round</button>
+              <button className="secondary" onClick={() => runAction('expireWinnerExitWindow')} disabled={!selectedGroupIsActive || !winnerExitWindow || busy}>Expire Window</button>
+              <button className="dangerGhost" onClick={() => runAction('winnerExitLeave', { windowId: winnerExitWindow?.id })} disabled={!selectedGroupIsActive || !winnerExitWindow || busy}>Exit Winner</button>
             </div>
             <div className="controlCard">
               <h3>Deadline and recovery</h3>

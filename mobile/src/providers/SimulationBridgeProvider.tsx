@@ -64,11 +64,13 @@ export function SimulationBridgeProvider({ children }: PropsWithChildren) {
           }
           break;
         case 'SelectActiveGroup':
+          queryClient.invalidateQueries();
           if (typeof payload.groupId === 'string') {
             navigateFromOutside(routes.groupStatus, { groupId: payload.groupId, flash: 'Simulation selected this group.' });
           }
           break;
         case 'PaymentReturn':
+          queryClient.invalidateQueries();
           if (typeof payload.groupId === 'string') {
             navigateFromOutside(routes.paymentSuccess, { groupId: payload.groupId, receiptRef: payload.receiptRef, amount: payload.amount, method: payload.method });
           }

@@ -15,6 +15,7 @@ export const PHASE2_DEFAULT_APP_CONFIG = {
   minimum_immediate_payout_amount: 0,
   payout_rounding_strategy: 'floor',
   enable_private_vesting_override: true,
+  winner_exit_window_hours: 24,
 } as const;
 
 export type Phase2ConfigKey = keyof typeof PHASE2_DEFAULT_APP_CONFIG;

@@ -135,6 +135,15 @@ export const liveGroupsService: GroupService = {
     });
   },
 
+  async decideWinnerExit(groupId: string, windowId: string, decision: 'Continue' | 'Exit'): Promise<void> {
+    await invoke({
+      action: 'decideWinnerExit',
+      groupId,
+      winnerExitWindowId: windowId,
+      winnerExitDecision: decision,
+    });
+  },
+
   async joinGroup(_userId: string, groupId: string): Promise<void> {
     await invoke<{ membership: MembershipRecord; group: GroupRecord; currentRound: RoundRecord }>({ action: 'join', groupId });
   },

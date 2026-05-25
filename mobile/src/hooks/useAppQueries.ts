@@ -1,4 +1,5 @@
-﻿import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+﻿import { useCallback, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useServices } from '../providers/ServicesProvider';
 import { useAuth } from '../providers/AuthProvider';
 import type { PaymentMethod } from '../types/domain';
@@ -23,6 +24,38 @@ export const queryKeys = {
   pendingFormationGroups: ['pending-formation-groups'] as const,
   reports: ['reports'] as const,
 };
+
+export function useRefreshMemberData() {
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshMemberData = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.groups }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.formationGroups }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.myFormationGroups }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.history }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.wallet }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.notifications }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.profile }),
+      ]);
+      await queryClient.invalidateQueries({
+        predicate: query => Array.isArray(query.queryKey) && (
+          query.queryKey[0] === 'group-status'
+          || query.queryKey[0] === 'group'
+          || query.queryKey[0] === 'formation-group'
+          || query.queryKey[0] === 'announcements'
+        ),
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [queryClient]);
+
+  return { refreshing, refreshMemberData };
+}
 
 export function useDashboardQuery() {
   const services = useServices();
@@ -247,6 +280,11 @@ export function useMemberActions() {
     voteResolutionPoll: useMutation({
       mutationFn: ({ groupId, pollId, optionId }: { groupId: string; pollId: string; optionId: string }) =>
         services.groups.voteResolutionPoll(groupId, pollId, optionId),
+      onSuccess: refreshMemberData,
+    }),
+    decideWinnerExit: useMutation({
+      mutationFn: ({ groupId, windowId, decision }: { groupId: string; windowId: string; decision: 'Continue' | 'Exit' }) =>
+        services.groups.decideWinnerExit(groupId, windowId, decision),
       onSuccess: refreshMemberData,
     }),
     payContribution: useMutation({

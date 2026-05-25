@@ -15,7 +15,8 @@ import { closeResolutionPollIfReady, createFrozenGroupResolutionPoll } from '../
 import { finalizeRoundIfReady } from '../_shared/roundLifecycle.ts';
 import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import type { ContributionObligationRecord, GroupRecord, MembershipRecord, RefundTicketRecord, RoundRecord, TransactionRecord, UserRecord } from '../_shared/types.ts';
+import { continueExpiredWinnerExitWindow, decideWinnerExitWindow } from '../_shared/winnerExit.ts';
+import type { ContributionObligationRecord, GroupRecord, MembershipRecord, RefundTicketRecord, RoundRecord, TransactionRecord, UserRecord, WinnerExitWindowRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -75,6 +76,7 @@ async function snapshot() {
     { data: joinRequests, error: joinRequestsError },
     { data: freezeEvents, error: freezeEventsError },
     { data: resolutionPolls, error: resolutionPollsError },
+    { data: winnerExitWindows, error: winnerExitWindowsError },
   ] = await Promise.all([
     supabaseAdmin.from('EqubGroup').select('*').order('Start_Date', { ascending: false, nullsFirst: false }),
     supabaseAdmin.from('Round').select('*').order('Round_Number', { ascending: true }),
@@ -85,8 +87,9 @@ async function snapshot() {
     supabaseAdmin.from('group_join_requests').select('*').order('requested_at', { ascending: false }).limit(200),
     supabaseAdmin.from('group_freeze_events').select('*').order('created_at', { ascending: false }).limit(100),
     supabaseAdmin.from('group_resolution_polls').select('*').order('created_at', { ascending: false }).limit(100),
+    supabaseAdmin.from('winner_exit_windows').select('*').order('created_at', { ascending: false }).limit(100),
   ]);
-  for (const error of [groupsError, roundsError, membershipsError, transactionsError, eventsError, groupRequestsError, joinRequestsError, freezeEventsError, resolutionPollsError]) {
+  for (const error of [groupsError, roundsError, membershipsError, transactionsError, eventsError, groupRequestsError, joinRequestsError, freezeEventsError, resolutionPollsError, winnerExitWindowsError]) {
     if (error) {
       throw error;
     }
@@ -122,6 +125,7 @@ async function snapshot() {
     joinRequests: joinRequests ?? [],
     freezeEvents: freezeEvents ?? [],
     resolutionPolls: resolutionPolls ?? [],
+    winnerExitWindows: ((winnerExitWindows ?? []) as WinnerExitWindowRecord[]).filter(window => groupIds.includes(window.group_id)),
     events: (events ?? []).map(event => ({
       id: event.id,
       commandType: event.command_type,
@@ -493,6 +497,71 @@ async function closeOpenPoll(group: GroupRecord, actor: UserRecord) {
   return 'Open resolution poll closed.';
 }
 
+async function findOpenWinnerExitWindow(groupId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('winner_exit_windows')
+    .select('*')
+    .eq('group_id', groupId)
+    .eq('status', 'Open')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+  return data as WinnerExitWindowRecord | null;
+}
+
+async function decideOpenWinnerExit(group: GroupRecord, actor: UserRecord, decision: 'Continue' | 'Exit', windowId?: string) {
+  if (group.Status !== 'Active') {
+    throw new Error('Winner exit controls only apply to active groups.');
+  }
+  const window = windowId ? null : await findOpenWinnerExitWindow(group.Group_ID);
+  const targetWindowId = windowId ?? window?.id;
+  if (!targetWindowId) {
+    throw new Error('No open winner exit window exists for this group.');
+  }
+  const result = await decideWinnerExitWindow({
+    group,
+    windowId: targetWindowId,
+    decision,
+    actor,
+  });
+  if (result.shouldOpenNextRound) {
+    const refreshed = await requireGroup(group.Group_ID);
+    if (refreshed.Status === 'Active') {
+      await ensureOpenRoundForGroup(refreshed);
+    }
+  }
+  return decision === 'Exit' ? 'Winner exited; next state applied.' : 'Winner continued; next round opened.';
+}
+
+async function expireOpenWinnerExit(group: GroupRecord) {
+  if (group.Status !== 'Active') {
+    throw new Error('Winner exit controls only apply to active groups.');
+  }
+  const continued = await continueExpiredWinnerExitWindow(group);
+  if (!continued) {
+    const window = await findOpenWinnerExitWindow(group.Group_ID);
+    if (!window) {
+      throw new Error('No open winner exit window exists for this group.');
+    }
+    const { error } = await supabaseAdmin
+      .from('winner_exit_windows')
+      .update({
+        closes_at: new Date(Date.now() - 1000).toISOString(),
+        metadata: { ...(window.metadata ?? {}), expired_by: 'simulation-controller' },
+      })
+      .eq('id', window.id);
+    if (error) {
+      throw error;
+    }
+    await continueExpiredWinnerExitWindow(group);
+  }
+  await ensureOpenRoundForGroup(group);
+  return 'Winner exit window expired and defaulted to continue.';
+}
+
 async function disbandGroup(group: GroupRecord, actor: UserRecord) {
   const activeMemberships = await listActiveMemberships(group.Group_ID);
   const rounds = await supabaseAdmin
@@ -641,6 +710,24 @@ async function runBackendCommand(command: SimulationCommand) {
         throw new Error('groupId is required for polling.');
       }
       return closeOpenPoll(group, actor);
+    }
+    case 'winnerExitContinue': {
+      if (!group) {
+        throw new Error('groupId is required for winner exit controls.');
+      }
+      return decideOpenWinnerExit(group, actor, 'Continue', typeof payload.windowId === 'string' ? payload.windowId : undefined);
+    }
+    case 'winnerExitLeave': {
+      if (!group) {
+        throw new Error('groupId is required for winner exit controls.');
+      }
+      return decideOpenWinnerExit(group, actor, 'Exit', typeof payload.windowId === 'string' ? payload.windowId : undefined);
+    }
+    case 'expireWinnerExitWindow': {
+      if (!group) {
+        throw new Error('groupId is required for winner exit controls.');
+      }
+      return expireOpenWinnerExit(group);
     }
     case 'disbandGroup': {
       if (!group) {

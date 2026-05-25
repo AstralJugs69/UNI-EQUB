@@ -9,6 +9,7 @@ import { finalizeRoundIfReady } from '../_shared/roundLifecycle.ts';
 import { assertReliabilityAllowsNormalFlow, ensureReliabilityProfile, getReliabilityJoinGate } from '../_shared/reliability.ts';
 import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
+import { decideWinnerExitWindow, getWinnerExitWindowSummary } from '../_shared/winnerExit.ts';
 import type { GroupRecord, KycSubmissionRecord, MembershipRecord, RoundRecord, TransactionRecord, UserRecord, UserReliabilityProfileRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
@@ -37,6 +38,7 @@ interface DashboardSnapshot {
   reliabilityProfile: UserReliabilityProfileRecord;
   activeResolutionPoll?: unknown;
   latestResolutionPoll?: unknown;
+  winnerExitWindow?: unknown;
 }
 
 function contributionDeadlineFromObligations(obligations: Array<{ due_at: string | null; status: string }>) {
@@ -356,6 +358,7 @@ async function getGroupStatusSnapshot(actor: UserRecord, groupId: string) {
     && !obligationProgress.paidUserIds.has(actor.User_ID);
 
   const resolutionState = await getGroupResolutionState(groupId, actor.User_ID);
+  const winnerExitWindow = await getWinnerExitWindowSummary(groupId, actor.User_ID);
 
   const contributionDeadlineAt = contributionDeadlineFromObligations(obligationProgress.obligations);
   const approvedRequest = group.Status === 'Pending' ? await getApprovedRequestForGroup(groupId) : null;
@@ -375,6 +378,7 @@ async function getGroupStatusSnapshot(actor: UserRecord, groupId: string) {
     contributors: await getStatusContributors(groupId, memberships, obligationProgress.paidUserIds, currentRound?.Winner_ID),
     activeResolutionPoll: resolutionState.activeResolutionPoll,
     latestResolutionPoll: resolutionState.latestResolutionPoll,
+    winnerExitWindow,
     refundTickets: resolutionState.refundTickets,
     canCurrentUserPay,
     isFrozen: group.Status === 'Frozen',
@@ -471,6 +475,7 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
   const resolutionState = currentGroup
     ? await getGroupResolutionState(currentGroup.Group_ID, actor.User_ID)
     : { activeResolutionPoll: null, latestResolutionPoll: null };
+  const winnerExitWindow = currentGroup ? await getWinnerExitWindowSummary(currentGroup.Group_ID, actor.User_ID) : null;
 
   return {
     currentGroup: currentGroup ? toAppGroup(currentGroup) : null,
@@ -487,6 +492,7 @@ async function getDashboardSnapshot(actor: UserRecord): Promise<DashboardSnapsho
     reliabilityProfile: await ensureReliabilityProfile(actor.User_ID),
     activeResolutionPoll: resolutionState.activeResolutionPoll,
     latestResolutionPoll: resolutionState.latestResolutionPoll,
+    winnerExitWindow,
   };
 }
 
@@ -733,6 +739,32 @@ Deno.serve(async request => {
         }
         await closeResolutionPollIfReady({ pollId: body.pollId, actor, forceExpired: true });
         return json(await getGroupResolutionState(body.groupId, actor.User_ID));
+      }
+
+      case 'decideWinnerExit': {
+        if (!body.groupId || !body.winnerExitWindowId || !body.winnerExitDecision) {
+          return fail('Missing winner exit decision payload.', 400);
+        }
+        if (actor.Role !== 'Admin') {
+          assertVerifiedMember(actor);
+        }
+        const group = await requireGroup(body.groupId);
+        const decision = await decideWinnerExitWindow({
+          group,
+          windowId: body.winnerExitWindowId,
+          decision: body.winnerExitDecision,
+          actor,
+        });
+        if (decision.shouldOpenNextRound) {
+          const refreshedGroup = await requireGroup(body.groupId);
+          if (refreshedGroup.Status === 'Active') {
+            await ensureOpenRoundForGroup(refreshedGroup);
+          }
+        }
+        return json({
+          decision,
+          ...(await getGroupStatusSnapshot(actor, body.groupId)),
+        });
       }
 
       case 'join': {

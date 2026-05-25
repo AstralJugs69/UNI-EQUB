@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
 import { AppScreen, InlineError, SectionCard, StatusBanner } from '../../components/ui';
-import { useFormationGroupsQuery, useGroupsQuery, useMyFormationGroupsQuery } from '../../hooks/useAppQueries';
+import { useFormationGroupsQuery, useGroupsQuery, useMyFormationGroupsQuery, useRefreshMemberData } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { iconSize, palette } from '../../theme/tokens';
 import type { GroupRecord } from '../../types/domain';
@@ -103,11 +103,12 @@ export function ExploreScreen() {
   const { data = [] } = useGroupsQuery();
   const { data: formingGroups = [], error: formingError } = useFormationGroupsQuery();
   const { data: myRequests = [], error: myRequestsError } = useMyFormationGroupsQuery();
+  const { refreshing, refreshMemberData } = useRefreshMemberData();
   const [browseHintVisible, setBrowseHintVisible] = React.useState(false);
   const joinWindowGroups = browseableJoinWindowGroups(data);
 
   return (
-    <AppScreen>
+    <AppScreen refreshing={refreshing} onRefresh={refreshMemberData}>
       <Text style={memberStyles.exploreTitle}>Explore</Text>
       <ExploreHero
         onJoinCode={() => navigation.navigate(routes.formationJoinCode)}

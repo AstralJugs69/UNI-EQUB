@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
 import { AppScreen, EmptyState, HeroCard, ListRow, LoadingState, MetricTile, Pill, SecondaryCTA, SectionCard, StatusBanner } from '../../components/ui';
-import { useDashboardQuery, useGroupStatusQuery } from '../../hooks/useAppQueries';
+import { useDashboardQuery, useGroupStatusQuery, useRefreshMemberData } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
 import { iconSize, palette } from '../../theme/tokens';
@@ -60,6 +60,7 @@ export function DashboardScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const { session } = useAuth();
   const { data } = useDashboardQuery();
+  const { refreshing, refreshMemberData } = useRefreshMemberData();
   const group = data?.currentGroup;
   const { data: groupStatus } = useGroupStatusQuery(group?.Group_ID ?? '');
   const recent = data?.recentTransactions?.[0];
@@ -79,7 +80,7 @@ export function DashboardScreen({ route }: any) {
   if (!group) {
     const completedGroups = data.completedGroups ?? [];
     return (
-      <AppScreen>
+      <AppScreen refreshing={refreshing} onRefresh={refreshMemberData}>
         {route?.params?.flash ? <StatusBanner tone="success" title={route.params.flash} /> : null}
         {kycBanner ? <StatusBanner tone="warning" title={kycBanner.title} body={kycBanner.body} /> : null}
         <HeroCard>
@@ -123,10 +124,12 @@ export function DashboardScreen({ route }: any) {
   const paidCount = groupStatus?.paidCount ?? data.paidCount;
   const totalMembers = groupStatus?.totalMembers ?? data.totalMembers;
   const contributionDeadlineAt = groupStatus?.contributionDeadlineAt ?? data.contributionDeadlineAt;
-  const roundNumber = currentRound?.Round_Number ?? '-';
+  const roundNumber = currentRound?.Round_Number ?? (typeof data.winnerExitWindow?.window.metadata?.round_number === 'number' ? data.winnerExitWindow.window.metadata.round_number : '-');
   const progressPercent = totalMembers > 0 ? Math.round((paidCount / totalMembers) * 100) : 0;
   const timeLeft = formatTimeLeft(contributionDeadlineAt);
   const voteActive = !!data.activeResolutionPoll;
+  const winnerExitWindow = data.winnerExitWindow ?? null;
+  const winnerExitActive = !!winnerExitWindow;
   const votesCast = data.activeResolutionPoll ? Object.values(data.activeResolutionPoll.voteCounts).reduce((sum, count) => sum + count, 0) : 0;
   const votePercent = data.activeResolutionPoll?.eligibleVoterCount ? Math.round((votesCast / data.activeResolutionPoll.eligibleVoterCount) * 100) : 0;
   const cycleActive = group.Status === 'Active' && !!currentRound;
@@ -137,6 +140,8 @@ export function DashboardScreen({ route }: any) {
   const completed = group.Status === 'Completed' || (!currentRound && group.Status !== 'Active' && group.Status !== 'Pending');
   const heroPrimaryLabel = voteActive
     ? 'Vote'
+    : winnerExitActive
+      ? winnerExitWindow.isCurrentWinner ? 'Choose Next Step' : 'View Status'
     : frozen
       ? 'View Status'
       : completed
@@ -148,6 +153,8 @@ export function DashboardScreen({ route }: any) {
           : 'History';
   const heroPrimaryIcon = voteActive
     ? 'how-to-vote'
+    : winnerExitActive
+      ? winnerExitWindow.isCurrentWinner ? 'emoji-events' : 'hourglass-empty'
     : frozen || alreadyPaid
       ? 'task-alt'
       : completed
@@ -158,6 +165,10 @@ export function DashboardScreen({ route }: any) {
   const heroPrimaryTarget = () => {
     if (voteActive) {
       navigation.navigate(routes.resolutionVote, { groupId: group.Group_ID });
+      return;
+    }
+    if (winnerExitActive) {
+      navigation.navigate(routes.groupStatus, { groupId: group.Group_ID });
       return;
     }
     if (cycleActive && !alreadyPaid && !frozen) {
@@ -172,6 +183,10 @@ export function DashboardScreen({ route }: any) {
   };
   const heroBody = voteActive
     ? 'This round is now in voting. All eligible members must vote to resolve the round and move forward.'
+    : winnerExitActive
+      ? winnerExitWindow.isCurrentWinner
+        ? 'You won this round. Choose whether to continue into the next round or exit before it opens.'
+        : 'The winner is choosing whether to continue or exit. The next round opens after that decision.'
     : frozen
       ? 'This Equb is paused for recovery review. Payments and draws stay locked until the case is resolved.'
       : completed
@@ -185,10 +200,10 @@ export function DashboardScreen({ route }: any) {
                 ? 'Your contribution is recorded. Track the remaining time and group progress until the draw opens.'
                 : `${group.Group_Name} is at ${paidCount}/${totalMembers} paid. Your contribution keeps the round moving.`
               : `${group.Group_Name} has no open round. Review your history or open another active group.`;
-  const detailLabel = voteActive ? 'Details' : frozen ? 'Review' : completed ? 'Groups' : 'Details';
+  const detailLabel = voteActive || winnerExitActive ? 'Details' : frozen ? 'Review' : completed ? 'Groups' : 'Details';
 
   return (
-    <AppScreen>
+    <AppScreen refreshing={refreshing} onRefresh={refreshMemberData}>
       {route?.params?.flash ? <StatusBanner tone="success" title={route.params.flash} /> : null}
       {kycBanner ? <StatusBanner tone="warning" title={kycBanner.title} body={kycBanner.body} /> : null}
       <View style={memberStyles.dashboardHeroCard}>
@@ -239,7 +254,7 @@ export function DashboardScreen({ route }: any) {
                 <Text style={memberStyles.heroDetailsButtonText}>Details</Text>
               </Pressable>
             </>
-          ) : cycleActive || frozen ? (
+          ) : cycleActive || frozen || winnerExitActive ? (
             <>
               <Pressable
                 accessibilityRole="button"
@@ -289,6 +304,8 @@ export function DashboardScreen({ route }: any) {
             <Text style={memberStyles.dashboardHeroDetailBody}>
               {voteActive
                 ? formatTimeLeft(data.activeResolutionPoll?.poll.closes_at)
+                : winnerExitActive
+                  ? formatTimeLeft(winnerExitWindow.window.closes_at)
                 : frozen
                   ? 'Paused for review'
                   : completed
@@ -306,6 +323,8 @@ export function DashboardScreen({ route }: any) {
             <Text style={memberStyles.dashboardHeroDetailBody}>
               {voteActive
                 ? `${votesCast} of ${data.activeResolutionPoll?.eligibleVoterCount ?? totalMembers} members have voted`
+                : winnerExitActive
+                  ? winnerExitWindow.isCurrentWinner ? 'Your decision is needed' : 'Waiting for winner decision'
                 : completed
                   ? 'All cycle rounds are complete'
                   : `${paidCount} of ${totalMembers} members verified this round`}

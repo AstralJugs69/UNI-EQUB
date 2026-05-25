@@ -39,6 +39,8 @@ export type GroupFreezeResolutionAction = 'ContinueWithReserveFrozen' | 'KeepFro
 export type GroupResolutionPollStatus = 'Open' | 'Closed' | 'Expired' | 'Cancelled';
 export type GroupResolutionPollAction = 'ContinueWithReserveFrozen' | 'KeepFrozenForReview' | 'CreateRefundTickets';
 export type RefundTicketStatus = 'Created' | 'PendingReview' | 'SimulatedCompleted' | 'Cancelled';
+export type WinnerExitWindowStatus = 'Open' | 'Continued' | 'Exited' | 'Cancelled';
+export type WinnerExitDecision = 'Continue' | 'Exit';
 export type KycSubmissionStatus = 'PendingReview' | 'Approved' | 'Rejected' | 'NeedsResubmission' | 'Superseded';
 export type KycDocumentKind = 'front_id' | 'back_id' | 'selfie' | 'legacy_student_id';
 
@@ -452,4 +454,18 @@ export interface RefundTicketRecord {
   created_by_event_id: string | null;
   created_at: string;
   processed_at: string | null;
+}
+
+export interface WinnerExitWindowRecord {
+  id: string;
+  group_id: string;
+  round_id: string;
+  winner_user_id: string;
+  status: WinnerExitWindowStatus;
+  opens_at: string;
+  closes_at: string;
+  decision_at: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
 }

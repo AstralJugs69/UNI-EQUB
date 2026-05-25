@@ -76,6 +76,18 @@ export interface ContributionObligationRecord {
   status: string;
 }
 
+export interface WinnerExitWindowRecord {
+  id: string;
+  group_id: string;
+  round_id: string;
+  winner_user_id: string;
+  status: string;
+  opens_at: string;
+  closes_at: string;
+  decision_at: string | null;
+  metadata: Record<string, unknown>;
+}
+
 export interface SimulationSnapshot {
   generatedAt: string;
   groups: GroupRecord[];
@@ -88,6 +100,7 @@ export interface SimulationSnapshot {
   joinRequests: Array<Record<string, unknown>>;
   freezeEvents: Array<Record<string, unknown>>;
   resolutionPolls: Array<Record<string, unknown>>;
+  winnerExitWindows: WinnerExitWindowRecord[];
   events: Array<{ id: string; commandType: string; createdAt: string; metadata: Record<string, unknown> }>;
 }
 

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from './supabaseAdmin.ts';
 import { ensureContributionObligationsForRound } from './obligations.ts';
+import { continueExpiredWinnerExitWindow, getOpenWinnerExitWindow } from './winnerExit.ts';
 import type { GroupRecord, RoundRecord } from './types.ts';
 
 export async function getOpenRound(groupId: string) {
@@ -42,16 +43,44 @@ async function listActiveMemberIds(groupId: string) {
   return (data ?? []).map(item => (item as { User_ID: string }).User_ID);
 }
 
-async function listWinnerIds(groupId: string) {
+async function listWinnerIdsSince(groupId: string, minRoundNumber: number) {
   const { data, error } = await supabaseAdmin
     .from('Round')
     .select('Winner_ID')
     .eq('Group_ID', groupId)
+    .gte('Round_Number', minRoundNumber)
     .not('Winner_ID', 'is', null);
   if (error) {
     throw error;
   }
   return new Set((data ?? []).map(item => (item as { Winner_ID: string }).Winner_ID));
+}
+
+async function getCurrentPassStartRoundNumber(groupId: string) {
+  const { data: events, error: eventError } = await supabaseAdmin
+    .from('group_freeze_events')
+    .select('trigger_round_id, resolved_at')
+    .eq('group_id', groupId)
+    .eq('reason', 'CycleCompletionVote')
+    .eq('status', 'ResolvedContinue')
+    .order('resolved_at', { ascending: false, nullsFirst: false })
+    .limit(1);
+  if (eventError) {
+    throw eventError;
+  }
+  const triggerRoundId = (events?.[0] as { trigger_round_id?: string | null } | undefined)?.trigger_round_id;
+  if (!triggerRoundId) {
+    return 1;
+  }
+  const { data: round, error: roundError } = await supabaseAdmin
+    .from('Round')
+    .select('Round_Number')
+    .eq('Round_ID', triggerRoundId)
+    .maybeSingle();
+  if (roundError) {
+    throw roundError;
+  }
+  return Number((round as { Round_Number?: number } | null)?.Round_Number ?? 0) + 1;
 }
 
 async function hasContinuationApproval(groupId: string, roundId: string) {
@@ -94,8 +123,16 @@ export async function ensureOpenRoundForGroup(group: GroupRecord) {
   const latestRound = await getLatestRound(group.Group_ID);
   const nextRoundNumber = latestRound ? Number(latestRound.Round_Number) + 1 : 1;
   if (latestRound && latestRound.Status === 'Completed') {
+    const exitWindow = await getOpenWinnerExitWindow(group.Group_ID);
+    if (exitWindow) {
+      const continued = await continueExpiredWinnerExitWindow(group);
+      if (!continued) {
+        return null;
+      }
+    }
     const activeMemberIds = await listActiveMemberIds(group.Group_ID);
-    const winnerIds = await listWinnerIds(group.Group_ID);
+    const currentPassStartRound = await getCurrentPassStartRoundNumber(group.Group_ID);
+    const winnerIds = await listWinnerIdsSince(group.Group_ID, currentPassStartRound);
     if (
       activeMemberIds.length > 0
       && activeMemberIds.every(userId => winnerIds.has(userId))

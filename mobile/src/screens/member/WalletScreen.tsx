@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
 import { AppScreen, HeroCard, LoadingState, MetricTile, PrimaryCTA, SectionCard, StatusBanner, TopAppBar } from '../../components/ui';
-import { useDashboardQuery, useWalletQuery } from '../../hooks/useAppQueries';
+import { useDashboardQuery, useRefreshMemberData, useWalletQuery } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { iconSize, palette } from '../../theme/tokens';
 import { formatCurrency } from './shared';
@@ -13,13 +13,14 @@ export function WalletScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const { data } = useWalletQuery();
   const { data: dashboard } = useDashboardQuery();
+  const { refreshing, refreshMemberData } = useRefreshMemberData();
 
   if (!data) {
     return <LoadingState title="Loading wallet" subtitle="Pulling payout balance and withdrawal state." />;
   }
 
   return (
-    <AppScreen>
+    <AppScreen refreshing={refreshing} onRefresh={refreshMemberData}>
       <TopAppBar title="Payouts" subtitle="Wallet" rightLabel={data.readyPayout > 0 ? 'Ready' : data.reservedPayout > 0 ? 'Reserve' : 'Idle'} />
       {route?.params?.flash ? <StatusBanner tone="success" title={route.params.flash} /> : null}
       <HeroCard>

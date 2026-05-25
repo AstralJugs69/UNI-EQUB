@@ -92,6 +92,9 @@ async function initiateContributionAttempt(actor: UserRecord, body: PaymentAttem
   await assertReliabilityAllowsNormalFlow(actor.User_ID);
   await requireActiveMembership(group.Group_ID, actor.User_ID);
   const round = await ensureOpenRoundForGroup(group);
+  if (!round) {
+    throw new Error('The next contribution round is not open yet.');
+  }
   if (body.roundId && body.roundId !== round.Round_ID) {
     throw new Error('The requested round is not the current open round.');
   }

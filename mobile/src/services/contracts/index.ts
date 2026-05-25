@@ -147,6 +147,7 @@ export interface GroupService {
   createResolutionPoll(groupId: string): Promise<GroupStatusSnapshot['activeResolutionPoll']>;
   voteResolutionPoll(groupId: string, pollId: string, optionId: string): Promise<void>;
   closeResolutionPoll(groupId: string, pollId: string): Promise<void>;
+  decideWinnerExit(groupId: string, windowId: string, decision: 'Continue' | 'Exit'): Promise<void>;
   joinGroup(userId: string, groupId: string): Promise<void>;
   getDashboard(userId: string): Promise<DashboardSnapshot>;
 }

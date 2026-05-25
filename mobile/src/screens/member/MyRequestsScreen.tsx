@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
 import { InlineError, MetricTile, ScreenScroll, SegmentedTabs, SectionCard, TopAppBar } from '../../components/ui';
-import { useMyFormationGroupsQuery } from '../../hooks/useAppQueries';
+import { useMyFormationGroupsQuery, useRefreshMemberData } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { palette } from '../../theme/tokens';
 import { FormingRequestCard } from './FormingRequestCard';
@@ -14,6 +14,7 @@ type RequestFilter = 'All' | 'Forming' | 'PendingApproval' | 'Approved' | 'Rejec
 export function MyRequestsScreen() {
   const navigation = useNavigation<any>();
   const { data: myRequests = [], error } = useMyFormationGroupsQuery();
+  const { refreshing, refreshMemberData } = useRefreshMemberData();
   const [filter, setFilter] = useState<RequestFilter>('All');
   const filteredRequests = useMemo(() => (
     filter === 'All' ? myRequests : myRequests.filter(request => request.status === filter)
@@ -25,7 +26,7 @@ export function MyRequestsScreen() {
   }), [myRequests]);
 
   return (
-    <ScreenScroll>
+    <ScreenScroll refreshing={refreshing} onRefresh={refreshMemberData}>
       <TopAppBar title="My Requests" subtitle="Forming groups" onBack={() => navigation.goBack()} rightLabel={`${myRequests.length}`} />
       <InlineError message={error instanceof Error ? error.message : ''} />
       <SectionCard style={memberStyles.requestSummaryCard}>
