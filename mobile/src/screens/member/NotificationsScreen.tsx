@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AppScreen, EmptyState, Pill, PrimaryCTA, SectionCard, TopAppBar } from '../../components/ui';
 import { Icon } from '../../components/Icon';
@@ -47,7 +47,7 @@ export function NotificationsScreen() {
         <EmptyState icon="notifications-none" title="No notifications yet" subtitle="Round reminders, winner announcements, and approvals will show up here once activity starts." />
       ) : (
         <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={memberStyles.notificationCategoryScroller} contentContainerStyle={memberStyles.notificationCategoryRail}>
+          <View style={memberStyles.notificationCategoryRail}>
             {visibleGroups.map(group => {
               const groupUnread = groupedNotifications[group].filter(item => item.unread).length;
               const selected = group === activeGroup;
@@ -65,7 +65,7 @@ export function NotificationsScreen() {
                 </Pressable>
               );
             })}
-          </ScrollView>
+          </View>
 
           <SectionCard variant={activeNotifications.some(item => item.unread) ? 'raised' : 'default'} style={memberStyles.notificationsPanel}>
             <View style={memberStyles.notificationsGroupHeader}>

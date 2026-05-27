@@ -1040,12 +1040,18 @@ async function loadPendingInvitation(body: GroupFormationPayload) {
   if (body.invitationId) {
     query = query.eq('id', body.invitationId);
   } else {
-    query = query.eq('invite_code', cleanText(body.inviteCode).toUpperCase());
+    query = query
+      .eq('invite_code', cleanText(body.inviteCode).toUpperCase())
+      .eq('status', 'Pending')
+      .order('created_at', { ascending: false });
   }
 
-  const { data, error } = await query.single();
+  const { data, error } = await query.limit(1).maybeSingle();
   if (error) {
     throw error;
+  }
+  if (!data) {
+    throw new Error('This invite code is invalid or no longer active.');
   }
 
   const invitation = data as GroupInvitationRecord;

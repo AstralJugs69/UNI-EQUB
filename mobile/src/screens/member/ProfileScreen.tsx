@@ -9,7 +9,7 @@ import { AppScreen, LoadingState, MetricTile, Pill, PrimaryCTA, SectionCard, Sta
 import { useAccountSlotsQuery, useDashboardQuery, useProfileActions, useProfileQuery, useRefreshMemberData } from '../../hooks/useAppQueries';
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
-import { useAppPreferences } from '../../providers/PreferencesProvider';
+import { AppLanguage, AppThemeName, useAppPreferences } from '../../providers/PreferencesProvider';
 import { iconSize, palette } from '../../theme/tokens';
 import type { UserProfile } from '../../types/domain';
 import { validateEmail, validateEthiopianPhone } from '../../utils/validation';
@@ -31,8 +31,11 @@ const notificationOptions: Array<{ value: UserProfile['notificationPreference'];
   { value: 'None', label: notificationLabels.None },
 ];
 
-const themeOptions: UserProfile['theme'][] = ['Light', 'Dark', 'System'];
-const languageOptions = ['English', 'Amharic'];
+const themeOptions: AppThemeName[] = ['Light', 'Dark', 'System'];
+const languageOptions: Array<{ value: AppLanguage; label: string }> = [
+  { value: 'English', label: 'English' },
+  { value: 'Amharic', label: 'አማርኛ' },
+];
 
 function maskPhone(phone: string) {
   const compact = phone.replace(/\s+/g, '');
@@ -173,7 +176,7 @@ function ChoicePanel<T extends string>({
 export function ProfileScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const { session, logout, switchAccount } = useAuth();
-  const { t } = useAppPreferences();
+  const { language, theme, setLanguage, setTheme, t } = useAppPreferences();
   const { data: dashboard } = useDashboardQuery();
   const { data: profile } = useProfileQuery();
   const { data: accountSlots } = useAccountSlotsQuery();
@@ -324,6 +327,22 @@ export function ProfileScreen({ route }: any) {
     }
   }
 
+  async function handleUpdateLocalPreference(input: { language?: AppLanguage; theme?: AppThemeName }, message: string) {
+    try {
+      setError('');
+      setSuccess('');
+      if (input.language) {
+        await setLanguage(input.language);
+      }
+      if (input.theme) {
+        await setTheme(input.theme);
+      }
+      setSuccess(message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update this setting.');
+    }
+  }
+
   return (
     <AppScreen contentStyle={memberStyles.profileScreenContent} refreshing={refreshing} onRefresh={refreshMemberData}>
       <View style={memberStyles.profileHero}>
@@ -373,18 +392,18 @@ export function ProfileScreen({ route }: any) {
           subtitle={t('profile.accountOverviewSubtitle')}
           action={(
             <Pressable accessibilityRole="button" onPress={() => setActivePanel(activePanel === 'details' ? null : 'details')} style={memberStyles.profileViewButton}>
-              <Text style={memberStyles.profileViewButtonText}>{activePanel === 'details' ? 'Close' : 'Edit profile'}</Text>
+              <Text style={memberStyles.profileViewButtonText}>{activePanel === 'details' ? t('profile.close') : t('profile.editProfile')}</Text>
               <Icon name="chevron-right" size={iconSize.sm} color={palette.primary} />
             </Pressable>
           )}
         />
         <View style={memberStyles.profileOverviewGrid}>
-          <OverviewItem icon="school" label="University" value={profile?.university ?? 'Not set'} />
-          <OverviewItem icon="calendar-month" label="Year" value={profile?.academicYear ?? 'Not set'} />
-          <OverviewItem icon="alternate-email" label="Email" value={profileEmail || 'Not set'} />
-          <OverviewItem icon="phone" label="Phone" value={maskPhone(session.user.phoneNumber)} />
-          <OverviewItem icon="badge" label="Member ID" value={memberId} />
-          <OverviewItem icon="schedule" label="Joined" value={monthYear(dashboard?.kycState?.submittedAt)} />
+          <OverviewItem icon="school" label={t('profile.university')} value={profile?.university ?? t('profile.notSet')} />
+          <OverviewItem icon="calendar-month" label={t('profile.year')} value={profile?.academicYear ?? t('profile.notSet')} />
+          <OverviewItem icon="alternate-email" label={t('profile.email')} value={profileEmail || t('profile.notSet')} />
+          <OverviewItem icon="phone" label={t('profile.phone')} value={maskPhone(session.user.phoneNumber)} />
+          <OverviewItem icon="badge" label={t('profile.memberId')} value={memberId} />
+          <OverviewItem icon="schedule" label={t('profile.joined')} value={monthYear(dashboard?.kycState?.submittedAt)} />
         </View>
       </SectionCard>
 
@@ -403,25 +422,24 @@ export function ProfileScreen({ route }: any) {
       ) : null}
 
       <SectionCard style={memberStyles.profileSectionCard}>
-        <ProfileCardHeader icon="shield" title={t('profile.verificationSecurity')} subtitle="Your account is secure and verified" />
-        <ProfileOptionRow icon="person" title="KYC status" verified={isVerified} rightLabel={!isVerified ? kycStatus : undefined} onPress={() => navigation.navigate(routes.kyc)} />
+        <ProfileCardHeader icon="shield" title={t('profile.verificationSecurity')} subtitle={t('profile.verificationSecuritySubtitle')} />
+        <ProfileOptionRow icon="person" title={t('profile.kycStatus')} verified={isVerified} rightLabel={!isVerified ? kycStatus : undefined} onPress={() => navigation.navigate(routes.kyc)} />
         <ProfileOptionRow
           icon="alternate-email"
-          title={profileEmail ? 'Email address' : 'Add email address'}
+          title={profileEmail ? t('profile.emailAddress') : t('profile.addEmailAddress')}
           subtitle={profileEmail || 'Required for verification and account recovery.'}
           verified={emailVerified}
           rightLabel={emailVerified ? undefined : profileEmail ? 'Verify' : 'Add'}
           onPress={() => navigation.navigate(routes.profileEmail)}
         />
-        <ProfileOptionRow icon="lock" title="Security" rightLabel="Device protected" onPress={() => Alert.alert('Security', 'Biometric lock and session expiry are controlled by the secure device session.')} />
-        <ProfileOptionRow icon="password" title="Reset password" rightLabel="OTP when required" onPress={() => navigation.navigate(routes.reset, { phoneNumber: session.user.phoneNumber })} />
+        <ProfileOptionRow icon="password" title={t('profile.resetPassword')} rightLabel={t('profile.resetPasswordRight')} onPress={() => navigation.navigate(routes.reset, { phoneNumber: session.user.phoneNumber })} />
       </SectionCard>
 
       <SectionCard style={memberStyles.profileSectionCard}>
-        <ProfileCardHeader icon="settings" title={t('profile.preferences')} subtitle="Customize your app experience" />
+        <ProfileCardHeader icon="settings" title={t('profile.preferences')} subtitle={t('profile.preferencesSubtitle')} />
         <ProfileOptionRow icon="notifications" title={t('profile.notifications')} rightLabel={notificationLabel} onPress={() => setActivePanel(activePanel === 'notifications' ? null : 'notifications')} />
-        <ProfileOptionRow icon="language" title={t('profile.language')} rightLabel={profile?.language ?? 'English'} onPress={() => setActivePanel(activePanel === 'language' ? null : 'language')} />
-        <ProfileOptionRow icon="wb-sunny" title={t('profile.theme')} rightLabel={profile?.theme ?? 'Light'} onPress={() => setActivePanel(activePanel === 'theme' ? null : 'theme')} />
+        <ProfileOptionRow icon="language" title={t('profile.language')} rightLabel={language === 'Amharic' ? 'አማርኛ' : 'English'} onPress={() => setActivePanel(activePanel === 'language' ? null : 'language')} />
+        <ProfileOptionRow icon="wb-sunny" title={t('profile.theme')} rightLabel={theme} onPress={() => setActivePanel(activePanel === 'theme' ? null : 'theme')} />
         <ProfileOptionRow icon="shield" title={t('profile.privacy')} rightLabel="Group-only profile" onPress={() => setActivePanel(activePanel === 'privacy' ? null : 'privacy')} />
       </SectionCard>
 
@@ -429,10 +447,10 @@ export function ProfileScreen({ route }: any) {
         <ChoicePanel title="Notification preference" value={profile?.notificationPreference ?? 'PushAndSms'} options={notificationOptions} onSelect={value => { handleUpdatePreference({ notificationPreference: value }, 'Notification preference saved.').catch(() => undefined); }} />
       ) : null}
       {activePanel === 'language' ? (
-        <ChoicePanel title="Language" value={profile?.language ?? 'English'} options={languageOptions} onSelect={value => { handleUpdatePreference({ language: value }, 'Language preference saved.').catch(() => undefined); }} />
+        <ChoicePanel title={t('profile.language')} value={language} options={languageOptions} onSelect={value => { handleUpdateLocalPreference({ language: value }, 'Language preference saved on this device.').catch(() => undefined); }} />
       ) : null}
       {activePanel === 'theme' ? (
-        <ChoicePanel title="Theme" value={profile?.theme ?? 'Light'} options={themeOptions} onSelect={value => { handleUpdatePreference({ theme: value }, 'Theme preference saved.').catch(() => undefined); }} />
+        <ChoicePanel title={t('profile.theme')} value={theme} options={themeOptions} onSelect={value => { handleUpdateLocalPreference({ theme: value }, 'Theme saved on this device.').catch(() => undefined); }} />
       ) : null}
       {activePanel === 'privacy' ? (
         <SectionCard style={memberStyles.profileSectionCard} variant="soft">

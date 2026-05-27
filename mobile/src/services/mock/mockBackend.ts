@@ -216,6 +216,14 @@ export class MockBackend implements AppServices {
       };
     },
 
+    requestPasswordResetEmail: async (input: { phoneNumber: string }) => {
+      const user = this.db.users.find(item => this.normalizePhone(item.Phone_Number) === this.normalizePhone(input.phoneNumber));
+      if (!user?.Email) {
+        throw new Error('Add an email address before using email password reset.');
+      }
+      return { email: user.Email, expiresAt: plusMinutes(30) };
+    },
+
     beginLogin: async (input: LoginInput, roleHint?: 'Member' | 'Admin') => {
       const session = await this.auth.login(input, roleHint);
       return { challengeToken: session.token, phoneNumber: session.user.phoneNumber };
@@ -255,13 +263,18 @@ export class MockBackend implements AppServices {
       return { requiresOtp: !!user && user.Role === 'Member' && firstMember?.User_ID === user.User_ID, phoneNumber: user?.Phone_Number ?? input.phoneNumber ?? null };
     },
 
-    resetPassword: async (input: { phoneNumber: string; newPassword: string; otp?: string }) => {
+    resetPassword: async (input: { phoneNumber: string; newPassword: string; verificationMethod?: 'Otp' | 'Email'; otp?: string; emailCode?: string }) => {
       const user = this.db.users.find(item => this.normalizePhone(item.Phone_Number) === this.normalizePhone(input.phoneNumber));
       if (!user) {
         throw new Error('No account was found for this phone number.');
       }
       const gate = await this.auth.getOtpGate({ phoneNumber: input.phoneNumber });
-      if (gate.requiresOtp) {
+      if (input.verificationMethod === 'Email') {
+        if (input.emailCode !== '123456') {
+          throw new Error('The email verification code is incorrect or has already been used.');
+        }
+        user.Email_Verified_At = nowIso();
+      } else if (gate.requiresOtp) {
         if (!input.otp) {
           throw new Error('OTP is required to reset this password.');
         }

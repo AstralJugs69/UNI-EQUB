@@ -54,7 +54,7 @@ export function SignupScreen() {
   }
 
   return (
-    <AppScreen scroll={false} contentStyle={authStyles.signupScreen}>
+    <AppScreen contentStyle={authStyles.signupScreen}>
       <TopAppBar title="Create Account" subtitle="Step 1 of 3" onBack={() => navigation.goBack()} />
       <View style={authStyles.signupProgressWrap}>
         <View style={authStyles.signupProgressTrack}>
@@ -66,13 +66,11 @@ export function SignupScreen() {
         <Text style={authStyles.signupTitle}>Start your student savings profile</Text>
         <Text style={authStyles.signupSubtitle}>Create your account first. OTP and KYC happen in the next steps.</Text>
       </View>
-      <SectionCard>
+      <SectionCard style={authStyles.signupFormCard}>
         <SplitPhoneField value={phoneNumber} onChangeText={setPhoneNumber} />
         {fieldErrors.phoneNumber ? <Text style={authStyles.loginFieldError}>{fieldErrors.phoneNumber}</Text> : null}
         <InputField label="Email Address" value={email} onChangeText={setEmail} leadingIcon="alternate-email" autoCapitalize="none" keyboardType="email-address" error={fieldErrors.email} />
         <InputField label="Full Name" value={fullName} onChangeText={setFullName} leadingIcon="person" error={fieldErrors.fullName} />
-      </SectionCard>
-      <SectionCard variant="soft">
         <InputField label="Password" value={password} onChangeText={setPassword} secureTextEntry leadingIcon="lock" helper="Use at least 8 characters." error={fieldErrors.password} />
       </SectionCard>
       <AuthErrorBanner error={error} />

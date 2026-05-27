@@ -1,11 +1,10 @@
-import React, { createContext, PropsWithChildren, useContext, useMemo } from 'react';
+import React, { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 import { Appearance } from 'react-native';
-import { useProfileQuery } from '../hooks/useAppQueries';
-import { useAuth } from './AuthProvider';
+import { loadLocalAppPreferences, saveLocalAppPreferences } from '../services/storage';
 import { palette } from '../theme/tokens';
 
-type AppLanguage = 'English' | 'Amharic';
-type AppThemeName = 'Light' | 'Dark' | 'System';
+export type AppLanguage = 'English' | 'Amharic';
+export type AppThemeName = 'Light' | 'Dark' | 'System';
 
 type PreferenceColors = typeof palette;
 
@@ -15,6 +14,8 @@ interface PreferencesContextValue {
   isDark: boolean;
   colors: PreferenceColors;
   t: (key: string) => string;
+  setLanguage: (language: AppLanguage) => Promise<void>;
+  setTheme: (theme: AppThemeName) => Promise<void>;
 }
 
 const amharic: Record<string, string> = {
@@ -30,15 +31,31 @@ const amharic: Record<string, string> = {
   'profile.accountOverview': 'የመለያ አጠቃላይ',
   'profile.accountOverviewSubtitle': 'ዋና የመለያ መረጃዎች',
   'profile.verificationSecurity': 'ማረጋገጫ እና ደህንነት',
+  'profile.verificationSecuritySubtitle': 'መለያዎ ተረጋግጧል እና ደህንነቱ የተጠበቀ ነው',
   'profile.preferences': 'ምርጫዎች',
+  'profile.preferencesSubtitle': 'የመተግበሪያውን ተሞክሮ ያስተካክሉ',
   'profile.notifications': 'ማሳወቂያዎች',
   'profile.language': 'ቋንቋ',
   'profile.theme': 'ገጽታ',
   'profile.privacy': 'ግላዊነት',
-  'profile.help': 'የእርዳታ ማዕከል',
+  'profile.help': 'የእገዛ ማዕከል',
   'profile.terms': 'ደንቦች እና ግላዊነት',
   'profile.logout': 'ውጣ',
   'profile.saved': 'ተቀምጧል',
+  'profile.editProfile': 'መገለጫ አስተካክል',
+  'profile.close': 'ዝጋ',
+  'profile.university': 'ዩኒቨርሲቲ',
+  'profile.year': 'ዓመት',
+  'profile.email': 'ኢሜይል',
+  'profile.phone': 'ስልክ',
+  'profile.memberId': 'የአባል መታወቂያ',
+  'profile.joined': 'የተቀላቀሉበት',
+  'profile.notSet': 'አልተዘጋጀም',
+  'profile.kycStatus': 'የKYC ሁኔታ',
+  'profile.emailAddress': 'ኢሜይል አድራሻ',
+  'profile.addEmailAddress': 'ኢሜይል አክል',
+  'profile.resetPassword': 'የይለፍ ቃል ቀይር',
+  'profile.resetPasswordRight': 'OTP ሲያስፈልግ',
 };
 
 const english: Record<string, string> = {
@@ -54,7 +71,9 @@ const english: Record<string, string> = {
   'profile.accountOverview': 'Account overview',
   'profile.accountOverviewSubtitle': 'Your key account details at a glance',
   'profile.verificationSecurity': 'Verification & security',
+  'profile.verificationSecuritySubtitle': 'Your account is secure and verified',
   'profile.preferences': 'Preferences',
+  'profile.preferencesSubtitle': 'Customize your app experience',
   'profile.notifications': 'Notifications',
   'profile.language': 'Language',
   'profile.theme': 'Theme',
@@ -63,6 +82,20 @@ const english: Record<string, string> = {
   'profile.terms': 'Terms & privacy',
   'profile.logout': 'Log out',
   'profile.saved': 'Saved',
+  'profile.editProfile': 'Edit profile',
+  'profile.close': 'Close',
+  'profile.university': 'University',
+  'profile.year': 'Year',
+  'profile.email': 'Email',
+  'profile.phone': 'Phone',
+  'profile.memberId': 'Member ID',
+  'profile.joined': 'Joined',
+  'profile.notSet': 'Not set',
+  'profile.kycStatus': 'KYC status',
+  'profile.emailAddress': 'Email address',
+  'profile.addEmailAddress': 'Add email address',
+  'profile.resetPassword': 'Reset password',
+  'profile.resetPasswordRight': 'OTP when required',
 };
 
 const darkPalette: PreferenceColors = {
@@ -102,20 +135,52 @@ function normalizeTheme(value?: string | null): AppThemeName {
 }
 
 export function PreferencesProvider({ children }: PropsWithChildren) {
-  const { session } = useAuth();
-  const { data: profile } = useProfileQuery();
+  const [localPreferences, setLocalPreferences] = useState<{ language: AppLanguage; theme: AppThemeName }>({
+    language: 'English',
+    theme: 'Light',
+  });
   const systemScheme = Appearance.getColorScheme();
-  const language = normalizeLanguage(session ? profile?.language : 'English');
-  const theme = normalizeTheme(session ? profile?.theme : 'Light');
+  const language = normalizeLanguage(localPreferences.language);
+  const theme = normalizeTheme(localPreferences.theme);
   const isDark = theme === 'Dark' || (theme === 'System' && systemScheme === 'dark');
 
-  const value = useMemo<PreferencesContextValue>(() => ({
-    language,
-    theme,
-    isDark,
-    colors: isDark ? darkPalette : palette,
-    t: (key: string) => (language === 'Amharic' ? amharic[key] ?? english[key] ?? key : english[key] ?? key),
-  }), [isDark, language, theme]);
+  useEffect(() => {
+    let mounted = true;
+    loadLocalAppPreferences()
+      .then(preferences => {
+        if (mounted) {
+          setLocalPreferences({
+            language: normalizeLanguage(preferences.language),
+            theme: normalizeTheme(preferences.theme),
+          });
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const value = useMemo<PreferencesContextValue>(() => {
+    async function persistPreferences(next: { language?: AppLanguage; theme?: AppThemeName }) {
+      const preferences = {
+        language: normalizeLanguage(next.language ?? localPreferences.language),
+        theme: normalizeTheme(next.theme ?? localPreferences.theme),
+      };
+      setLocalPreferences(preferences);
+      await saveLocalAppPreferences(preferences);
+    }
+
+    return {
+      language,
+      theme,
+      isDark,
+      colors: isDark ? darkPalette : palette,
+      t: (key: string) => (language === 'Amharic' ? amharic[key] ?? english[key] ?? key : english[key] ?? key),
+      setLanguage: (nextLanguage: AppLanguage) => persistPreferences({ language: nextLanguage }),
+      setTheme: (nextTheme: AppThemeName) => persistPreferences({ theme: nextTheme }),
+    };
+  }, [isDark, language, localPreferences.language, localPreferences.theme, theme]);
 
   return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;
 }
@@ -129,6 +194,8 @@ export function useAppPreferences() {
       isDark: false,
       colors: palette,
       t: (key: string) => english[key] ?? key,
+      setLanguage: async () => undefined,
+      setTheme: async () => undefined,
     };
   }
   return context;

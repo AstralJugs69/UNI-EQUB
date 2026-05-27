@@ -6,9 +6,18 @@ const SERVICE = 'uniequb-session';
 const FALLBACK_KEY = '@uniequb/session-token';
 const LAST_ACTIVE_KEY = '@uniequb/last-active-at';
 const ACCOUNT_SLOTS_KEY = '@uniequb/account-slots';
+const APP_PREFERENCES_KEY = '@uniequb/local-preferences';
 const notificationReadKey = (userId: string) => `@uniequb/notifications-read/${userId}`;
 const seenDrawsKey = (userId: string) => `@uniequb/seen-draws-v2/${userId}`;
 const accountTokenService = (userId: string) => `uniequb-account/${userId}`;
+
+export type LocalAppLanguage = 'English' | 'Amharic';
+export type LocalAppTheme = 'Light' | 'Dark' | 'System';
+
+export interface LocalAppPreferences {
+  language: LocalAppLanguage;
+  theme: LocalAppTheme;
+}
 
 export async function saveSessionToken(token: string) {
   try {
@@ -106,6 +115,26 @@ export async function removeAccountSlot(userId: string): Promise<void> {
     // ignore and continue
   }
   await AsyncStorage.removeItem(`${ACCOUNT_SLOTS_KEY}/token/${userId}`);
+}
+
+export async function loadLocalAppPreferences(): Promise<LocalAppPreferences> {
+  const raw = await AsyncStorage.getItem(APP_PREFERENCES_KEY);
+  if (!raw) {
+    return { language: 'English', theme: 'Light' };
+  }
+  try {
+    const parsed = JSON.parse(raw) as Partial<LocalAppPreferences>;
+    return {
+      language: parsed.language === 'Amharic' ? 'Amharic' : 'English',
+      theme: parsed.theme === 'Dark' || parsed.theme === 'System' ? parsed.theme : 'Light',
+    };
+  } catch {
+    return { language: 'English', theme: 'Light' };
+  }
+}
+
+export async function saveLocalAppPreferences(preferences: LocalAppPreferences): Promise<void> {
+  await AsyncStorage.setItem(APP_PREFERENCES_KEY, JSON.stringify(preferences));
 }
 
 export async function loadReadNotificationIds(userId: string) {

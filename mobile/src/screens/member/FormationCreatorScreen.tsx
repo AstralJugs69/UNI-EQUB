@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, Share, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { FormationErrorBanner } from '../../components/AppErrors';
 import { InputField, ListRow, LoadingState, MetricTile, Pill, PrimaryCTA, ScreenScroll, SecondaryCTA, SectionCard, StatusBanner, TopAppBar } from '../../components/ui';
 import { Icon } from '../../components/Icon';
@@ -184,15 +185,23 @@ export function FormationCreatorScreen({ route }: any) {
     try {
       setError('');
       setSuccess('');
-      const link = inviteCode ? `uniequb://join-code/${encodeURIComponent(inviteCode)}` : `uniequb://formation/${request.id}`;
+      const link = inviteCode ? `uniequb:///join-code/${encodeURIComponent(inviteCode)}` : `uniequb:///formation/${request.id}`;
       await Share.share({
         title: 'UniEqub group invitation',
-        message: `Join ${request.proposed_group_name} on UniEqub: ${link}`,
+        message: inviteCode
+          ? `Join ${request.proposed_group_name} on UniEqub.\nLink: ${link}\nJoin code: ${inviteCode}`
+          : `Join ${request.proposed_group_name} on UniEqub: ${link}`,
         url: link,
       } as any);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to share this group link.');
     }
+  }
+
+  function handleCopyInviteCode(inviteCode: string) {
+    Clipboard.setString(inviteCode);
+    setError('');
+    setSuccess('Invite code copied.');
   }
 
   return (
@@ -340,6 +349,62 @@ export function FormationCreatorScreen({ route }: any) {
           <View style={memberStyles.listGroup}>
             {data.invitations.map(invitation => {
               const reusable = Boolean(invitation.invite_code && !invitation.invited_phone_or_student_id && !invitation.invited_user_id);
+              const link = invitation.invite_code ? `uniequb:///join-code/${invitation.invite_code}` : null;
+              if (invitation.invite_code && link) {
+                return (
+                  <View key={invitation.id} style={memberStyles.inviteCodeCard}>
+                    <View style={memberStyles.rowBetween}>
+                      <View style={memberStyles.inviteCodeHeaderText}>
+                        <Text style={memberStyles.inviteCodeTitle}>Group join link</Text>
+                        <Text style={memberStyles.inviteLinkText}>{link}</Text>
+                      </View>
+                      <View style={memberStyles.inviteActions}>
+                        <Pill label={reusable ? 'Reusable' : invitation.status} tone={invitation.status === 'Accepted' ? 'good' : invitation.status === 'Pending' ? 'warn' : 'neutral'} />
+                        <Pressable
+                          onPress={() => handleShareInvite(invitation.invite_code)}
+                          android_ripple={{ color: '#dce6f3', borderless: true }}
+                          accessibilityRole="button"
+                          accessibilityLabel="Share group join link"
+                          style={memberStyles.iconAction}
+                        >
+                          <Icon name="share" size={iconSize.sm} color={palette.primaryDark} />
+                        </Pressable>
+                      </View>
+                    </View>
+                    <View style={memberStyles.inviteCodeCopyCard}>
+                      <View style={memberStyles.inviteCodeBadge}>
+                        <Icon name="key" size={iconSize.sm} color={palette.primaryDark} />
+                      </View>
+                      <View style={memberStyles.inviteCodeTextBlock}>
+                        <Text style={memberStyles.inviteCodeLabel}>Join code</Text>
+                        <Text selectable style={memberStyles.inviteCodeValue}>{invitation.invite_code}</Text>
+                      </View>
+                      <View style={memberStyles.inviteCodeButtonRow}>
+                        <Pressable
+                          onPress={() => handleCopyInviteCode(invitation.invite_code!)}
+                          android_ripple={{ color: '#dce6f3', borderless: true }}
+                          accessibilityRole="button"
+                          accessibilityLabel="Copy join code"
+                          style={memberStyles.inviteCodeSmallButton}
+                        >
+                          <Icon name="content-copy" size={iconSize.sm} color={palette.primaryDark} />
+                          <Text style={memberStyles.inviteCodeSmallButtonText}>Copy</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => handleShareInvite(invitation.invite_code)}
+                          android_ripple={{ color: '#dce6f3', borderless: true }}
+                          accessibilityRole="button"
+                          accessibilityLabel="Share join code"
+                          style={memberStyles.inviteCodeSmallButton}
+                        >
+                          <Icon name="ios-share" size={iconSize.sm} color={palette.primaryDark} />
+                          <Text style={memberStyles.inviteCodeSmallButtonText}>Share</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  </View>
+                );
+              }
               return (
                 <ListRow
                   key={invitation.id}

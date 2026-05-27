@@ -1,7 +1,7 @@
 import { supabaseAdmin } from './supabaseAdmin.ts';
 import type { UserRecord } from './types.ts';
 
-type EmailPurpose = 'Signup' | 'ProfileChange';
+type EmailPurpose = 'Signup' | 'ProfileChange' | 'PasswordReset';
 
 function brevoConfig() {
   const apiKey = Deno.env.get('BREVO_API_KEY');
@@ -89,19 +89,23 @@ export async function createAndSendEmailVerification(input: {
   }
 
   const link = verificationLink({ userId: input.user.User_ID, email, code });
-  const subject = 'Verify your UniEqub email';
+  const subject = input.purpose === 'PasswordReset' ? 'Reset your UniEqub password' : 'Verify your UniEqub email';
+  const heading = input.purpose === 'PasswordReset' ? 'Reset your UniEqub password' : 'Verify your UniEqub email';
+  const intro = input.purpose === 'PasswordReset'
+    ? 'Use this code to confirm your password reset:'
+    : 'Use this code to verify your email address:';
   const html = `
     <div style="font-family:Arial,sans-serif;line-height:1.5;color:#15202B">
-      <h2>Verify your UniEqub email</h2>
+      <h2>${heading}</h2>
       <p>Hello ${input.user.Full_Name},</p>
-      <p>Use this code to verify your email address:</p>
+      <p>${intro}</p>
       <p style="font-size:28px;font-weight:700;letter-spacing:4px">${code}</p>
       <p>You can also open this link on your phone:</p>
       <p><a href="${link}">${link}</a></p>
       <p>This code expires in 30 minutes.</p>
     </div>
   `;
-  const text = `Verify your UniEqub email. Code: ${code}. Link: ${link}. This code expires in 30 minutes.`;
+  const text = `${heading}. Code: ${code}. Link: ${link}. This code expires in 30 minutes.`;
   await sendBrevoEmail({ to: email, subject, html, text });
 
   return { email, expiresAt: expiresAt.toISOString() };
@@ -110,6 +114,7 @@ export async function createAndSendEmailVerification(input: {
 export async function verifyEmailCode(input: {
   userId: string;
   code: string;
+  purpose?: EmailPurpose;
 }) {
   const { data: userData, error: userError } = await supabaseAdmin
     .from('User')
@@ -126,16 +131,17 @@ export async function verifyEmailCode(input: {
   }
 
   const codeHash = await sha256(`${user.User_ID}:${email}:${input.code.trim()}`);
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from('email_verification_codes')
     .select('*')
     .eq('user_id', user.User_ID)
     .eq('email', email)
     .eq('code_hash', codeHash)
-    .is('consumed_at', null)
-    .order('expires_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .is('consumed_at', null);
+  if (input.purpose) {
+    query = query.eq('purpose', input.purpose);
+  }
+  const { data, error } = await query.order('expires_at', { ascending: false }).limit(1).maybeSingle();
   if (error) {
     throw error;
   }

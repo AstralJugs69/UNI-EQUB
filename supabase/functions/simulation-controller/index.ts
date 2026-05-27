@@ -9,14 +9,14 @@ import {
   markContributionObligationPaid,
   processDueContributionObligations,
 } from '../_shared/obligations.ts';
-import { activateApprovedGroup } from '../_shared/groupActivation.ts';
+import { activateApprovedGroup, activateApprovedGroupIfReady } from '../_shared/groupActivation.ts';
 import { freezeGroupForAdminReview, resolveOpenGroupFreeze } from '../_shared/groupFreeze.ts';
 import { closeResolutionPollIfReady, createFrozenGroupResolutionPoll } from '../_shared/groupResolution.ts';
 import { finalizeRoundIfReady } from '../_shared/roundLifecycle.ts';
 import { ensureOpenRoundForGroup } from '../_shared/rounds.ts';
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { continueExpiredWinnerExitWindow, decideWinnerExitWindow } from '../_shared/winnerExit.ts';
-import type { ContributionObligationRecord, GroupRecord, MembershipRecord, RefundTicketRecord, RoundRecord, TransactionRecord, UserRecord, WinnerExitWindowRecord } from '../_shared/types.ts';
+import type { ContributionObligationRecord, GroupJoinRequestRecord, GroupRecord, GroupRequestRecord, MembershipRecord, RefundTicketRecord, RoundRecord, TransactionRecord, UserRecord, WinnerExitWindowRecord } from '../_shared/types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -380,6 +380,180 @@ async function listVerifiedMembers() {
   return (data ?? []) as UserRecord[];
 }
 
+async function requireVerifiedMember(userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('User')
+    .select('*')
+    .eq('User_ID', userId)
+    .eq('Role', 'Member')
+    .single();
+  if (error) {
+    throw error;
+  }
+  const user = data as UserRecord;
+  if (user.KYC_Status !== 'Verified') {
+    throw new Error('Controller formation joins require a verified member.');
+  }
+  return user;
+}
+
+async function requireGroupRequest(requestId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('group_requests')
+    .select('*')
+    .eq('id', requestId)
+    .single();
+  if (error) {
+    throw error;
+  }
+  return data as GroupRequestRecord;
+}
+
+async function findFormationJoinRequest(requestId: string, userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('group_join_requests')
+    .select('*')
+    .eq('group_request_id', requestId)
+    .eq('user_id', userId)
+    .order('requested_at', { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+  return data as GroupJoinRequestRecord | null;
+}
+
+async function countFormationAccepted(requestId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('group_join_requests')
+    .select('id')
+    .eq('group_request_id', requestId)
+    .eq('status', 'Accepted');
+  if (error) {
+    throw error;
+  }
+  return (data ?? []).length;
+}
+
+function assertControllerCanMutateFormation(request: GroupRequestRecord) {
+  if (request.status !== 'Forming' && request.status !== 'Approved') {
+    throw new Error('Controller joins only apply to forming or approved join-window requests.');
+  }
+  if (request.status === 'Approved' && request.activated_at) {
+    throw new Error('This approved request has already activated; use active-group controls instead.');
+  }
+  if (request.expires_at && new Date(request.expires_at).getTime() <= Date.now()) {
+    throw new Error('This group request has expired.');
+  }
+}
+
+async function upsertFormationJoin(input: {
+  actor: UserRecord;
+  request: GroupRequestRecord;
+  user: UserRecord;
+  status: 'Requested' | 'Accepted';
+}) {
+  assertControllerCanMutateFormation(input.request);
+  if (input.request.creator_id === input.user.User_ID) {
+    throw new Error('The creator is already part of this formation request.');
+  }
+  const acceptedCount = await countFormationAccepted(input.request.id);
+  const existing = await findFormationJoinRequest(input.request.id, input.user.User_ID);
+  if (input.status === 'Accepted' && existing?.status !== 'Accepted' && acceptedCount >= input.request.max_members) {
+    throw new Error('This formation request has no remaining slots.');
+  }
+
+  const now = new Date().toISOString();
+  const payload = input.status === 'Accepted'
+    ? {
+      status: 'Accepted',
+      requested_at: existing?.requested_at ?? now,
+      accepted_at: now,
+      rejected_at: null,
+      removed_at: null,
+      decision_by: input.actor.User_ID,
+      decision_reason: 'Simulation controller accepted this participant.',
+    }
+    : {
+      status: 'Requested',
+      requested_at: existing?.requested_at ?? now,
+      accepted_at: null,
+      rejected_at: null,
+      removed_at: null,
+      decision_by: null,
+      decision_reason: 'Simulation controller created this join request.',
+    };
+
+  const mutation = existing
+    ? supabaseAdmin.from('group_join_requests').update(payload).eq('id', existing.id)
+    : supabaseAdmin.from('group_join_requests').insert({
+      group_request_id: input.request.id,
+      user_id: input.user.User_ID,
+      ...payload,
+    });
+
+  const { data, error } = await mutation.select('*').single();
+  if (error) {
+    throw error;
+  }
+  return data as GroupJoinRequestRecord;
+}
+
+async function addMembershipToApprovedFormation(input: {
+  actor: UserRecord;
+  request: GroupRequestRecord;
+  user: UserRecord;
+}) {
+  if (input.request.status !== 'Approved' || !input.request.approved_group_id) {
+    return null;
+  }
+  const group = await requireGroup(input.request.approved_group_id);
+  if (group.Status !== 'Pending') {
+    throw new Error('This approved group is no longer in its join window.');
+  }
+  const { error } = await supabaseAdmin
+    .from('GroupMembers')
+    .upsert({
+      Group_ID: group.Group_ID,
+      User_ID: input.user.User_ID,
+      Status: 'Active',
+      Joined_At: new Date().toISOString(),
+    }, { onConflict: 'Group_ID,User_ID' });
+  if (error) {
+    throw error;
+  }
+  await activateApprovedGroupIfReady({ group, request: input.request, actor: input.actor });
+  return group;
+}
+
+async function controllerFormationJoin(actor: UserRecord, payload: Record<string, unknown>, status: 'Requested' | 'Accepted') {
+  const request = await requireGroupRequest(requireString(payload.requestId, 'requestId'));
+  const user = await requireVerifiedMember(requireString(payload.userId, 'userId'));
+  const joinRequest = await upsertFormationJoin({ actor, request, user, status });
+  const group = status === 'Accepted'
+    ? await addMembershipToApprovedFormation({ actor, request, user })
+    : null;
+  await createNotification({
+    userId: user.User_ID,
+    type: status === 'Accepted' ? 'group_join_accepted' : 'group_join_requested',
+    severity: status === 'Accepted' ? 'Success' : 'Info',
+    title: status === 'Accepted' ? 'Added to forming group' : 'Join request created',
+    message: `${request.proposed_group_name} was updated by the simulation controller.`,
+    actionRoute: group ? 'member/group-preview' : 'member/group-formation',
+    relatedEntityType: group ? 'EqubGroup' : 'group_requests',
+    relatedEntityId: group?.Group_ID ?? request.id,
+    metadata: {
+      group_request_id: request.id,
+      join_request_id: joinRequest.id,
+      controller_action: status,
+    },
+  });
+  return status === 'Accepted'
+    ? `Accepted ${user.Full_Name} into ${request.proposed_group_name}${group ? ' and synced the approved group membership.' : '.'}`
+    : `Created a pending join request for ${user.Full_Name}.`;
+}
+
 function readStringArray(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && !!item.trim()) : [];
 }
@@ -641,7 +815,7 @@ async function disbandGroup(group: GroupRecord, actor: UserRecord) {
   return `Group disbanded. Created ${ticketCount} refund ticket(s).`;
 }
 
-async function runBackendCommand(command: SimulationCommand) {
+async function runBackendCommand(command: SimulationCommand, actor: UserRecord) {
   const payload = command.payload;
   const groupId = typeof payload.groupId === 'string' ? payload.groupId : null;
   const group = groupId ? await requireGroup(groupId) : null;
@@ -654,6 +828,12 @@ async function runBackendCommand(command: SimulationCommand) {
     }
     case 'formJoinWindowGroup': {
       return formControllerGroup(actor, { ...payload, status: 'Pending' });
+    }
+    case 'createFormationJoinRequest': {
+      return controllerFormationJoin(actor, payload, 'Requested');
+    }
+    case 'acceptMemberIntoFormation': {
+      return controllerFormationJoin(actor, payload, 'Accepted');
     }
     case 'activateGroupNow': {
       if (!group) {
@@ -898,7 +1078,7 @@ Deno.serve(async request => {
         if (!command?.id || !command.type) {
           return fail('Simulation command id and type are required.', 400);
         }
-        const message = await runBackendCommand(command);
+        const message = await runBackendCommand(command, actor);
         await logCommand(actor, command);
         return json({
           result: {

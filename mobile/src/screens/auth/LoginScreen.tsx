@@ -84,7 +84,7 @@ export function LoginScreen({ route }: { route?: { params?: { roleHint?: 'Admin'
   const disabled = submitting || !identifier || !password;
 
   return (
-    <AppScreen scroll={false} contentStyle={authStyles.loginScreen}>
+    <AppScreen contentStyle={authStyles.loginScreen}>
       <View style={authStyles.loginHeader}>
         <Text style={authStyles.loginTitle}>Welcome Back</Text>
         <Text style={authStyles.loginSubtitle}>Sign in to your Equb {role === 'Admin' ? 'Admin ' : ''}Workspace to continue.</Text>
@@ -187,21 +187,18 @@ export function LoginScreen({ route }: { route?: { params?: { roleHint?: 'Admin'
           <Icon name="lock-outline" size={iconSize.sm} color={palette.white} />
           <Text style={authStyles.loginPrimaryButtonText}>{submitting ? 'Signing In...' : 'Sign In'}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" disabled={submitting} onPress={() => navigation.navigate(routes.reset)} style={authStyles.loginSecondaryButton}>
-          <Icon name="vpn-key" size={iconSize.sm} color={palette.primary} />
-          <Text style={authStyles.loginSecondaryButtonText}>Forgot Password</Text>
-        </Pressable>
-        {role === 'Member' ? (
-          <Pressable accessibilityRole="button" disabled={submitting} onPress={() => navigation.navigate(routes.signup)} style={authStyles.loginSecondaryButton}>
-            <Icon name="person-add" size={iconSize.sm} color={palette.primary} />
-            <Text style={authStyles.loginSecondaryButtonText}>Create New Account</Text>
+        <View style={authStyles.loginInlineActions}>
+          <Pressable accessibilityRole="button" disabled={submitting} onPress={() => navigation.navigate(routes.reset)} style={[authStyles.loginSecondaryButton, authStyles.loginInlineButton]}>
+            <Icon name="vpn-key" size={iconSize.sm} color={palette.primary} />
+            <Text style={authStyles.loginSecondaryButtonText}>Forgot Password</Text>
           </Pressable>
-        ) : null}
-      </View>
-
-      <View style={authStyles.loginFooter}>
-        <Icon name="verified-user" size={iconSize.md} color={palette.primary} />
-        <Text style={authStyles.loginFooterText}>Secured with industry-leading encryption to protect your data.</Text>
+          {role === 'Member' ? (
+            <Pressable accessibilityRole="button" disabled={submitting} onPress={() => navigation.navigate(routes.signup)} style={[authStyles.loginSecondaryButton, authStyles.loginInlineButton]}>
+              <Icon name="person-add" size={iconSize.sm} color={palette.primary} />
+              <Text style={authStyles.loginSecondaryButtonText}>Create Account</Text>
+            </Pressable>
+          ) : null}
+        </View>
       </View>
     </AppScreen>
   );

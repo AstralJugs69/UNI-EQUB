@@ -1,13 +1,11 @@
+import { generatePDF } from 'react-native-html-to-pdf';
 import type { TransactionRecord } from '../types/domain';
 
-const RNHTMLtoPDF = require('react-native-html-to-pdf');
-
 function getPdfConverter() {
-  const converter = RNHTMLtoPDF?.default ?? RNHTMLtoPDF;
-  if (!converter?.convert) {
+  if (typeof generatePDF !== 'function') {
     throw new Error('PDF converter is not available in this build. Rebuild the native app after installing react-native-html-to-pdf.');
   }
-  return converter as { convert(options: { html: string; fileName?: string; directory?: string }): Promise<{ filePath?: string }> };
+  return generatePDF as (options: { html: string; fileName?: string; directory?: string }) => Promise<{ filePath?: string }>;
 }
 
 interface ReceiptInput {
@@ -214,7 +212,7 @@ function buildReceiptHtml(input: ReceiptInput) {
 
 export async function createTransactionReceiptPdf(input: ReceiptInput) {
   const safeReference = input.transaction.Gateway_Ref.replace(/[^a-zA-Z0-9_-]/g, '-');
-  const result = await getPdfConverter().convert({
+  const result = await getPdfConverter()({
     html: buildReceiptHtml(input),
     fileName: `uniequb-receipt-${safeReference}`,
     directory: 'Documents',

@@ -7,6 +7,7 @@ import { useDashboardQuery, useTransactionsQuery } from '../../hooks/useAppQueri
 import { routes } from '../../navigation/routes';
 import { useAuth } from '../../providers/AuthProvider';
 import { createTransactionReceiptPdf } from '../../services/receiptPdf';
+import { savePdfToDownloads } from '../../services/native/receiptDownload';
 import { iconSize, palette } from '../../theme/tokens';
 import type { TransactionRecord } from '../../types/domain';
 import { formatCurrency, paymentMethodLabel } from './shared';
@@ -112,6 +113,7 @@ export function TransactionDetailScreen({ route }: any) {
 
   async function downloadReceipt() {
     try {
+      const displayName = `uniequb-receipt-${safeTransaction.Gateway_Ref.replace(/[^a-zA-Z0-9_-]/g, '-')}.pdf`;
       const filePath = await createTransactionReceiptPdf({
         transaction: safeTransaction,
         groupName,
@@ -119,17 +121,41 @@ export function TransactionDetailScreen({ route }: any) {
         methodLabel: paymentMethodLabel(safeTransaction.Payment_Method),
         accountName: safeSession.user.fullName,
       });
-      await Share.share({
-        title: 'UniEqub receipt PDF',
-        message: `UniEqub receipt ${safeTransaction.Gateway_Ref}`,
-        url: `file://${filePath}`,
-      });
+      const savedLocation = await savePdfToDownloads(filePath, displayName);
+      Alert.alert(
+        'Receipt downloaded',
+        'The PDF receipt was saved to Downloads > UniEqub.',
+        [
+          { text: 'OK' },
+          {
+            text: 'Share',
+            onPress: () => {
+              Share.share({
+                title: 'UniEqub receipt PDF',
+                message: `UniEqub receipt ${safeTransaction.Gateway_Ref}`,
+                url: savedLocation.startsWith('content://') ? savedLocation : `file://${savedLocation}`,
+              }).catch(() => undefined);
+            },
+          },
+        ],
+      );
     } catch (err) {
-      Alert.alert('Receipt PDF unavailable', err instanceof Error ? err.message : 'The PDF receipt could not be generated in this build.');
-      await Share.share({
-        title: 'UniEqub receipt',
-        message: buildReceipt(safeTransaction, groupName, recipient),
-      });
+      Alert.alert(
+        'Receipt download failed',
+        err instanceof Error ? err.message : 'The PDF receipt could not be downloaded in this build.',
+        [
+          { text: 'OK' },
+          {
+            text: 'Share text receipt',
+            onPress: () => {
+              Share.share({
+                title: 'UniEqub receipt',
+                message: buildReceipt(safeTransaction, groupName, recipient),
+              }).catch(() => undefined);
+            },
+          },
+        ],
+      );
     }
   }
 

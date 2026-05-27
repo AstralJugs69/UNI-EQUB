@@ -162,6 +162,8 @@ function App() {
   const [snapshot, setSnapshot] = useState<SimulationSnapshot | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [selectedFormationRequestId, setSelectedFormationRequestId] = useState('');
+  const [selectedFormationUserId, setSelectedFormationUserId] = useState('');
   const [drawSeed, setDrawSeed] = useState('');
   const [skipDays, setSkipDays] = useState(1);
   const [formName, setFormName] = useState('Controller Demo Equb');
@@ -182,6 +184,13 @@ function App() {
   const obligations = useMemo(() => roundObligations(snapshot, round), [round, snapshot]);
   const selectedUser = selectedUserId || members[0]?.User_ID || '';
   const selectableMembers = useMemo(() => snapshot?.users.filter(user => user.Role === 'Member' && user.KYC_Status === 'Verified') ?? [], [snapshot?.users]);
+  const mutableFormationRequests = useMemo(() => (snapshot?.groupRequests ?? []).filter(request => {
+    const record = asRecord(request);
+    const status = String(record.status ?? '');
+    return status === 'Forming' || (status === 'Approved' && !record.activated_at);
+  }), [snapshot?.groupRequests]);
+  const selectedFormationRequest = useMemo(() => mutableFormationRequests.find(request => String(asRecord(request).id) === selectedFormationRequestId) ?? mutableFormationRequests[0] ?? null, [mutableFormationRequests, selectedFormationRequestId]);
+  const selectedFormationUser = selectedFormationUserId || selectableMembers[0]?.User_ID || '';
   const selectedGroupIsActive = selectedGroup?.Status === 'Active';
   const paidCount = obligations.filter(obligation => ['Paid', 'Waived', 'RefundPending'].includes(obligation.status)).length;
   const deadline = firstDeadline(obligations);
@@ -269,7 +278,7 @@ function App() {
   }
 
   async function runAction(action: string, extra: Record<string, unknown> = {}) {
-    const needsGroup = !['formActiveGroup', 'formJoinWindowGroup'].includes(action);
+    const needsGroup = !['formActiveGroup', 'formJoinWindowGroup', 'createFormationJoinRequest', 'acceptMemberIntoFormation'].includes(action);
     if (!adminToken || (needsGroup && !selectedGroup)) {
       appendLog(needsGroup ? 'Select a group and sign in as admin first.' : 'Sign in as admin first.');
       return;
@@ -402,6 +411,62 @@ function App() {
             <button onClick={() => runAction('formActiveGroup', { groupName: formName, amount: formAmount, maxMembers: formMaxMembers, frequency: formFrequency })} disabled={busy || selectableMembers.length < 2}>Form Active Group</button>
             <button className="secondary" onClick={() => runAction('formJoinWindowGroup', { groupName: formName, amount: formAmount, maxMembers: formMaxMembers, frequency: formFrequency })} disabled={busy || selectableMembers.length < 2}>Form Join-Window Group</button>
           </div>
+        </div>
+
+        <div className="panel wide controlDeck">
+          <div className="panelHeader">
+            <h2>Formation join authority</h2>
+            <span>{mutableFormationRequests.length} mutable request(s)</span>
+          </div>
+          <div className="formGrid">
+            <label>
+              Pending or approved request
+              <select value={String(asRecord(selectedFormationRequest).id ?? '')} onChange={event => setSelectedFormationRequestId(event.target.value)}>
+                {mutableFormationRequests.map(request => {
+                  const record = asRecord(request);
+                  return (
+                    <option key={String(record.id)} value={String(record.id)}>
+                      {String(record.proposed_group_name ?? record.id)} - {String(record.status)}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+            <label>
+              Member to place
+              <select value={selectedFormationUser} onChange={event => setSelectedFormationUserId(event.target.value)}>
+                {selectableMembers.map(user => (
+                  <option key={user.User_ID} value={user.User_ID}>{user.Full_Name}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="buttonRow">
+            <button
+              className="secondary"
+              onClick={() => runAction('createFormationJoinRequest', {
+                requestId: String(asRecord(selectedFormationRequest).id ?? ''),
+                userId: selectedFormationUser,
+              })}
+              disabled={busy || !selectedFormationRequest || !selectedFormationUser}
+            >
+              Create Pending Join Request
+            </button>
+            <button
+              onClick={() => runAction('acceptMemberIntoFormation', {
+                requestId: String(asRecord(selectedFormationRequest).id ?? ''),
+                userId: selectedFormationUser,
+              })}
+              disabled={busy || !selectedFormationRequest || !selectedFormationUser}
+            >
+              Accept Into Forming Group
+            </button>
+          </div>
+          {selectedFormationRequest ? (
+            <p className="hint">
+              {String(asRecord(selectedFormationRequest).status)} - {String(asRecord(selectedFormationRequest).accepted_participant_count ?? 'unknown')} accepted / {String(asRecord(selectedFormationRequest).max_members ?? '?')} max
+            </p>
+          ) : <p className="empty">No forming or approved join-window requests are available.</p>}
         </div>
 
         <div className="panel">

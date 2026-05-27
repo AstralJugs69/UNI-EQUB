@@ -17,8 +17,8 @@ export function FormationJoinCodeScreen({ route }: any) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const normalizedCode = inviteCode.trim().toUpperCase();
-  const routeInviteCode = String(route?.params?.inviteCode ?? '').trim().toUpperCase();
+  const normalizedCode = inviteCode.trim().replace(/\s+/g, '').toUpperCase();
+  const routeInviteCode = String(route?.params?.inviteCode ?? route?.params?.code ?? '').trim().replace(/\s+/g, '').toUpperCase();
   const currentUserJoin = useMemo(
     () => preview?.joinRequests.find(item => item.user_id === session?.user.userId) ?? null,
     [preview?.joinRequests, session?.user.userId],
@@ -101,7 +101,7 @@ export function FormationJoinCodeScreen({ route }: any) {
           label="Invite Code"
           value={inviteCode}
           onChangeText={value => {
-            setInviteCode(value.toUpperCase());
+            setInviteCode(value.replace(/\s+/g, '').toUpperCase());
             setPreview(null);
           }}
           autoCapitalize="characters"
@@ -144,6 +144,13 @@ export function FormationJoinCodeScreen({ route }: any) {
               disabled={!canAccept}
             />
           )}
+          {!canAccept && !alreadyAccepted ? (
+            <StatusBanner
+              tone="warning"
+              title={remainingSlots <= 0 ? 'No slots left' : 'Invite is not open'}
+              body={request.status === 'Forming' ? 'This code cannot be accepted right now.' : 'This forming group is no longer accepting invite-code joins.'}
+            />
+          ) : null}
         </SectionCard>
       ) : null}
 

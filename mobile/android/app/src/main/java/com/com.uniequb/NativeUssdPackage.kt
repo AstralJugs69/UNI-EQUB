@@ -7,7 +7,12 @@ import com.facebook.react.uimanager.ViewManager
 
 class NativeUssdPackage : ReactPackage {
   override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-    return listOf(NativeUssdModule(reactContext), SimulationCommandModule(reactContext), LocalNotificationModule(reactContext))
+    return listOf(
+      NativeUssdModule(reactContext),
+      SimulationCommandModule(reactContext),
+      LocalNotificationModule(reactContext),
+      ReceiptDownloadModule(reactContext),
+    )
   }
 
   override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {

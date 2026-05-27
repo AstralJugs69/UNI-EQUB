@@ -20,7 +20,7 @@ describe('readLiveFunctionError', () => {
     expect(message).toContain('Worker failed to respond');
   });
 
-  it('formats JSON envelopes with error ids and details', async () => {
+  it('formats JSON envelopes without leaking raw backend details', async () => {
     const response = new Response(JSON.stringify({
       ok: false,
       error: 'Missing group request id.',
@@ -33,7 +33,7 @@ describe('readLiveFunctionError', () => {
     });
 
     await expect(readLiveFunctionError({ context: response }, 'Fallback')).resolves.toBe(
-      'Missing group request id. | code PGRST116 | No rows found | hint: Check requestId (error err-123)',
+      'Missing group request id. (error err-123)',
     );
   });
 });

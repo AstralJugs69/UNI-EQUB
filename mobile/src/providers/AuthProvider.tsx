@@ -28,7 +28,8 @@ interface AuthContextValue {
   requestEmailVerification: (input?: { userId?: string; email?: string }) => Promise<void>;
   verifyEmail: (input: { userId?: string; code: string }) => Promise<{ requiresOtp: boolean }>;
   getOtpGate: (input: { token?: string; phoneNumber?: string }) => Promise<{ requiresOtp: boolean; phoneNumber?: string | null }>;
-  resetPassword: (phoneNumber: string, newPassword: string, otp?: string) => Promise<{ requiresOtp: boolean; reset: boolean }>;
+  requestPasswordResetEmail: (phoneNumber: string) => Promise<void>;
+  resetPassword: (phoneNumber: string, newPassword: string, verification?: { method?: 'Otp' | 'Email'; otp?: string; emailCode?: string }) => Promise<{ requiresOtp: boolean; reset: boolean }>;
   submitPendingKyc: (input: KycSubmissionInput) => Promise<void>;
   submitCurrentKyc: (input: KycSubmissionInput) => Promise<void>;
   switchAccount: (userId: string) => Promise<void>;
@@ -172,7 +173,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return { requiresOtp: response.requiresOtp ?? false };
     },
     getOtpGate: input => services.auth.getOtpGate(input),
-    resetPassword: (phoneNumber, newPassword, otp) => services.auth.resetPassword({ phoneNumber, newPassword, otp }),
+    requestPasswordResetEmail: async phoneNumber => {
+      await services.auth.requestPasswordResetEmail({ phoneNumber });
+    },
+    resetPassword: (phoneNumber, newPassword, verification) => services.auth.resetPassword({
+      phoneNumber,
+      newPassword,
+      verificationMethod: verification?.method,
+      otp: verification?.otp,
+      emailCode: verification?.emailCode,
+    }),
     submitPendingKyc: async input => {
       if (!pendingUser || !pendingKycToken) {
         throw new Error('No pending registration is available.');

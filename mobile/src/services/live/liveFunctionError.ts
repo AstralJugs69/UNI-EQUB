@@ -17,17 +17,7 @@ function withErrorId(message: string, errorId?: string) {
 }
 
 function describeEnvelope(payload: ErrorEnvelope) {
-  const parts = [payload.error].filter(Boolean) as string[];
-  if (payload.errorCode) {
-    parts.push(`code ${payload.errorCode}`);
-  }
-  if (payload.details?.details) {
-    parts.push(payload.details.details);
-  }
-  if (payload.details?.hint) {
-    parts.push(`hint: ${payload.details.hint}`);
-  }
-  return withErrorId(parts.join(' | ') || 'Edge Function request failed.', payload.errorId);
+  return withErrorId(payload.error || 'Edge Function request failed.', payload.errorId);
 }
 
 function headerValue(headers: Headers, name: string) {

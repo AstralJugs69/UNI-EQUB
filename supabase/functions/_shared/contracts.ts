@@ -13,7 +13,7 @@
   };
 }
 
-export type RegisterLoginAction = 'register' | 'requestOtp' | 'verifyOtp' | 'requestEmailVerification' | 'verifyEmail' | 'beginLogin' | 'completeLogin' | 'login' | 'restore' | 'otpGate' | 'resetPassword';
+export type RegisterLoginAction = 'register' | 'requestOtp' | 'verifyOtp' | 'requestEmailVerification' | 'verifyEmail' | 'requestPasswordResetEmail' | 'beginLogin' | 'completeLogin' | 'login' | 'restore' | 'otpGate' | 'resetPassword';
 export type GroupLifecycleAction = 'listBrowseable' | 'getGroup' | 'getGroupStatus' | 'createRequest' | 'listPending' | 'approve' | 'reject' | 'freeze' | 'resolveFreeze' | 'createResolutionPoll' | 'voteResolutionPoll' | 'closeResolutionPoll' | 'decideWinnerExit' | 'join' | 'getDashboard';
 export type GroupFormationAction = 'listPublic' | 'listMine' | 'listPendingApproval' | 'getRequest' | 'lookupInviteCode' | 'createRequest' | 'requestJoin' | 'acceptJoin' | 'removeParticipant' | 'invite' | 'acceptInvite' | 'submitForApproval' | 'adminApprove' | 'adminReject';
 export type ContributionAction = 'payContribution' | 'startContributionUssd' | 'submitContributionUssd' | 'listTransactions' | 'getWallet' | 'reconcileProviderCallback';
@@ -70,7 +70,9 @@ export interface OtpGateRequest {
 export interface ResetPasswordRequest {
   phoneNumber: string;
   newPassword: string;
+  verificationMethod?: 'Otp' | 'Email';
   otp?: string;
+  emailCode?: string;
 }
 
 export interface BeginLoginRequest {
@@ -93,6 +95,7 @@ export interface RegisterLoginPayload {
   verifyOtp?: OtpVerifyRequest;
   requestEmailVerification?: EmailVerificationRequest;
   verifyEmail?: EmailVerifyRequest;
+  requestPasswordResetEmail?: OtpGateRequest;
   otpGate?: OtpGateRequest;
   resetPassword?: ResetPasswordRequest;
   beginLogin?: BeginLoginRequest;
@@ -242,6 +245,19 @@ function errorCode(error: unknown) {
   return undefined;
 }
 
+function publicErrorText(error: unknown, fallback: string) {
+  const code = errorCode(error);
+  const details = errorDetails(error);
+  if (code === 'PGRST116') {
+    const detailText = details?.details?.toLowerCase() ?? '';
+    if (detailText.includes('0 rows') || detailText.includes('no rows')) {
+      return 'The requested record was not found. Refresh and try again.';
+    }
+    return 'This request matched duplicate records. Refresh and try again after the duplicate test data is cleaned.';
+  }
+  return errorText(error, fallback);
+}
+
 function errorDetails(error: unknown) {
   if (typeof error !== 'object' || !error) {
     return undefined;
@@ -307,7 +323,7 @@ export function fail(message: string, status = 400, context?: EdgeErrorContext):
 }
 
 export function failFromError(error: unknown, fallback: string, status = 500, context?: EdgeErrorContext): Response {
-  return fail(errorText(error, fallback), status, {
+  return fail(publicErrorText(error, fallback), status, {
     ...context,
     errorCode: errorCode(error),
     details: publicErrorDetails(error),

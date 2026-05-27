@@ -27,6 +27,8 @@ export async function getContributionObligationForUserRound(roundId: string, use
     .select('*')
     .eq('round_id', roundId)
     .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (error) {

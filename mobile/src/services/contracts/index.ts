@@ -116,11 +116,12 @@ export interface AuthService {
   verifyOtp(phoneNumber: string, otp: string): Promise<{ pendingKycToken?: string }>;
   requestEmailVerification(input: { userId?: string; email?: string }): Promise<EmailVerificationResult>;
   verifyEmail(input: { userId?: string; code: string }): Promise<EmailVerificationResult>;
+  requestPasswordResetEmail(input: { phoneNumber: string }): Promise<EmailVerificationResult>;
   beginLogin(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<LoginChallenge>;
   completeLogin(challengeToken: string, otp: string): Promise<AuthSession>;
   login(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<AuthSession>;
   getOtpGate(input: { token?: string; phoneNumber?: string }): Promise<{ requiresOtp: boolean; phoneNumber?: string | null }>;
-  resetPassword(input: { phoneNumber: string; newPassword: string; otp?: string }): Promise<{ requiresOtp: boolean; reset: boolean }>;
+  resetPassword(input: { phoneNumber: string; newPassword: string; verificationMethod?: 'Otp' | 'Email'; otp?: string; emailCode?: string }): Promise<{ requiresOtp: boolean; reset: boolean }>;
   restore(token: string): Promise<AuthSession | null>;
   logout(): Promise<void>;
 }

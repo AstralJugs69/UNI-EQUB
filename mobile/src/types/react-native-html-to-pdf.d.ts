@@ -13,11 +13,5 @@ declare module 'react-native-html-to-pdf' {
     base64?: string;
   }
 
-  const RNHTMLtoPDF: {
-    convert(options: PdfOptions): Promise<PdfResult>;
-  };
-
-  export default RNHTMLtoPDF;
+  export function generatePDF(options: PdfOptions): Promise<PdfResult>;
 }
-
-declare function require(name: string): any;

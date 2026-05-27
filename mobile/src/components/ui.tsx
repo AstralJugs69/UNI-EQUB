@@ -44,6 +44,7 @@ export function AppScreen({
     <ScrollView
       contentContainerStyle={[styles.screenContent, contentStyle]}
       showsVerticalScrollIndicator={false}
+      keyboardDismissMode="on-drag"
       keyboardShouldPersistTaps="handled"
       refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.primary} colors={[palette.primary]} /> : undefined}
     >
@@ -54,7 +55,7 @@ export function AppScreen({
   );
 
   return (
-    <SafeAreaView style={[styles.screenRoot, { backgroundColor: themedBackground }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.screenRoot, { backgroundColor: themedBackground }]} edges={['top', 'bottom', 'left', 'right']}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={themedBackground} />
       {body}
       {footer ? <View style={[styles.footerWrap, footerFlush && styles.footerWrapFlush]}>{footer}</View> : null}

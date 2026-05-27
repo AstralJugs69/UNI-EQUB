@@ -39,7 +39,6 @@ export function useRefreshMemberData() {
         queryClient.invalidateQueries({ queryKey: queryKeys.history }),
         queryClient.invalidateQueries({ queryKey: queryKeys.wallet }),
         queryClient.invalidateQueries({ queryKey: queryKeys.notifications }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.profile }),
       ]);
       await queryClient.invalidateQueries({
         predicate: query => Array.isArray(query.queryKey) && (
@@ -153,6 +152,10 @@ export function useProfileQuery() {
     queryKey: queryKeys.profile,
     enabled: !!session,
     queryFn: () => services.profile.getProfile(session!.user.userId),
+    staleTime: Infinity,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -161,6 +164,8 @@ export function useAccountSlotsQuery() {
   return useQuery({
     queryKey: queryKeys.accountSlots,
     queryFn: () => services.accounts.listSlots(),
+    staleTime: Infinity,
+    refetchOnMount: false,
   });
 }
 

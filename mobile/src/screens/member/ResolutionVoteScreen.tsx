@@ -67,6 +67,18 @@ function VoteBreakdown({ poll }: { poll: GroupResolutionPollSummary }) {
   );
 }
 
+function VoteStat({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <View style={styles.voteStat}>
+      <View style={styles.voteStatIcon}>
+        <Icon name={icon} size={16} color={palette.primary} />
+      </View>
+      <Text style={styles.voteStatLabel} numberOfLines={1}>{label}</Text>
+      <Text style={styles.voteStatValue} numberOfLines={1}>{value}</Text>
+    </View>
+  );
+}
+
 export function ResolutionVoteScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const groupId = route.params?.groupId ?? '';
@@ -78,15 +90,21 @@ export function ResolutionVoteScreen({ route }: any) {
   const poll = status?.activeResolutionPoll ?? null;
   const latestPoll = status?.latestResolutionPoll ?? poll;
   const selectedOption = poll?.options.find(option => option.id === selectedOptionId) ?? null;
+  const currentUserVote = poll?.currentUserVote ?? null;
+  const currentUserOption = poll?.options.find(option => option.id === currentUserVote?.option_id) ?? null;
   const winner = latestPoll ? winningOption(latestPoll) : null;
   const totalVotes = latestPoll ? Object.values(latestPoll.voteCounts).reduce((sum, count) => sum + count, 0) : 0;
   const approvalRate = latestPoll && totalVotes > 0 && winner ? Math.round(((latestPoll.voteCounts[winner.id] ?? 0) / totalVotes) * 100) : 0;
 
   useEffect(() => {
+    if (currentUserVote?.option_id && selectedOptionId !== currentUserVote.option_id) {
+      setSelectedOptionId(currentUserVote.option_id);
+      return;
+    }
     if (!selectedOptionId && poll?.options[0]) {
       setSelectedOptionId(poll.options[0].id);
     }
-  }, [poll?.options, selectedOptionId]);
+  }, [currentUserVote?.option_id, poll?.options, selectedOptionId]);
 
   if (!groupId || !status) {
     return <LoadingState title="Loading vote" subtitle="Opening the current group resolution state." />;
@@ -142,28 +160,44 @@ export function ResolutionVoteScreen({ route }: any) {
   return (
     <AppScreen>
       <TopAppBar title="Round Resolution Vote" onBack={() => navigation.goBack()} rightLabel="Open" />
-      <SectionCard>
+      <SectionCard variant="raised" style={styles.voteHero}>
         <View style={styles.voteIntro}>
           <View style={styles.voteIntroIcon}>
             <Icon name="gpp-maybe" size={iconSize.md} color={palette.primary} />
           </View>
-          <Text style={styles.voteIntroText}>
-            {poll.poll.metadata?.source === 'roundLifecycle.cycleComplete'
-              ? 'This Equb cycle has completed. Eligible members must vote on whether to continue, refund, or escalate.'
-              : 'A paused contribution case needs a member decision before the group can move forward.'}
-          </Text>
+          <View style={styles.voteIntroCopy}>
+            <Text style={styles.voteIntroTitle}>{poll.poll.metadata?.source === 'roundLifecycle.cycleComplete' ? 'Cycle decision required' : 'Paused round decision'}</Text>
+            <Text style={styles.voteIntroText}>
+              {poll.poll.metadata?.source === 'roundLifecycle.cycleComplete'
+                ? 'Vote to continue, refund, or escalate this completed cycle.'
+                : 'Choose the next step before this group can move forward.'}
+            </Text>
+          </View>
         </View>
         <View style={styles.voteMetrics}>
-          <MetricTile label="Eligible voters" value={String(poll.eligibleVoterCount)} />
-          <MetricTile label="Votes cast" value={`${Object.values(poll.voteCounts).reduce((sum, count) => sum + count, 0)}/${poll.eligibleVoterCount}`} />
-          <MetricTile label="Ends in" value={formatTimeLeft(poll.poll.closes_at)} />
+          <VoteStat icon="groups" label="Voters" value={String(poll.eligibleVoterCount)} />
+          <VoteStat icon="donut-large" label="Cast" value={`${Object.values(poll.voteCounts).reduce((sum, count) => sum + count, 0)}/${poll.eligibleVoterCount}`} />
+          <VoteStat icon="schedule" label="Ends" value={formatTimeLeft(poll.poll.closes_at)} />
         </View>
       </SectionCard>
       <Text style={styles.sectionHeading}>Vote on the next action</Text>
+      {currentUserVote ? (
+        <StatusBanner
+          tone="success"
+          title="Vote recorded"
+          body={currentUserOption ? `You voted for "${currentUserOption.option_label}". The group will update when voting closes or reaches a majority.` : 'Your vote is already recorded for this round.'}
+        />
+      ) : null}
       {poll.options.map((option, index) => {
         const selected = selectedOptionId === option.id;
         return (
-          <Pressable key={option.id} accessibilityRole="radio" onPress={() => setSelectedOptionId(option.id)} style={[styles.optionCard, selected && styles.optionCardSelected]}>
+          <Pressable
+            key={option.id}
+            accessibilityRole="radio"
+            disabled={!!currentUserVote}
+            onPress={() => setSelectedOptionId(option.id)}
+            style={[styles.optionCard, selected && styles.optionCardSelected, currentUserVote && !selected && styles.optionCardDisabled]}
+          >
             <View style={[styles.radio, selected && styles.radioSelected]}>
               {selected ? <View style={styles.radioDot} /> : null}
             </View>
@@ -180,17 +214,24 @@ export function ResolutionVoteScreen({ route }: any) {
       })}
       <InlineError message={error} />
       <PrimaryCTA
-        label="Submit Vote"
+        label={currentUserVote ? 'Voted' : 'Submit Vote'}
         icon="how-to-vote"
         loading={voteResolutionPoll.isPending}
-        disabled={!selectedOption}
+        disabled={!selectedOption || !!currentUserVote}
         onPress={() => {
           if (!selectedOption) {
             return;
           }
           setError('');
           voteResolutionPoll.mutate({ groupId, pollId: poll.poll.id, optionId: selectedOption.id }, {
-            onError: err => setError(err instanceof Error ? err.message : 'Unable to submit vote.'),
+            onError: err => {
+              const message = err instanceof Error ? err.message : 'Unable to submit vote.';
+              if (message.toLowerCase().includes('already voted')) {
+                setError('');
+                return;
+              }
+              setError(message);
+            },
           });
         }}
       />
@@ -207,29 +248,76 @@ export function ResolutionVoteScreen({ route }: any) {
 }
 
 const styles = StyleSheet.create({
+  voteHero: {
+    gap: spacing.md,
+  },
   voteIntro: {
     flexDirection: 'row',
-    gap: spacing.md,
-    alignItems: 'center',
+    gap: spacing.sm,
+    alignItems: 'flex-start',
   },
   voteIntroIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: palette.primarySoft,
   },
-  voteIntroText: {
+  voteIntroCopy: {
     flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  voteIntroTitle: {
     color: palette.text,
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: '900',
+  },
+  voteIntroText: {
+    color: palette.textMuted,
+    fontSize: 13,
     fontWeight: '700',
-    lineHeight: 21,
+    lineHeight: 18,
   },
   voteMetrics: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md,
+    gap: spacing.xs,
+  },
+  voteStat: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 82,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.sm,
+    justifyContent: 'center',
+    gap: 3,
+  },
+  voteStatIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.primarySoft,
+    marginBottom: 2,
+  },
+  voteStatLabel: {
+    color: palette.textMuted,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  voteStatValue: {
+    color: palette.text,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '900',
   },
   sectionHeading: {
     marginTop: spacing.md,
@@ -252,6 +340,9 @@ const styles = StyleSheet.create({
   optionCardSelected: {
     borderColor: palette.primary,
     backgroundColor: '#f5f9ff',
+  },
+  optionCardDisabled: {
+    opacity: 0.68,
   },
   radio: {
     width: 22,

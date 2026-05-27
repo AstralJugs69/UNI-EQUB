@@ -9,6 +9,8 @@ export async function getReliabilityProfile(userId: string) {
     .from('user_reliability_profiles')
     .select('*')
     .eq('user_id', userId)
+    .order('updated_at', { ascending: false, nullsFirst: false })
+    .limit(1)
     .maybeSingle();
 
   if (error) {
@@ -263,6 +265,8 @@ export async function ensureActiveRestriction(input: {
     .eq('user_id', input.userId)
     .eq('restriction_type', input.restrictionType)
     .eq('status', 'Active')
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (existingError) {

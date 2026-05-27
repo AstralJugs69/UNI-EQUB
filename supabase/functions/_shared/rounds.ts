@@ -10,6 +10,7 @@ export async function getOpenRound(groupId: string) {
     .eq('Group_ID', groupId)
     .eq('Status', 'Open')
     .order('Round_Number', { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (error) {
     throw error;

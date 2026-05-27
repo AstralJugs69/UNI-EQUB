@@ -47,6 +47,10 @@ export const liveAuthService: AuthService = {
     return invoke({ action: 'verifyEmail', verifyEmail: { ...input, token: token ?? undefined } });
   },
 
+  async requestPasswordResetEmail(input) {
+    return invoke({ action: 'requestPasswordResetEmail', requestPasswordResetEmail: input });
+  },
+
   async beginLogin(input: LoginInput, roleHint?: 'Member' | 'Admin'): Promise<LoginChallenge> {
     const session = await invoke<AuthSession>({ action: 'beginLogin', beginLogin: { ...input, roleHint } });
     return { challengeToken: session.token, phoneNumber: session.user.phoneNumber };

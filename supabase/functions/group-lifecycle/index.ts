@@ -170,7 +170,14 @@ async function listActiveMemberships(groupId: string) {
 }
 
 async function getMembership(groupId: string, userId: string) {
-  const { data, error } = await supabaseAdmin.from('GroupMembers').select('*').eq('Group_ID', groupId).eq('User_ID', userId).maybeSingle();
+  const { data, error } = await supabaseAdmin
+    .from('GroupMembers')
+    .select('*')
+    .eq('Group_ID', groupId)
+    .eq('User_ID', userId)
+    .order('Joined_At', { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
   if (error) {
     throw error;
   }
@@ -564,8 +571,10 @@ Deno.serve(async request => {
     return fail('Method not allowed', 405);
   }
 
+  let actionName: string | undefined;
   try {
     const body = (await request.json()) as GroupLifecyclePayload;
+    actionName = body.action;
     const actor = await requireActor(body.token);
 
     switch (body.action) {
@@ -814,6 +823,6 @@ Deno.serve(async request => {
         return fail('Unsupported group lifecycle action.', 400);
     }
   } catch (error) {
-    return failFromError(error, 'Unexpected group lifecycle error.', 500, { functionName: 'group-lifecycle' });
+    return failFromError(error, 'Unexpected group lifecycle error.', 500, { functionName: 'group-lifecycle', action: actionName });
   }
 });

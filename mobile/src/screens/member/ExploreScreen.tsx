@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Icon } from '../../components/Icon';
 import { AppScreen, InlineError, SectionCard, StatusBanner } from '../../components/ui';
@@ -11,6 +11,10 @@ import { ExploreSmallPill, FormingRequestCard } from './FormingRequestCard';
 import { formatCurrency } from './shared';
 import { memberStyles } from './styles';
 import { browseableJoinWindowGroups } from './uxState';
+
+function searchable(value: unknown) {
+  return String(value ?? '').toLowerCase();
+}
 
 function ExploreHero({ onJoinCode, onCreate, onBrowse }: { onJoinCode: () => void; onCreate: () => void; onBrowse: () => void }) {
   return (
@@ -105,11 +109,68 @@ export function ExploreScreen() {
   const { data: myRequests = [], error: myRequestsError } = useMyFormationGroupsQuery();
   const { refreshing, refreshMemberData } = useRefreshMemberData();
   const [browseHintVisible, setBrowseHintVisible] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
   const joinWindowGroups = browseableJoinWindowGroups(data);
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredFormingGroups = React.useMemo(() => {
+    if (!normalizedSearch) {
+      return formingGroups;
+    }
+    return formingGroups.filter(request => [
+      request.proposed_group_name,
+      request.description,
+      request.frequency,
+      request.visibility,
+      request.status,
+      request.contribution_amount,
+      request.max_members,
+    ].some(value => searchable(value).includes(normalizedSearch)));
+  }, [formingGroups, normalizedSearch]);
+  const filteredJoinWindowGroups = React.useMemo(() => {
+    if (!normalizedSearch) {
+      return joinWindowGroups;
+    }
+    return joinWindowGroups.filter(group => [
+      group.Group_Name,
+      group.Description,
+      group.Frequency,
+      group.Status,
+      group.Amount,
+      group.Max_Members,
+    ].some(value => searchable(value).includes(normalizedSearch)));
+  }, [joinWindowGroups, normalizedSearch]);
+  const resultCount = filteredFormingGroups.length + filteredJoinWindowGroups.length;
 
   return (
     <AppScreen refreshing={refreshing} onRefresh={refreshMemberData}>
       <Text style={memberStyles.exploreTitle}>Explore</Text>
+      <View style={memberStyles.exploreSearchShell}>
+        <View style={memberStyles.exploreSearchIcon}>
+          <Icon name="search" size={iconSize.sm} color={palette.primary} />
+        </View>
+        <TextInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search groups, amount, cadence..."
+          placeholderTextColor={palette.textSoft}
+          style={memberStyles.exploreSearchInput}
+          returnKeyType="search"
+        />
+        {searchQuery ? (
+          <Pressable accessibilityRole="button" onPress={() => setSearchQuery('')} style={memberStyles.exploreSearchClear}>
+            <Icon name="close" size={iconSize.sm} color={palette.textMuted} />
+          </Pressable>
+        ) : null}
+      </View>
+      {normalizedSearch ? (
+        <View style={memberStyles.exploreSearchSummary}>
+          <Text style={memberStyles.exploreSearchSummaryText}>{resultCount} result{resultCount === 1 ? '' : 's'} for "{searchQuery.trim()}"</Text>
+          <View style={memberStyles.rowWrap}>
+            <ExploreSmallPill label={`${filteredFormingGroups.length} forming`} />
+            <ExploreSmallPill label={`${filteredJoinWindowGroups.length} join windows`} />
+          </View>
+        </View>
+      ) : null}
       <ExploreHero
         onJoinCode={() => navigation.navigate(routes.formationJoinCode)}
         onCreate={() => navigation.navigate(routes.createBasics)}
@@ -135,9 +196,9 @@ export function ExploreScreen() {
       <SectionCard style={memberStyles.exploreFormingPanel}>
         <Text style={memberStyles.exploreSectionTitle}>Forming groups</Text>
         <InlineError message={formingError instanceof Error ? formingError.message : ''} />
-        {formingGroups.length ? (
+        {filteredFormingGroups.length ? (
           <View style={memberStyles.exploreCardList}>
-            {formingGroups.map(request => (
+            {filteredFormingGroups.map(request => (
               <FormingRequestCard
                 key={request.id}
                 request={request}
@@ -150,23 +211,23 @@ export function ExploreScreen() {
             <View style={memberStyles.exploreEmptyIcon}>
               <Icon name="group-add" size={32} color={palette.primary} />
             </View>
-            <Text style={memberStyles.exploreEmptyTitle}>No forming groups yet</Text>
-            <Text style={memberStyles.exploreEmptyBody}>Public group requests will appear here while creators gather enough accepted members.</Text>
+            <Text style={memberStyles.exploreEmptyTitle}>{normalizedSearch ? 'No forming matches' : 'No forming groups yet'}</Text>
+            <Text style={memberStyles.exploreEmptyBody}>{normalizedSearch ? 'Try a group name, contribution amount, or cadence.' : 'Public group requests will appear here while creators gather enough accepted members.'}</Text>
           </View>
         )}
       </SectionCard>
       <Text style={memberStyles.exploreSectionHeading}>Join windows</Text>
-      {!joinWindowGroups.length ? (
+      {!filteredJoinWindowGroups.length ? (
         <View style={memberStyles.exploreEmptyCard}>
           <View style={memberStyles.exploreEmptyIcon}>
             <Icon name="travel-explore" size={32} color={palette.primary} />
           </View>
-          <Text style={memberStyles.exploreEmptyTitle}>No join windows open</Text>
-          <Text style={memberStyles.exploreEmptyBody}>Approved groups appear here only before their contribution cycle starts. Active cycles stay locked to their current members.</Text>
+          <Text style={memberStyles.exploreEmptyTitle}>{normalizedSearch ? 'No join-window matches' : 'No join windows open'}</Text>
+          <Text style={memberStyles.exploreEmptyBody}>{normalizedSearch ? 'Try a different search or clear the filter.' : 'Approved groups appear here only before their contribution cycle starts. Active cycles stay locked to their current members.'}</Text>
         </View>
       ) : (
         <View style={memberStyles.exploreCardList}>
-          {joinWindowGroups.map(group => (
+          {filteredJoinWindowGroups.map(group => (
             <ApprovedGroupCard
               key={group.Group_ID}
               group={group}

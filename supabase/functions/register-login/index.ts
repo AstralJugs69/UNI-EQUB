@@ -13,9 +13,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function findUserByPhone(phoneNumber: string) {
+async function findUserByPhone(phoneNumber: string, roleHint?: 'Member' | 'Admin') {
   const normalized = normalizePhone(phoneNumber);
-  const { data, error } = await supabaseAdmin.from('User').select('*').eq('Phone_Number', normalized).maybeSingle();
+  let query = supabaseAdmin.from('User').select('*').eq('Phone_Number', normalized);
+  if (roleHint) {
+    query = query.eq('Role', roleHint);
+  }
+  const { data, error } = await query
+    .order('Created_At', { ascending: false })
+    .limit(1)
+    .maybeSingle();
   if (error) {
     throw error;
   }
@@ -35,12 +42,18 @@ function validateFullName(name: string) {
   return /^[\p{L}][\p{L} .'-]{1,78}$/u.test(compact) && !/\d/.test(compact) && compact.split(' ').filter(Boolean).length >= 2;
 }
 
-async function findUserByEmail(email: string) {
+async function findUserByEmail(email: string, roleHint?: 'Member' | 'Admin') {
   const normalized = normalizeEmail(email);
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from('User')
     .select('*')
-    .ilike('Email', normalized)
+    .ilike('Email', normalized);
+  if (roleHint) {
+    query = query.eq('Role', roleHint);
+  }
+  const { data, error } = await query
+    .order('Created_At', { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (error) {
     throw error;
@@ -48,12 +61,12 @@ async function findUserByEmail(email: string) {
   return data as UserRecord | null;
 }
 
-async function findLoginUser(input: { email?: string; phoneNumber?: string }) {
+async function findLoginUser(input: { email?: string; phoneNumber?: string }, roleHint?: 'Member' | 'Admin') {
   if (input.email?.trim()) {
-    return findUserByEmail(input.email);
+    return findUserByEmail(input.email, roleHint);
   }
   if (input.phoneNumber?.trim()) {
-    return findUserByPhone(input.phoneNumber);
+    return findUserByPhone(input.phoneNumber, roleHint);
   }
   return null;
 }
@@ -126,7 +139,7 @@ async function resolveEmailVerificationUser(input?: { token?: string; userId?: s
 }
 
 async function validateCredentials(input: { email?: string; phoneNumber?: string; password: string }, roleHint?: 'Member' | 'Admin') {
-  const user = await findLoginUser(input);
+  const user = await findLoginUser(input, roleHint);
   if (!user) {
     return { error: 'Invalid email, phone number, or password.', user: null as UserRecord | null };
   }
@@ -245,6 +258,22 @@ Deno.serve(async request => {
         }));
       }
 
+      case 'requestPasswordResetEmail': {
+        const user = await resolveOtpGateUser(body.requestPasswordResetEmail);
+        if (!user) {
+          return fail('No account was found for these reset details.', 404);
+        }
+        const email = normalizeEmail(user.Email ?? '');
+        if (!email) {
+          return fail('Add an email address before using email password reset.', 400);
+        }
+        return json(await createAndSendEmailVerification({
+          user,
+          email,
+          purpose: 'PasswordReset',
+        }));
+      }
+
       case 'verifyEmail': {
         if (!body.verifyEmail?.code) {
           return fail('Missing email verification code.', 400);
@@ -278,8 +307,14 @@ Deno.serve(async request => {
         if (!user) {
           return fail('No account was found for this phone number.', 404);
         }
+        const method = body.resetPassword.verificationMethod ?? 'Otp';
         const requiresOtp = await requiresTestingOtpGate(user);
-        if (requiresOtp) {
+        if (method === 'Email') {
+          if (!body.resetPassword.emailCode) {
+            return fail('Email verification code is required to reset this password.', 400);
+          }
+          await verifyEmailCode({ userId: user.User_ID, code: body.resetPassword.emailCode, purpose: 'PasswordReset' });
+        } else if (requiresOtp) {
           if (!body.resetPassword.otp) {
             return fail('OTP is required to reset this password.', 400);
           }

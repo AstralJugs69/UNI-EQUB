@@ -46,7 +46,12 @@ const linking = {
   config: {
     screens: {
       [routes.formationDetail]: 'formation/:requestId',
-      [routes.formationJoinCode]: 'join-code/:inviteCode',
+      [routes.formationJoinCode]: {
+        path: 'join-code/:inviteCode?',
+        parse: {
+          inviteCode: (value: string) => value?.trim().toUpperCase(),
+        },
+      },
       [routes.groupDetail]: 'group/:groupId',
       [routes.emailVerify]: 'verify-email',
       [routes.memberTabs]: {

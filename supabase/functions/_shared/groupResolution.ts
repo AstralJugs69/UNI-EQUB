@@ -667,6 +667,8 @@ export async function voteOnResolutionPoll(input: {
     .select('*')
     .eq('poll_id', poll.id)
     .eq('voter_user_id', input.voter.User_ID)
+    .order('voted_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (existingError) {
     throw existingError;
